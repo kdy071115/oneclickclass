@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@1.3.9/dist/web/static/pretendard.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&family=Jua&family=Black+Han+Sans&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #E7E4DD; font-family: "Pretendard", -apple-system, sans-serif; }
+  .dv-turn { padding: 48px 52px; }
+  .dv-thd { display: flex; align-items: baseline; gap: 10px; margin: 0 0 8px; }
+  .dv-tid { font: 700 11px ui-monospace, Menlo, monospace; padding: 4px 9px; background: #1a1a1a; color: #fff; border-radius: 5px; text-decoration: none; }
+  .dv-tname { font: 800 15px/1.2 "Pretendard", sans-serif; color: #1a1a1a; }
+  .dv-tsub { font: 500 13px/1.5 "Pretendard", sans-serif; color: rgba(0,0,0,.5); margin: 0 0 28px; }
+  .dv-opts { display: flex; flex-wrap: wrap; gap: 40px; align-items: flex-start; }
+  .dv-opt { flex: none; display: flex; flex-direction: column; gap: 14px; scroll-margin-top: 16px; }
+  .dv-oid { font: 700 11px ui-monospace, Menlo, monospace; padding: 4px 9px; background: rgba(0,0,0,.1); color: #1a1a1a; border-radius: 6px; text-decoration: none; }
+  .dv-olabel { display: flex; align-items: center; gap: 10px; font: 600 15px/1.3 "Pretendard", sans-serif; color: #1a1a1a; }
+  .dv-odesc { font: 500 13px/1.5 "Pretendard", sans-serif; color: rgba(0,0,0,.5); max-width: 640px; margin: -4px 0 4px; }
+  .dv-pair { display: flex; gap: 18px; }
+  .dv-cap { font: 600 12px "Pretendard", sans-serif; color: rgba(0,0,0,.45); margin-bottom: 8px; text-align: center; }
+  .dv-opt:target .dv-oid { background: #2a78d6; color: #fff; }
+  .dv-next { margin: 30px 0 0; font: 500 13px/1.7 "Pretendard", sans-serif; color: rgba(0,0,0,.5); }
+  .ph { width: 300px; background: #000; border-radius: 42px; padding: 7px; box-shadow: 0 24px 50px -18px rgba(0,0,0,.35); }
+  .ph-in { position: relative; width: 100%; height: 600px; border-radius: 35px; overflow: hidden; }
+  .sb { position: absolute; top: 0; left: 0; right: 0; height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; z-index: 5; font-size: 13px; font-weight: 700; }
+  .sb b { font-weight: 800; }
+  .body { position: absolute; inset: 0; overflow: hidden; }
+</style>
+</helmet>
+
+<section class="dv-turn" id="t2">
+  <div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">스타일 추가 · 파스텔 & Y2K</span></div>
+  <p class="dv-tsub">두 가지 방향을 더. 앞선 <a class="dv-oid" href="#1a">1a</a>·<a class="dv-oid" href="#1b">1b</a>·<a class="dv-oid" href="#1c">1c</a>와 함께 비교하세요.</p>
+  <div class="dv-opts">
+
+    <!-- ============ 2a — PASTEL FRIENDLY ============ -->
+    <div class="dv-opt" id="2a">
+      <div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a>파스텔 프렌들리 · 마스코트</div>
+      <div class="dv-odesc">파스텔 배경, 둥근 폰트, 말랑한 마스코트와 큰 라운드 카드. 취미·원데이 클래스에 친근하고 다정한 톤.</div>
+      <div class="dv-pair">
+        <div>
+          <div class="dv-cap">홈</div>
+          <div class="ph"><div class="ph-in" style="background:linear-gradient(180deg,#EAF3FF,#FDF3F8);font-family:'Pretendard',sans-serif;">
+            <div class="sb" style="color:#5A6B8C;"><b>9:41</b><span>●●● ⧗ ▮</span></div>
+            <div class="body" style="padding:50px 18px 0;">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div style="font-family:'Jua',sans-serif;font-size:19px;color:#7C9CFF;">원클릭 클래스</div>
+                <div style="width:38px;height:38px;border-radius:50%;background:#FFE1EC;"></div>
+              </div>
+              <div style="background:#fff;border-radius:26px;padding:18px;margin-top:16px;display:flex;align-items:center;gap:14px;box-shadow:0 8px 24px rgba(124,156,255,.14);">
+                <div style="width:52px;height:52px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#BFD4FF,#8FB0FF);position:relative;flex:none;"><div style="position:absolute;top:20px;left:14px;width:5px;height:5px;border-radius:50%;background:#3a3a5a;"></div><div style="position:absolute;top:20px;right:14px;width:5px;height:5px;border-radius:50%;background:#3a3a5a;"></div><div style="position:absolute;bottom:14px;left:50%;transform:translateX(-50%);width:12px;height:6px;border-radius:0 0 8px 8px;background:#FF9DBB;"></div></div>
+                <div><div style="font-family:'Jua',sans-serif;font-size:17px;color:#4A5878;">안녕하세요, 지훈님!</div><div style="font-size:12px;color:#98A6C4;margin-top:2px;">오늘도 화이팅이에요 ✨</div></div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;">
+                <div style="background:#DFEBFF;border-radius:22px;padding:15px;"><div style="font-size:12px;color:#6B84B8;font-weight:700;">오늘 신청자</div><div style="font-family:'Jua',sans-serif;font-size:26px;color:#4A5878;margin-top:4px;">12명</div></div>
+                <div style="background:#FFE3EE;border-radius:22px;padding:15px;"><div style="font-size:12px;color:#C4708F;font-weight:700;">오늘 강의</div><div style="font-family:'Jua',sans-serif;font-size:26px;color:#8C4A66;margin-top:4px;">2개</div></div>
+              </div>
+              <div style="background:#FFF4D6;border-radius:22px;padding:15px;margin-top:10px;"><div style="font-size:12px;color:#B58B3A;font-weight:700;">결제 대기 💰</div><div style="font-family:'Jua',sans-serif;font-size:17px;color:#8A6A28;margin-top:3px;">3건 · 135,000원</div></div>
+              <div style="font-family:'Jua',sans-serif;font-size:16px;color:#4A5878;margin-top:18px;">모집중인 클래스</div>
+              <div style="background:#fff;border-radius:22px;padding:13px;margin-top:10px;display:flex;gap:12px;align-items:center;box-shadow:0 6px 18px rgba(124,156,255,.12);"><div style="width:48px;height:48px;border-radius:16px;background:linear-gradient(135deg,#A6C3FF,#C9B6FF);flex:none;"></div><div style="flex:1;"><div style="font-size:13px;font-weight:700;color:#4A5878;">노션 업무 자동화</div><div style="height:8px;border-radius:4px;background:#EDF1FA;margin-top:7px;"><div style="width:80%;height:100%;border-radius:4px;background:#7C9CFF;"></div></div></div></div>
+            </div>
+            <div style="position:absolute;bottom:0;left:0;right:0;height:64px;background:#fff;border-top:1px solid #EEF2FA;display:flex;align-items:center;justify-content:space-around;">
+              <div style="font-size:10px;color:#7C9CFF;font-weight:700;">홈</div><div style="font-size:10px;color:#B7C1D6;">클래스</div>
+              <div style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#7C9CFF,#A98CFF);color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;margin-top:-14px;box-shadow:0 8px 18px rgba(124,156,255,.4);">＋</div>
+              <div style="font-size:10px;color:#B7C1D6;">신청자</div><div style="font-size:10px;color:#B7C1D6;">마이</div>
+            </div>
+          </div></div>
+        </div>
+        <div>
+          <div class="dv-cap">강의 만들기</div>
+          <div class="ph"><div class="ph-in" style="background:linear-gradient(180deg,#EAF3FF,#FDF3F8);font-family:'Pretendard',sans-serif;">
+            <div class="sb" style="color:#5A6B8C;"><b>9:41</b><span>●●● ⧗ ▮</span></div>
+            <div class="body" style="padding:50px 18px 0;">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;"><span style="font-size:20px;color:#7C9CFF;">‹</span><div style="flex:1;height:10px;border-radius:5px;background:#fff;"><div style="width:20%;height:100%;border-radius:5px;background:#7C9CFF;"></div></div><span style="font-size:12px;font-weight:700;color:#98A6C4;">1/5</span></div>
+              <div style="width:60px;height:60px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#BFD4FF,#8FB0FF);position:relative;margin-bottom:14px;"><div style="position:absolute;top:24px;left:16px;width:6px;height:6px;border-radius:50%;background:#3a3a5a;"></div><div style="position:absolute;top:24px;right:16px;width:6px;height:6px;border-radius:50%;background:#3a3a5a;"></div><div style="position:absolute;bottom:16px;left:50%;transform:translateX(-50%);width:14px;height:7px;border-radius:0 0 9px 9px;background:#FF9DBB;"></div></div>
+              <div style="font-family:'Jua',sans-serif;font-size:23px;color:#4A5878;line-height:1.35;">어떤 형태의<br>강의인가요?</div>
+              <div style="font-size:13px;color:#98A6C4;margin:8px 0 22px;">편하게 골라주세요 🙂</div>
+              <div style="background:#DFEBFF;border:2px solid #7C9CFF;border-radius:22px;padding:16px;display:flex;gap:12px;align-items:center;margin-bottom:12px;"><div style="width:38px;height:38px;border-radius:12px;background:#fff;flex:none;"></div><div style="font-family:'Jua',sans-serif;font-size:16px;color:#4A5878;">온라인</div></div>
+              <div style="background:#fff;border-radius:22px;padding:16px;display:flex;gap:12px;align-items:center;margin-bottom:12px;"><div style="width:38px;height:38px;border-radius:12px;background:#FFE3EE;flex:none;"></div><div style="font-family:'Jua',sans-serif;font-size:16px;color:#98A6C4;">라이브</div></div>
+              <div style="background:#fff;border-radius:22px;padding:16px;display:flex;gap:12px;align-items:center;"><div style="width:38px;height:38px;border-radius:12px;background:#DCF6E8;flex:none;"></div><div style="font-family:'Jua',sans-serif;font-size:16px;color:#98A6C4;">오프라인</div></div>
+            </div>
+            <div style="position:absolute;bottom:20px;left:18px;right:18px;height:54px;border-radius:20px;background:linear-gradient(135deg,#7C9CFF,#A98CFF);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Jua',sans-serif;font-size:17px;box-shadow:0 8px 18px rgba(124,156,255,.35);">다음</div>
+          </div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 2b — NEO Y2K RETRO ============ -->
+    <div class="dv-opt" id="2b">
+      <div class="dv-olabel"><a class="dv-oid" href="#2b">2b</a>네오 Y2K · 레트로</div>
+      <div class="dv-odesc">비비드 원색, 스티커·픽셀 요소, 두꺼운 디스플레이 폰트, 노이즈 대비. Z세대 타깃의 재미 위주 톤.</div>
+      <div class="dv-pair">
+        <div>
+          <div class="dv-cap">홈</div>
+          <div class="ph"><div class="ph-in" style="background:#1A1230;font-family:'Pretendard',sans-serif;">
+            <div class="sb" style="color:#EAE0FF;"><b>9:41</b><span>●●● ⧗ ▮</span></div>
+            <div class="body" style="padding:50px 16px 0;">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div style="font-family:'Black Han Sans',sans-serif;font-size:20px;color:#00F0FF;text-shadow:2px 2px 0 #FF00A8;">원클릭클래스</div>
+                <div style="width:36px;height:36px;border-radius:10px;background:#FFE500;border:2px solid #000;"></div>
+              </div>
+              <div style="background:linear-gradient(120deg,#FF00A8,#7A2BFF);border:2px solid #00F0FF;border-radius:18px;padding:16px;margin-top:16px;box-shadow:0 0 0 2px #000, 4px 4px 0 #00F0FF;">
+                <div style="font-family:'Black Han Sans',sans-serif;font-size:24px;color:#fff;line-height:1.1;">안녕! 지훈 ⚡</div>
+                <div style="font-size:12px;color:#FFD6F2;margin-top:4px;font-weight:600;">오늘도 렛츠고 🚀</div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;">
+                <div style="background:#00F0FF;border:2px solid #000;border-radius:14px;padding:13px;box-shadow:3px 3px 0 #000;"><div style="font-size:11px;font-weight:800;color:#003;">오늘 신청자</div><div style="font-family:'Black Han Sans',sans-serif;font-size:28px;color:#001;">12</div></div>
+                <div style="background:#FFE500;border:2px solid #000;border-radius:14px;padding:13px;box-shadow:3px 3px 0 #000;"><div style="font-size:11px;font-weight:800;color:#331;">오늘 강의</div><div style="font-family:'Black Han Sans',sans-serif;font-size:28px;color:#221;">2</div></div>
+              </div>
+              <div style="background:#00FF9D;border:2px solid #000;border-radius:14px;padding:13px;margin-top:10px;box-shadow:3px 3px 0 #000;"><div style="font-size:11px;font-weight:800;color:#013;">결제 대기 💸</div><div style="font-family:'Black Han Sans',sans-serif;font-size:18px;color:#012;">3건 · 135,000원</div></div>
+              <div style="font-family:'Black Han Sans',sans-serif;font-size:16px;color:#00F0FF;margin-top:18px;">✦ 모집중 클래스</div>
+              <div style="background:#2A1E4A;border:2px solid #FF00A8;border-radius:14px;padding:12px;margin-top:10px;display:flex;gap:12px;align-items:center;"><div style="width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#00F0FF,#7A2BFF);border:2px solid #000;flex:none;"></div><div style="flex:1;"><div style="font-size:13px;font-weight:800;color:#fff;">노션 업무 자동화</div><div style="height:8px;border:2px solid #000;background:#120C24;margin-top:6px;border-radius:4px;"><div style="width:80%;height:100%;background:#FFE500;"></div></div></div></div>
+            </div>
+            <div style="position:absolute;bottom:0;left:0;right:0;height:60px;background:#120C24;border-top:2px solid #FF00A8;display:flex;align-items:center;justify-content:space-around;">
+              <div style="font-size:10px;font-weight:800;color:#00F0FF;">홈</div><div style="font-size:10px;color:#6B5C99;">클래스</div>
+              <div style="width:46px;height:46px;border-radius:14px;background:#FF00A8;border:2px solid #00F0FF;box-shadow:0 0 0 2px #000;color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900;margin-top:-14px;">＋</div>
+              <div style="font-size:10px;color:#6B5C99;">신청자</div><div style="font-size:10px;color:#6B5C99;">마이</div>
+            </div>
+          </div></div>
+        </div>
+        <div>
+          <div class="dv-cap">강의 만들기</div>
+          <div class="ph"><div class="ph-in" style="background:#1A1230;font-family:'Pretendard',sans-serif;">
+            <div class="sb" style="color:#EAE0FF;"><b>9:41</b><span>●●● ⧗ ▮</span></div>
+            <div class="body" style="padding:50px 16px 0;">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;"><span style="font-size:20px;color:#00F0FF;font-weight:900;">←</span><div style="flex:1;height:10px;border:2px solid #000;border-radius:5px;background:#120C24;"><div style="width:20%;height:100%;background:#FF00A8;"></div></div><span style="font-size:12px;font-weight:800;color:#00F0FF;">1/5</span></div>
+              <div style="font-family:'Black Han Sans',sans-serif;font-size:26px;color:#fff;line-height:1.1;">어떤 형태의<br><span style="color:#FFE500;">강의?</span> 🎬</div>
+              <div style="font-size:12px;color:#B7A6E0;margin:10px 0 20px;font-weight:600;">골라골라~</div>
+              <div style="background:#00F0FF;border:2px solid #000;border-radius:14px;padding:15px;display:flex;gap:12px;align-items:center;margin-bottom:12px;box-shadow:4px 4px 0 #FF00A8;"><div style="width:36px;height:36px;border-radius:9px;background:#120C24;border:2px solid #000;flex:none;"></div><div style="font-family:'Black Han Sans',sans-serif;font-size:18px;color:#001;">온라인</div></div>
+              <div style="background:#2A1E4A;border:2px solid #7A2BFF;border-radius:14px;padding:15px;display:flex;gap:12px;align-items:center;margin-bottom:12px;"><div style="width:36px;height:36px;border-radius:9px;background:#FF00A8;border:2px solid #000;flex:none;"></div><div style="font-family:'Black Han Sans',sans-serif;font-size:18px;color:#fff;">라이브</div></div>
+              <div style="background:#2A1E4A;border:2px solid #7A2BFF;border-radius:14px;padding:15px;display:flex;gap:12px;align-items:center;"><div style="width:36px;height:36px;border-radius:9px;background:#00FF9D;border:2px solid #000;flex:none;"></div><div style="font-family:'Black Han Sans',sans-serif;font-size:18px;color:#fff;">오프라인</div></div>
+            </div>
+            <div style="position:absolute;bottom:20px;left:16px;right:16px;height:54px;border-radius:16px;background:#FFE500;border:2px solid #000;box-shadow:4px 4px 0 #FF00A8;color:#111;display:flex;align-items:center;justify-content:center;font-family:'Black Han Sans',sans-serif;font-size:19px;">다음 GO ▸</div>
+          </div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <p class="dv-next">다음 시도: "2a로 전체 프로토타입 만들어줘" · "2b에서 배경을 밝은 버전으로" · "2a랑 1c 섞어줘" · "고른 스타일로 완성"</p>
+</section>
+<section class="dv-turn" id="t1">
+  <div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">3가지 스타일 비교 · 홈 & 강의 만들기</span></div>
+  <p class="dv-tsub">같은 서비스를 세 가지 시각 방향으로. 각 옵션은 홈과 강의 만들기(Step 1) 두 화면입니다.</p>
+  <div class="dv-opts">
+
+    <!-- ============ 1a — TOSS (reference) ============ -->
+    <div class="dv-opt" id="1a">
+      <div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>토스식 · 화이트+블루 <span style="font-weight:500;color:rgba(0,0,0,.4);font-size:13px;">(현재)</span></div>
+      <div class="dv-odesc">지금 프로토타입. 화이트 기반, 블루 단일 강조색, 부드러운 라운드, 큰 여백.</div>
+      <div class="dv-pair">
+        <div>
+          <div class="dv-cap">홈</div>
+          <div class="ph"><div class="ph-in" style="background:#fff;font-family:'Pretendard',sans-serif;">
+            <div class="sb" style="color:#191F28;"><b>9:41</b><span>●●● ⧗ ▮</span></div>
+            <div class="body" style="padding:52px 20px 0;">
+              <div style="font-size:19px;font-weight:800;color:#3182F6;">원클릭 클래스</div>
+              <div style="font-size:23px;font-weight:800;letter-spacing:-.5px;margin-top:12px;">안녕하세요, 지훈님</div>
+              <div style="font-size:14px;color:#8B95A1;font-weight:500;margin-top:3px;">오늘도 좋은 강의 만들어요</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:20px;">
+                <div style="background:#F2F4F6;border-radius:16px;padding:14px;"><div style="font-size:12px;color:#6B7684;font-weight:600;">오늘 신청자</div><div style="font-size:23px;font-weight:800;margin-top:6px;">12<span style="font-size:13px;color:#8B95A1;">명</span></div></div>
+                <div style="background:#F2F4F6;border-radius:16px;padding:14px;"><div style="font-size:12px;color:#6B7684;font-weight:600;">오늘 강의</div><div style="font-size:23px;font-weight:800;margin-top:6px;">2<span style="font-size:13px;color:#8B95A1;">개</span></div></div>
+              </div>
+              <div style="background:#EFF6FF;border-radius:16px;padding:15px;margin-top:9px;"><div style="font-size:12px;color:#3182F6;font-weight:700;">결제 대기</div><div style="font-size:15px;font-weight:800;margin-top:3px;">3건 · 135,000원 확인</div></div>
+              <div style="font-size:15px;font-weight:800;margin-top:20px;">모집중인 클래스</div>
+              <div style="background:#fff;border:1px solid #EDF0F3;border-radius:16px;padding:13px;margin-top:10px;display:flex;gap:12px;align-items:center;box-shadow:0 2px 10px rgba(23,31,40,.04);">
+                <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#4C82F7,#7CA9FF);flex:none;"></div>
+                <div style="flex:1;"><div style="font-size:10px;font-weight:700;color:#3182F6;background:#EFF6FF;display:inline-block;padding:2px 7px;border-radius:5px;">모집중</div><div style="font-size:13px;font-weight:700;margin-top:5px;">노션 업무 자동화</div><div style="height:4px;background:#EDF0F3;border-radius:2px;margin-top:7px;"><div style="width:80%;height:100%;background:#3182F6;border-radius:2px;"></div></div></div>
+              </div>
+            </div>
+            <div style="position:absolute;bottom:0;left:0;right:0;height:64px;background:rgba(255,255,255,.94);border-top:1px solid #F0F2F4;display:flex;align-items:center;justify-content:space-around;">
+              <div style="font-size:10px;color:#3182F6;font-weight:700;">홈</div><div style="font-size:10px;color:#B0B8C1;">클래스</div>
+              <div style="width:44px;height:44px;border-radius:50%;background:#3182F6;display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;margin-top:-14px;">＋</div>
+              <div style="font-size:10px;color:#B0B8C1;">신청자</div><div style="font-size:10px;color:#B0B8C1;">마이</div>
+            </div>
+          </div></div>
+        </div>
+        <div>
+          <div class="dv-cap">강의 만들기</div>
+          <div class="ph"><div class="ph-in" style="background:#fff;font-family:'Pretendard',sans-serif;">
+            <div class="sb" style="color:#191F28;"><b>9:41</b><span>●●● ⧗ ▮</span></div>
+            <div class="body" style="padding:52px 20px 0;">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:22px;"><span style="font-size:20px;">‹</span><div style="flex:1;height:6px;background:#EDF0F3;border-radius:3px;"><div style="width:20%;height:100%;background:#3182F6;border-radius:3px;"></div></div><span style="font-size:12px;font-weight:700;color:#8B95A1;">1 / 5</span></div>
+              <div style="font-size:22px;font-weight:800;line-height:1.4;letter-spacing:-.5px;">어떤 형태의<br>강의인가요?</div>
+              <div style="font-size:14px;color:#8B95A1;font-weight:500;margin:8px 0 22px;">강의 진행 방식을 골라주세요</div>
+              <div style="border:2px solid #3182F6;background:#F7FAFF;border-radius:16px;padding:14px;display:flex;gap:12px;align-items:center;margin-bottom:10px;"><div style="width:40px;height:40px;border-radius:12px;background:#EFF6FF;"></div><div><div style="font-size:15px;font-weight:700;">온라인</div><div style="font-size:12px;color:#8B95A1;">녹화 영상으로 진행</div></div></div>
+              <div style="border:1.5px solid #EDF0F3;border-radius:16px;padding:14px;display:flex;gap:12px;align-items:center;margin-bottom:10px;"><div style="width:40px;height:40px;border-radius:12px;background:#FFF0F0;"></div><div><div style="font-size:15px;font-weight:700;">라이브</div><div style="font-size:12px;color:#8B95A1;">실시간 화상 강의</div></div></div>
+              <div style="border:1.5px solid #EDF0F3;border-radius:16px;padding:14px;display:flex;gap:12px;align-items:center;"><div style="width:40px;height:40px;border-radius:12px;background:#E6F9F1;"></div><div><div style="font-size:15px;font-weight:700;">오프라인</div><div style="font-size:12px;color:#8B95A1;">현장에서 만나요</div></div></div>
+            </div>
+            <div style="position:absolute;bottom:20px;left:20px;right:20px;height:52px;border-radius:14px;background:#3182F6;color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;">다음</div>
+          </div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 1b — BRUTALISM ============ -->
+    <div class="dv-opt" id="1b">
+      <div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>브루탈리즘 · 볼드 타이포</div>
+      <div class="dv-odesc">두꺼운 검정 보더, 하드 오프셋 섀도우, 초굵은 산세리프, 전기색 accent. 개성 강한 젊은 브랜드.</div>
+      <div class="dv-pair">
+        <div>
+          <div class="dv-cap">홈</div>
+          <div class="ph"><div class="ph-in" style="background:#FDF6E3;font-family:'Pretendard',sans-serif;">
+            <div class="sb" style="color:#111;"><b>9:41</b><span>●●● ⧗ ▮</span></div>
+            <div class="body" style="padding:50px 18px 0;">
+              <div style="display:flex;justify-content:space-between;align-items:center;"><div style="font-size:18px;font-weight:900;letter-spacing:-.5px;background:#111;color:#FFE500;padding:4px 8px;">ONECLICK</div><div style="width:36px;height:36px;border:2.5px solid #111;border-radius:50%;background:#FF4A17;"></div></div>
+              <div style="font-size:28px;font-weight:900;line-height:1.15;margin-top:18px;letter-spacing:-1px;">안녕,<br>지훈!</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px;">
+                <div style="background:#FFE500;border:2.5px solid #111;box-shadow:4px 4px 0 #111;padding:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;">오늘 신청자</div><div style="font-size:30px;font-weight:900;margin-top:2px;">12</div></div>
+                <div style="background:#fff;border:2.5px solid #111;box-shadow:4px 4px 0 #111;padding:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;">오늘 강의</div><div style="font-size:30px;font-weight:900;margin-top:2px;">2</div></div>
+              </div>
+              <div style="background:#FF4A17;color:#fff;border:2.5px solid #111;box-shadow:4px 4px 0 #111;padding:13px;margin-top:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;">결제 대기</div><div style="font-size:17px;font-weight:900;margin-top:2px;">3건 · 135,000원</div></div>
+              <div style="font-size:16px;font-weight:900;margin-top:20px;text-transform:uppercase;letter-spacing:-.3px;">모집중 클래스 ▸</div>
+              <div style="background:#fff;border:2.5px solid #111;box-shadow:4px 4px 0 #111;padding:12px;margin-top:12px;display:flex;gap:12px;align-items:center;">
+                <div style="width:46px;height:46px;background:#0057FF;border:2.5px solid #111;flex:none;"></div>
+                <div style="flex:1;"><div style="font-size:13px;font-weight:900;">노션 업무 자동화</div><div style="height:8px;border:2px solid #111;margin-top:6px;background:#fff;"><div style="width:80%;height:100%;background:#FFE500;"></div></div><div style="font-size:10px;font-weight:800;margin-top:4px;">24 / 30명</div></div>
+              </div>
+            </div>
+            <div style="position:absolute;bottom:0;left:0;right:0;height:60px;background:#111;display:flex;align-items:center;justify-content:space-around;color:#fff;">
+              <div style="font-size:10px;font-weight:800;color:#FFE500;">홈</div><div style="font-size:10px;font-weight:700;opacity:.6;">클래스</div>
+              <div style="width:44px;height:44px;background:#FF4A17;border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900;margin-top:-12px;">＋</div>
+              <div style="font-size:10px;font-weight:700;opacity:.6;">신청자</div><div style="font-size:10px;font-weight:700;opacity:.6;">마이</div>
+            </div>
+          </div></div>
+        </div>
+        <div>
+          <div class="dv-cap">강의 만들기</div>
+          <div class="ph"><div class="ph-in" style="background:#FDF6E3;font-family:'Pretendard',sans-serif;">
+            <div class="sb" style="color:#111;"><b>9:41</b><span>●●● ⧗ ▮</span></div>
+            <div class="body" style="padding:50px 18px 0;">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;"><span style="font-size:22px;font-weight:900;">←</span><div style="flex:1;height:10px;border:2.5px solid #111;background:#fff;"><div style="width:20%;height:100%;background:#FF4A17;"></div></div><span style="font-size:12px;font-weight:900;">1/5</span></div>
+              <div style="font-size:26px;font-weight:900;line-height:1.15;letter-spacing:-.8px;">어떤 형태의<br>강의?</div>
+              <div style="font-size:13px;font-weight:700;margin:10px 0 20px;">진행 방식을 골라</div>
+              <div style="background:#FFE500;border:2.5px solid #111;box-shadow:4px 4px 0 #111;padding:14px;display:flex;gap:12px;align-items:center;margin-bottom:12px;"><div style="width:40px;height:40px;background:#111;flex:none;"></div><div style="font-size:17px;font-weight:900;">온라인</div></div>
+              <div style="background:#fff;border:2.5px solid #111;box-shadow:4px 4px 0 #111;padding:14px;display:flex;gap:12px;align-items:center;margin-bottom:12px;"><div style="width:40px;height:40px;background:#FF4A17;border:2.5px solid #111;flex:none;"></div><div style="font-size:17px;font-weight:900;">라이브</div></div>
+              <div style="background:#fff;border:2.5px solid #111;box-shadow:4px 4px 0 #111;padding:14px;display:flex;gap:12px;align-items:center;"><div style="width:40px;height:40px;background:#0057FF;border:2.5px solid #111;flex:none;"></div><div style="font-size:17px;font-weight:900;">오프라인</div></div>
+            </div>
+            <div style="position:absolute;bottom:20px;left:18px;right:18px;height:54px;background:#111;color:#FFE500;border:2.5px solid #111;box-shadow:5px 5px 0 #FF4A17;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;text-transform:uppercase;">다음 →</div>
+          </div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 1c — EDITORIAL SERIF ============ -->
+    <div class="dv-opt" id="1c">
+      <div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>에디토리얼 · 세리프 럭셔리</div>
+      <div class="dv-odesc">아이보리 배경, 명조 세리프 제목, 극대화된 여백, 와인 accent, 얇은 괘선. 고급 취미 강의(요리·와인·아트) 톤.</div>
+      <div class="dv-pair">
+        <div>
+          <div class="dv-cap">홈</div>
+          <div class="ph"><div class="ph-in" style="background:#F5EFE3;font-family:'Pretendard',sans-serif;">
+            <div class="sb" style="color:#2A2621;"><b>9:41</b><span>●●● ⧗ ▮</span></div>
+            <div class="body" style="padding:54px 22px 0;">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div style="font-family:'Nanum Myeongjo',serif;font-size:19px;font-weight:800;color:#7A2E2E;letter-spacing:.5px;">원클릭 클래스</div>
+                <div style="width:34px;height:34px;border-radius:50%;border:1px solid #C9BCA3;"></div>
+              </div>
+              <div style="font-family:'Nanum Myeongjo',serif;font-size:27px;font-weight:800;line-height:1.35;margin-top:26px;color:#2A2621;">안녕하세요,<br>지훈 님</div>
+              <div style="font-size:13px;color:#8C8272;font-weight:500;margin-top:8px;letter-spacing:.2px;">오늘도 좋은 강의 만들어요</div>
+              <div style="height:1px;background:#D9CFBE;margin:24px 0;"></div>
+              <div style="display:flex;gap:26px;">
+                <div><div style="font-size:11px;color:#A79C88;font-weight:600;letter-spacing:1px;text-transform:uppercase;">신청자</div><div style="font-family:'Nanum Myeongjo',serif;font-size:30px;font-weight:800;margin-top:4px;">12</div></div>
+                <div style="width:1px;background:#D9CFBE;"></div>
+                <div><div style="font-size:11px;color:#A79C88;font-weight:600;letter-spacing:1px;text-transform:uppercase;">강의</div><div style="font-family:'Nanum Myeongjo',serif;font-size:30px;font-weight:800;margin-top:4px;">2</div></div>
+                <div style="width:1px;background:#D9CFBE;"></div>
+                <div><div style="font-size:11px;color:#A79C88;font-weight:600;letter-spacing:1px;text-transform:uppercase;">대기</div><div style="font-family:'Nanum Myeongjo',serif;font-size:30px;font-weight:800;margin-top:4px;color:#7A2E2E;">3</div></div>
+              </div>
+              <div style="height:1px;background:#D9CFBE;margin:24px 0;"></div>
+              <div style="font-family:'Nanum Myeongjo',serif;font-size:17px;font-weight:800;">모집중인 클래스</div>
+              <div style="margin-top:16px;display:flex;gap:14px;align-items:center;">
+                <div style="width:56px;height:70px;background:linear-gradient(160deg,#9B6A4A,#C9A27E);flex:none;"></div>
+                <div><div style="font-size:10px;color:#7A2E2E;font-weight:700;letter-spacing:1px;">RECRUITING</div><div style="font-family:'Nanum Myeongjo',serif;font-size:15px;font-weight:800;margin-top:4px;line-height:1.4;">노션으로 시작하는<br>업무 자동화</div><div style="font-size:11px;color:#A79C88;margin-top:6px;">신청 24 / 30명</div></div>
+              </div>
+            </div>
+            <div style="position:absolute;bottom:0;left:0;right:0;height:62px;border-top:1px solid #D9CFBE;background:#F5EFE3;display:flex;align-items:center;justify-content:space-around;">
+              <div style="font-size:10px;color:#7A2E2E;font-weight:700;letter-spacing:.5px;">홈</div><div style="font-size:10px;color:#A79C88;">클래스</div>
+              <div style="width:42px;height:42px;border-radius:50%;background:#7A2E2E;color:#F5EFE3;display:flex;align-items:center;justify-content:center;font-size:20px;margin-top:-12px;">＋</div>
+              <div style="font-size:10px;color:#A79C88;">신청자</div><div style="font-size:10px;color:#A79C88;">마이</div>
+            </div>
+          </div></div>
+        </div>
+        <div>
+          <div class="dv-cap">강의 만들기</div>
+          <div class="ph"><div class="ph-in" style="background:#F5EFE3;font-family:'Pretendard',sans-serif;">
+            <div class="sb" style="color:#2A2621;"><b>9:41</b><span>●●● ⧗ ▮</span></div>
+            <div class="body" style="padding:54px 22px 0;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;"><span style="font-size:20px;color:#7A2E2E;">‹</span><span style="font-size:11px;color:#A79C88;font-weight:600;letter-spacing:1.5px;">STEP 1 / 5</span></div>
+              <div style="height:1px;background:#D9CFBE;position:relative;margin-bottom:30px;"><div style="width:20%;height:1px;background:#7A2E2E;position:absolute;top:0;"></div></div>
+              <div style="font-family:'Nanum Myeongjo',serif;font-size:26px;font-weight:800;line-height:1.4;color:#2A2621;">어떤 형태의<br>강의인가요?</div>
+              <div style="font-size:13px;color:#8C8272;font-weight:500;margin:10px 0 30px;letter-spacing:.2px;">강의 진행 방식을 골라주세요</div>
+              <div style="border:1.5px solid #7A2E2E;background:#FBF7EF;padding:18px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><div style="font-family:'Nanum Myeongjo',serif;font-size:18px;font-weight:800;">온라인</div><div style="width:8px;height:8px;border-radius:50%;background:#7A2E2E;"></div></div>
+              <div style="border:1px solid #D9CFBE;padding:18px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><div style="font-family:'Nanum Myeongjo',serif;font-size:18px;font-weight:800;color:#5C554A;">라이브</div></div>
+              <div style="border:1px solid #D9CFBE;padding:18px;display:flex;justify-content:space-between;align-items:center;"><div style="font-family:'Nanum Myeongjo',serif;font-size:18px;font-weight:800;color:#5C554A;">오프라인</div></div>
+            </div>
+            <div style="position:absolute;bottom:22px;left:22px;right:22px;height:52px;background:#7A2E2E;color:#F5EFE3;display:flex;align-items:center;justify-content:center;font-family:'Nanum Myeongjo',serif;font-size:16px;font-weight:800;letter-spacing:3px;">다 음</div>
+          </div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <p class="dv-next">다음 시도: "1b 방향으로 전체 프로토타입 만들어줘" · "1c에서 accent를 포레스트 그린으로" · "1b랑 1c 섞어줘" · "다른 스타일도 보여줘"</p>
+</section>
+</x-dc>
+</body>
+</html>

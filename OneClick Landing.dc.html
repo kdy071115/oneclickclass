@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@1.3.9/dist/web/static/pretendard.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: "Pretendard", -apple-system, sans-serif; }
+  a { color: inherit; text-decoration: none; }
+  a:hover { opacity: .82; }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; }
+  .lp-h { font-family: var(--h-font, "Pretendard", sans-serif); font-weight: var(--h-wt, 800); letter-spacing: var(--h-ls, -.6px); }
+</style>
+</helmet>
+
+<div style="{{ rootStyle }}">
+
+  <!-- NAV -->
+  <div style="position: sticky; top: 0; z-index: 30; backdrop-filter: blur(14px); background: var(--nav-bg, rgba(255,255,255,.78)); border-bottom: 1px solid var(--border, #EDF0F3);">
+    <div style="max-width: var(--maxw, 1180px); margin: 0 auto; padding: 15px 28px; display: flex; align-items: center; gap: 28px;">
+      <div class="lp-h" style="font-size: 19px; color: var(--accent, #3182F6);">원클릭 클래스</div>
+      <div style="display: flex; gap: 26px; margin-left: 12px; font-size: 14.5px; font-weight: 600; color: var(--muted, #6B7684);">
+        <a href="#none">기능</a><a href="#none">사용 방법</a><a href="#none">요금</a><a href="#none">고객사례</a>
+      </div>
+      <div style="flex: 1;"></div>
+      <a href="#none" style="font-size: 14.5px; font-weight: 600; color: var(--text, #191F28);">로그인</a>
+      <button style="{{ navBtnStyle }}">무료로 시작</button>
+    </div>
+  </div>
+
+  <!-- HERO: SPLIT -->
+  <sc-if value="{{ heroSplit }}" hint-placeholder-val="{{ true }}">
+    <div style="max-width: var(--maxw, 1180px); margin: 0 auto; padding: var(--sec-pad, 92px) 28px; display: grid; grid-template-columns: 1.05fr .95fr; gap: 56px; align-items: center;">
+      <div>
+        <div style="display: inline-flex; align-items: center; gap: 7px; background: var(--accent-soft, #EFF6FF); color: var(--accent, #3182F6); font-size: 13.5px; font-weight: 700; padding: 7px 13px; border-radius: 999px;">{{ badgeText }}</div>
+        <div class="lp-h" style="font-size: 52px; line-height: 1.18; margin-top: 20px; color: var(--text, #191F28);">{{ heroTitle }}</div>
+        <div style="font-size: 18px; line-height: 1.6; color: var(--muted, #6B7684); font-weight: 500; margin-top: 20px; max-width: 460px; white-space: pre-line;">{{ heroSub }}</div>
+        <div style="display: flex; gap: 12px; margin-top: 32px;">
+          <button style="{{ ctaBtnStyle }}">{{ ctaLabel }}</button>
+          <button style="{{ ghostBtnStyle }}">데모 보기</button>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; margin-top: 22px; font-size: 13.5px; color: var(--muted, #6B7684); font-weight: 500;">
+          <span style="color: var(--accent, #3182F6); font-weight: 800;">★ 4.9</span> · 강사 만족도 · 신용카드 없이 무료 시작
+        </div>
+      </div>
+      <div style="justify-self: center;">{{ heroVisual }}</div>
+    </div>
+  </sc-if>
+
+  <!-- HERO: CENTERED -->
+  <sc-if value="{{ heroCentered }}" hint-placeholder-val="{{ false }}">
+    <div style="max-width: 820px; margin: 0 auto; padding: var(--sec-pad, 92px) 28px 60px; text-align: center;">
+      <div style="display: inline-flex; align-items: center; gap: 7px; background: var(--accent-soft, #EFF6FF); color: var(--accent, #3182F6); font-size: 13.5px; font-weight: 700; padding: 7px 13px; border-radius: 999px;">{{ badgeText }}</div>
+      <div class="lp-h" style="font-size: 56px; line-height: 1.15; margin-top: 22px; color: var(--text, #191F28);">{{ heroTitle }}</div>
+      <div style="font-size: 19px; line-height: 1.6; color: var(--muted, #6B7684); font-weight: 500; margin: 22px auto 0; max-width: 540px; white-space: pre-line;">{{ heroSub }}</div>
+      <div style="display: flex; gap: 12px; margin-top: 32px; justify-content: center;">
+        <button style="{{ ctaBtnStyle }}">{{ ctaLabel }}</button>
+        <button style="{{ ghostBtnStyle }}">데모 보기</button>
+      </div>
+      <div style="margin-top: 54px; display: flex; justify-content: center;">{{ heroVisual }}</div>
+    </div>
+  </sc-if>
+
+  <!-- STATS / SOCIAL PROOF -->
+  <sc-if value="{{ showStats }}" hint-placeholder-val="{{ true }}">
+    <div style="border-top: 1px solid var(--border, #EDF0F3); border-bottom: 1px solid var(--border, #EDF0F3); background: var(--surface, #F7F9FB);">
+      <div style="max-width: var(--maxw, 1180px); margin: 0 auto; padding: 40px 28px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; text-align: center;">
+        <div><div class="lp-h" style="font-size: 34px; color: var(--accent, #3182F6);">3,200+</div><div style="font-size: 14px; color: var(--muted, #6B7684); font-weight: 600; margin-top: 6px;">활동 중인 강사</div></div>
+        <div><div class="lp-h" style="font-size: 34px; color: var(--text, #191F28);">58초</div><div style="font-size: 14px; color: var(--muted, #6B7684); font-weight: 600; margin-top: 6px;">평균 강의 생성 시간</div></div>
+        <div><div class="lp-h" style="font-size: 34px; color: var(--text, #191F28);">120K</div><div style="font-size: 14px; color: var(--muted, #6B7684); font-weight: 600; margin-top: 6px;">누적 수강 신청</div></div>
+        <div><div class="lp-h" style="font-size: 34px; color: var(--text, #191F28);">4.9 / 5</div><div style="font-size: 14px; color: var(--muted, #6B7684); font-weight: 600; margin-top: 6px;">강사 만족도</div></div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- HOW IT WORKS -->
+  <sc-if value="{{ showHow }}" hint-placeholder-val="{{ true }}">
+    <div style="max-width: var(--maxw, 1180px); margin: 0 auto; padding: var(--sec-pad, 92px) 28px;">
+      <div style="text-align: center; margin-bottom: 54px;">
+        <div style="font-size: 14px; font-weight: 700; color: var(--accent, #3182F6); letter-spacing: .5px;">HOW IT WORKS</div>
+        <div class="lp-h" style="font-size: 38px; margin-top: 12px; color: var(--text, #191F28);">4단계면, 강의 오픈 완료</div>
+        <div style="font-size: 17px; color: var(--muted, #6B7684); font-weight: 500; margin-top: 14px;">복잡한 LMS 구축 없이 하나의 흐름으로.</div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;">
+        <sc-for list="{{ steps }}" as="s" hint-placeholder-count="4">
+          <div style="background: var(--surface, #F7F9FB); border: 1px solid var(--border, #EDF0F3); border-radius: var(--radius, 20px); padding: 28px 24px; box-shadow: var(--shadow, none);">
+            <div style="width: 40px; height: 40px; border-radius: 12px; background: var(--accent, #3182F6); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 17px;">{{ s.n }}</div>
+            <div class="lp-h" style="font-size: 19px; margin-top: 18px; color: var(--text, #191F28);">{{ s.title }}</div>
+            <div style="font-size: 14.5px; color: var(--muted, #6B7684); font-weight: 500; line-height: 1.6; margin-top: 8px;">{{ s.desc }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- FEATURES -->
+  <sc-if value="{{ showFeatures }}" hint-placeholder-val="{{ true }}">
+    <div style="background: var(--surface, #F7F9FB); border-top: 1px solid var(--border, #EDF0F3);">
+      <div style="max-width: var(--maxw, 1180px); margin: 0 auto; padding: var(--sec-pad, 92px) 28px;">
+        <div style="margin-bottom: 48px;">
+          <div style="font-size: 14px; font-weight: 700; color: var(--accent, #3182F6); letter-spacing: .5px;">ALL-IN-ONE</div>
+          <div class="lp-h" style="font-size: 38px; margin-top: 12px; color: var(--text, #191F28);">운영에 필요한 모든 것</div>
+          <div style="font-size: 17px; color: var(--muted, #6B7684); font-weight: 500; margin-top: 14px; max-width: 520px;">신청부터 수료까지, 흩어진 도구 없이 한 곳에서 관리하세요.</div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+          <div style="background: var(--bg, #fff); border: 1px solid var(--border, #EDF0F3); border-radius: var(--radius, 20px); padding: 28px; box-shadow: var(--shadow, none);">
+            <div style="width: 46px; height: 46px; border-radius: 13px; background: var(--accent-soft, #EFF6FF); display: flex; align-items: center; justify-content: center; color: var(--accent, #3182F6);"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7z"/></svg></div>
+            <div class="lp-h" style="font-size: 18px; margin-top: 18px; color: var(--text, #191F28);">58초 강의 생성</div>
+            <div style="font-size: 14.5px; color: var(--muted, #6B7684); font-weight: 500; line-height: 1.65; margin-top: 8px;">5단계 흐름으로 누구나 바로 만듭니다.</div>
+          </div>
+          <div style="background: var(--bg, #fff); border: 1px solid var(--border, #EDF0F3); border-radius: var(--radius, 20px); padding: 28px; box-shadow: var(--shadow, none);">
+            <div style="width: 46px; height: 46px; border-radius: 13px; background: var(--accent-soft, #EFF6FF); display: flex; align-items: center; justify-content: center; color: var(--accent, #3182F6);"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg></div>
+            <div class="lp-h" style="font-size: 18px; margin-top: 18px; color: var(--text, #191F28);">신청 페이지 자동 생성</div>
+            <div style="font-size: 14.5px; color: var(--muted, #6B7684); font-weight: 500; line-height: 1.65; margin-top: 8px;">썸네일·소개·일정이 담긴 페이지를 즉시 발급.</div>
+          </div>
+          <div style="background: var(--bg, #fff); border: 1px solid var(--border, #EDF0F3); border-radius: var(--radius, 20px); padding: 28px; box-shadow: var(--shadow, none);">
+            <div style="width: 46px; height: 46px; border-radius: 13px; background: var(--accent-soft, #EFF6FF); display: flex; align-items: center; justify-content: center; color: var(--accent, #3182F6);"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+            <div class="lp-h" style="font-size: 18px; margin-top: 18px; color: var(--text, #191F28);">신청자 관리</div>
+            <div style="font-size: 14.5px; color: var(--muted, #6B7684); font-weight: 500; line-height: 1.65; margin-top: 8px;">거래내역처럼 한눈에, 탭 하면 상세까지.</div>
+          </div>
+          <div style="background: var(--bg, #fff); border: 1px solid var(--border, #EDF0F3); border-radius: var(--radius, 20px); padding: 28px; box-shadow: var(--shadow, none);">
+            <div style="width: 46px; height: 46px; border-radius: 13px; background: var(--accent-soft, #EFF6FF); display: flex; align-items: center; justify-content: center; color: var(--accent, #3182F6);"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+            <div class="lp-h" style="font-size: 18px; margin-top: 18px; color: var(--text, #191F28);">출석 · 설문</div>
+            <div style="font-size: 14.5px; color: var(--muted, #6B7684); font-weight: 500; line-height: 1.65; margin-top: 8px;">회차별 출석 체크와 만족도 조사를 한 곳에서.</div>
+          </div>
+          <div style="background: var(--bg, #fff); border: 1px solid var(--border, #EDF0F3); border-radius: var(--radius, 20px); padding: 28px; box-shadow: var(--shadow, none);">
+            <div style="width: 46px; height: 46px; border-radius: 13px; background: var(--accent-soft, #EFF6FF); display: flex; align-items: center; justify-content: center; color: var(--accent, #3182F6);"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></div>
+            <div class="lp-h" style="font-size: 18px; margin-top: 18px; color: var(--text, #191F28);">결제 · 정산</div>
+            <div style="font-size: 14.5px; color: var(--muted, #6B7684); font-weight: 500; line-height: 1.65; margin-top: 8px;">무료·유료 설정과 입금 확인을 간편하게.</div>
+          </div>
+          <div style="background: var(--bg, #fff); border: 1px solid var(--border, #EDF0F3); border-radius: var(--radius, 20px); padding: 28px; box-shadow: var(--shadow, none);">
+            <div style="width: 46px; height: 46px; border-radius: 13px; background: var(--accent-soft, #EFF6FF); display: flex; align-items: center; justify-content: center; color: var(--accent, #3182F6);"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.5 13.5L17 22l-5-3-5 3 1.5-8.5"/></svg></div>
+            <div class="lp-h" style="font-size: 18px; margin-top: 18px; color: var(--text, #191F28);">시험 · 수료증</div>
+            <div style="font-size: 14.5px; color: var(--muted, #6B7684); font-weight: 500; line-height: 1.65; margin-top: 8px;">이수 평가 후 수료증을 자동 발급합니다.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- TESTIMONIAL -->
+  <sc-if value="{{ showTestimonial }}" hint-placeholder-val="{{ true }}">
+    <div style="max-width: 880px; margin: 0 auto; padding: var(--sec-pad, 92px) 28px; text-align: center;">
+      <div class="lp-h" style="font-size: 28px; line-height: 1.5; color: var(--text, #191F28);">“강의 만드는 데 1분도 안 걸렸어요.<br>링크 하나 공유하니 신청이 알아서 쌓이더라고요.”</div>
+      <div style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 28px;">
+        <div style="width: 46px; height: 46px; border-radius: 50%; background: linear-gradient(135deg, var(--accent, #3182F6), var(--accent, #3182F6)); opacity: .9;"></div>
+        <div style="text-align: left;"><div style="font-size: 15px; font-weight: 700; color: var(--text, #191F28);">박서진 · 노션 강사</div><div style="font-size: 13.5px; color: var(--muted, #6B7684); font-weight: 500;">누적 수강생 1,400명</div></div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- PRICING / FINAL CTA -->
+  <sc-if value="{{ showPricing }}" hint-placeholder-val="{{ true }}">
+    <div style="max-width: var(--maxw, 1180px); margin: 0 auto 80px; padding: 0 28px;">
+      <div style="border-radius: calc(var(--radius, 20px) + 8px); padding: 64px 40px; text-align: center; background: {{ ctaBandBg }}; box-shadow: var(--shadow, none);">
+        <div class="lp-h" style="font-size: 40px; line-height: 1.25; color: {{ ctaBandText }};">지금 시작하면,<br>첫 강의는 무료예요</div>
+        <div style="font-size: 17px; font-weight: 500; margin-top: 16px; color: {{ ctaBandSub }};">신용카드 없이 · 58초 만에 · 바로 신청 링크 발급</div>
+        <button style="{{ ctaBandBtn }}">{{ ctaLabel }}</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- FOOTER -->
+  <div style="border-top: 1px solid var(--border, #EDF0F3);">
+    <div style="max-width: var(--maxw, 1180px); margin: 0 auto; padding: 40px 28px; display: flex; flex-wrap: wrap; gap: 20px; align-items: center; justify-content: space-between;">
+      <div class="lp-h" style="font-size: 17px; color: var(--accent, #3182F6);">원클릭 클래스</div>
+      <div style="display: flex; gap: 22px; font-size: 13.5px; font-weight: 500; color: var(--muted, #6B7684);"><a href="#none">이용약관</a><a href="#none">개인정보처리방침</a><a href="#none">고객센터</a></div>
+      <div style="font-size: 13px; color: var(--muted, #6B7684); font-weight: 500;">© 2026 OneClick Class</div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;$preview&quot;: { &quot;width&quot;: 1280, &quot;height&quot;: 900 },
+  &quot;accentColor&quot;: { &quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#3182F6&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;브랜드&quot;, &quot;options&quot;: [&quot;#3182F6&quot;, &quot;#12B886&quot;, &quot;#7048E8&quot;, &quot;#F76707&quot;, &quot;#E64980&quot;, &quot;#191F28&quot;] },
+  &quot;theme&quot;: { &quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;light&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;브랜드&quot;, &quot;options&quot;: [&quot;light&quot;, &quot;soft&quot;, &quot;dark&quot;] },
+  &quot;fontPair&quot;: { &quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;sans&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;브랜드&quot;, &quot;options&quot;: [&quot;sans&quot;, &quot;serif&quot;, &quot;grotesk&quot;] },
+  &quot;heroLayout&quot;: { &quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;split&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;레이아웃&quot;, &quot;options&quot;: [&quot;split&quot;, &quot;centered&quot;] },
+  &quot;density&quot;: { &quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;regular&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;레이아웃&quot;, &quot;options&quot;: [&quot;compact&quot;, &quot;regular&quot;, &quot;spacious&quot;] },
+  &quot;buttonStyle&quot;: { &quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;solid&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;레이아웃&quot;, &quot;options&quot;: [&quot;solid&quot;, &quot;soft&quot;, &quot;outline&quot;, &quot;pill&quot;] },
+  &quot;radius&quot;: { &quot;editor&quot;: &quot;range&quot;, &quot;default&quot;: 20, &quot;min&quot;: 0, &quot;max&quot;: 30, &quot;step&quot;: 2, &quot;unit&quot;: &quot;px&quot;, &quot;tsType&quot;: &quot;number&quot;, &quot;section&quot;: &quot;레이아웃&quot; },
+  &quot;shadow&quot;: { &quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;soft&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;레이아웃&quot;, &quot;options&quot;: [&quot;none&quot;, &quot;soft&quot;, &quot;strong&quot;] },
+  &quot;maxWidth&quot;: { &quot;editor&quot;: &quot;range&quot;, &quot;default&quot;: 1180, &quot;min&quot;: 960, &quot;max&quot;: 1320, &quot;step&quot;: 20, &quot;unit&quot;: &quot;px&quot;, &quot;tsType&quot;: &quot;number&quot;, &quot;section&quot;: &quot;레이아웃&quot; },
+  &quot;gradientHero&quot;: { &quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;레이아웃&quot; },
+  &quot;badgeText&quot;: { &quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;⚡ 1분 만에 강의 오픈&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;카피&quot; },
+  &quot;heroTitle&quot;: { &quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;강의를 만드는\n가장 쉬운 방법&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;카피&quot; },
+  &quot;heroSub&quot;: { &quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;생성부터 신청·출석·수료까지.\n복잡한 LMS 없이, 링크 하나로 끝내세요.&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;카피&quot; },
+  &quot;ctaLabel&quot;: { &quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;무료로 시작하기&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;카피&quot; },
+  &quot;showStats&quot;: { &quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;섹션&quot; },
+  &quot;showHow&quot;: { &quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;섹션&quot; },
+  &quot;showFeatures&quot;: { &quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;섹션&quot; },
+  &quot;showTestimonial&quot;: { &quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;섹션&quot; },
+  &quot;showPricing&quot;: { &quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;섹션&quot; }
+}">
+class Component extends DCLogic {
+  hexToRgba(hex, a) {
+    let h = String(hex).replace('#', '');
+    if (h.length === 3) h = h.split('').map(c => c + c).join('');
+    const n = parseInt(h, 16);
+    return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+  }
+
+  renderVals() {
+    const p = this.props;
+    const accent = p.accentColor || '#3182F6';
+    const theme = p.theme || 'light';
+    const fontPair = p.fontPair || 'sans';
+    const heroLayout = p.heroLayout || 'split';
+    const density = p.density || 'regular';
+    const btnStyle = p.buttonStyle || 'solid';
+    const radius = (p.radius != null ? p.radius : 20);
+    const shadowMode = p.shadow || 'soft';
+    const maxWidth = (p.maxWidth != null ? p.maxWidth : 1180);
+    const gradientHero = p.gradientHero != null ? p.gradientHero : true;
+
+    const isDark = theme === 'dark';
+    const themes = {
+      light: { bg: '#FFFFFF', surface: '#F7F9FB', text: '#191F28', muted: '#6B7684', border: '#EDF0F3', nav: 'rgba(255,255,255,.78)' },
+      soft:  { bg: '#F4F5F7', surface: '#FFFFFF', text: '#191F28', muted: '#68727E', border: '#E5E9ED', nav: 'rgba(244,245,247,.8)' },
+      dark:  { bg: '#0E1116', surface: '#161A21', text: '#F1F4F8', muted: '#98A2AF', border: '#242A33', nav: 'rgba(14,17,22,.75)' }
+    };
+    const th = themes[theme] || themes.light;
+    const accentSoft = isDark ? this.hexToRgba(accent, 0.18) : this.hexToRgba(accent, 0.10);
+
+    const fonts = {
+      sans:    { hf: "'Pretendard', sans-serif", wt: 800, ls: '-.6px' },
+      serif:   { hf: "'Nanum Myeongjo', serif", wt: 800, ls: '-.2px' },
+      grotesk: { hf: "'Pretendard', sans-serif", wt: 900, ls: '-1.2px' }
+    };
+    const fp = fonts[fontPair] || fonts.sans;
+
+    const secPad = { compact: '56px', regular: '92px', spacious: '128px' }[density] || '92px';
+    const shadow = { none: 'none', soft: '0 12px 40px -14px rgba(23,31,40,.16)', strong: '0 26px 60px -18px rgba(23,31,40,.30)' }[shadowMode] || 'none';
+
+    const btnRadius = btnStyle === 'pill' ? '999px' : Math.round(radius * 0.7) + 'px';
+    const baseBtn = { fontSize: '16px', fontWeight: 700, padding: '15px 26px', borderRadius: btnRadius, transition: 'all .15s', cursor: 'pointer' };
+    let ctaBtnStyle;
+    if (btnStyle === 'soft') ctaBtnStyle = { ...baseBtn, background: accentSoft, color: accent };
+    else if (btnStyle === 'outline') ctaBtnStyle = { ...baseBtn, background: 'transparent', color: accent, border: '1.5px solid ' + accent };
+    else ctaBtnStyle = { ...baseBtn, background: accent, color: '#fff', boxShadow: '0 8px 22px -6px ' + this.hexToRgba(accent, .5) };
+
+    const ghostBtnStyle = { ...baseBtn, background: isDark ? '#20262F' : th.surface, color: th.text, border: '1px solid ' + th.border };
+    const navBtnStyle = { fontSize: '14.5px', fontWeight: 700, padding: '10px 18px', borderRadius: btnStyle === 'pill' ? '999px' : Math.round(radius * 0.6) + 'px', background: btnStyle === 'outline' ? 'transparent' : accent, color: btnStyle === 'outline' ? accent : '#fff', border: btnStyle === 'outline' ? '1.5px solid ' + accent : 'none' };
+
+    // CTA band
+    const bandBg = gradientHero ? `linear-gradient(135deg, ${accent}, ${this.hexToRgba(accent, .82)})` : accentSoft;
+    const bandOnAccent = gradientHero;
+    const ctaBandText = bandOnAccent ? '#FFFFFF' : th.text;
+    const ctaBandSub = bandOnAccent ? 'rgba(255,255,255,.85)' : th.muted;
+    const ctaBandBtn = { ...baseBtn, marginTop: '30px', padding: '16px 34px', fontSize: '17px', background: bandOnAccent ? '#fff' : accent, color: bandOnAccent ? accent : '#fff', boxShadow: bandOnAccent ? '0 10px 30px -8px rgba(0,0,0,.25)' : 'none' };
+
+    const rootStyle = {
+      '--accent': accent, '--accent-soft': accentSoft,
+      '--bg': th.bg, '--surface': th.surface, '--text': th.text, '--muted': th.muted, '--border': th.border, '--nav-bg': th.nav,
+      '--radius': radius + 'px', '--sec-pad': secPad, '--shadow': shadow,
+      '--maxw': maxWidth + 'px', '--h-font': fp.hf, '--h-wt': fp.wt, '--h-ls': fp.ls,
+      background: th.bg, color: th.text, minHeight: '100vh',
+      fontFamily: "'Pretendard', sans-serif"
+    };
+
+    // hero visual: mini app card
+    const cardBg = isDark ? '#171B22' : '#fff';
+    const heroVisual = React.createElement('div', {
+      style: { width: '300px', background: '#0B0D10', borderRadius: '40px', padding: '9px', boxShadow: shadow === 'none' ? '0 30px 70px -24px rgba(23,31,40,.4)' : shadow, transform: heroLayout === 'split' ? 'rotate(1.5deg)' : 'none' }
+    },
+      React.createElement('div', { style: { background: cardBg, borderRadius: '32px', overflow: 'hidden', padding: '22px 18px 20px' } }, [
+        React.createElement('div', { key: 'b', style: { fontSize: '15px', fontWeight: 800, color: accent } }, '원클릭 클래스'),
+        React.createElement('div', { key: 'g', style: { fontSize: '20px', fontWeight: 800, color: th.text, marginTop: '10px', letterSpacing: '-.4px' } }, '안녕하세요, 지훈님'),
+        React.createElement('div', { key: 'st', style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '16px' } }, [
+          React.createElement('div', { key: '1', style: { background: isDark ? '#20262F' : '#F2F4F6', borderRadius: '14px', padding: '13px' } }, [
+            React.createElement('div', { key: 'l', style: { fontSize: '11px', color: th.muted, fontWeight: 600 } }, '오늘 신청자'),
+            React.createElement('div', { key: 'v', style: { fontSize: '22px', fontWeight: 800, color: th.text, marginTop: '4px' } }, '12')
+          ]),
+          React.createElement('div', { key: '2', style: { background: accentSoft, borderRadius: '14px', padding: '13px' } }, [
+            React.createElement('div', { key: 'l', style: { fontSize: '11px', color: accent, fontWeight: 700 } }, '결제 대기'),
+            React.createElement('div', { key: 'v', style: { fontSize: '22px', fontWeight: 800, color: accent, marginTop: '4px' } }, '3')
+          ])
+        ]),
+        React.createElement('div', { key: 'c1', style: { background: isDark ? '#20262F' : '#fff', border: '1px solid ' + th.border, borderRadius: '14px', padding: '12px', marginTop: '10px', display: 'flex', gap: '10px', alignItems: 'center' } }, [
+          React.createElement('div', { key: 'th', style: { width: '42px', height: '42px', borderRadius: '11px', background: 'linear-gradient(135deg,#4C82F7,#7CA9FF)', flex: 'none' } }),
+          React.createElement('div', { key: 'tx', style: { flex: 1 } }, [
+            React.createElement('div', { key: 't', style: { fontSize: '12.5px', fontWeight: 700, color: th.text } }, '노션 업무 자동화'),
+            React.createElement('div', { key: 'bar', style: { height: '5px', background: isDark ? '#2A313B' : '#EDF0F3', borderRadius: '3px', marginTop: '7px' } },
+              React.createElement('div', { style: { width: '80%', height: '100%', background: accent, borderRadius: '3px' } }))
+          ])
+        ]),
+        React.createElement('button', { key: 'cta', style: { width: '100%', marginTop: '14px', height: '46px', borderRadius: '13px', background: accent, color: '#fff', fontSize: '14px', fontWeight: 700, border: 'none' } }, '＋ 새 클래스 만들기')
+      ])
+    );
+
+    const svg = (children) => React.createElement('svg', { width: 22, height: 22, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }, children);
+    const pth = (d, k) => React.createElement('path', { key: k || d.slice(0, 4), d });
+    const cir = (cx, cy, r, k) => React.createElement('circle', { key: k || 'c' + cx, cx, cy, r });
+    const icon = {
+      bolt: svg([pth('M13 2L3 14h7l-1 8 10-12h-7z')]),
+      link: svg([pth('M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7', 'a'), pth('M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7', 'b')]),
+      users: svg([pth('M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2', 'a'), cir(9, 7, 4)]),
+      check: svg([pth('M9 11l3 3L22 4', 'a'), pth('M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11', 'b')]),
+      chart: svg([pth('M3 3v18h18', 'a'), pth('M7 14l4-4 3 3 5-6', 'b')]),
+      award: svg([cir(12, 8, 6), pth('M15.5 13.5L17 22l-5-3-5 3 1.5-8.5', 'b')])
+    };
+
+    return {
+      rootStyle,
+      badgeText: p.badgeText || '⚡ 1분 만에 강의 오픈',
+      heroTitle: p.heroTitle || '강의를 만드는\n가장 쉬운 방법',
+      heroSub: p.heroSub || '생성부터 신청·출석·수료까지.\n복잡한 LMS 없이, 링크 하나로 끝내세요.',
+      ctaLabel: p.ctaLabel || '무료로 시작하기',
+      ctaBtnStyle, ghostBtnStyle, navBtnStyle, heroVisual,
+      ctaBandBg: bandBg, ctaBandText, ctaBandSub, ctaBandBtn,
+
+      heroSplit: heroLayout === 'split',
+      heroCentered: heroLayout === 'centered',
+      showStats: p.showStats != null ? p.showStats : true,
+      showHow: p.showHow != null ? p.showHow : true,
+      showFeatures: p.showFeatures != null ? p.showFeatures : true,
+      showTestimonial: p.showTestimonial != null ? p.showTestimonial : true,
+      showPricing: p.showPricing != null ? p.showPricing : true,
+
+      steps: [
+        { n: '1', title: '강의 생성', desc: '유형을 고르고 제목만 입력하면 준비 끝.' },
+        { n: '2', title: 'URL 발급', desc: '신청 페이지가 자동으로 만들어져요.' },
+        { n: '3', title: '링크 공유', desc: '카카오·SNS로 한 번에 공유하세요.' },
+        { n: '4', title: '자동 관리', desc: '신청·결제·출석이 알아서 정리돼요.' }
+      ],
+      features: [
+        { icon: icon.bolt, title: '58초 강의 생성', desc: '5단계 흐름으로 누구나 바로 만듭니다.' },
+        { icon: icon.link, title: '신청 페이지 자동 생성', desc: '썸네일·소개·일정이 담긴 페이지를 즉시 발급.' },
+        { icon: icon.users, title: '신청자 관리', desc: '거래내역처럼 한눈에, 탭 하면 상세까지.' },
+        { icon: icon.check, title: '출석 · 설문', desc: '회차별 출석 체크와 만족도 조사를 한 곳에서.' },
+        { icon: icon.chart, title: '결제 · 정산', desc: '무료·유료 설정과 입금 확인을 간편하게.' },
+        { icon: icon.award, title: '시험 · 수료증', desc: '이수 평가 후 수료증을 자동 발급합니다.' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
