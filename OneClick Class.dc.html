@@ -52,40 +52,56 @@
 
         <!-- ============ HOME ============ -->
         <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
-          <div class="oc-screen" style="padding: 62px 20px 120px;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+          <div class="oc-screen" style="padding: 52px 18px 120px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
               <span style="font-size: 22px; font-weight: 800; color: var(--accent,#3182F6); letter-spacing: -.5px;">원클릭 클래스</span>
               <div style="width: 40px; height: 40px; border-radius: 50%; background: #F2F4F6; display: flex; align-items: center; justify-content: center;">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4E5968" stroke-width="1.8"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.7 21a2 2 0 0 1-3.4 0"></path></svg>
               </div>
             </div>
-            <div style="margin-bottom: 24px;">
-              <div style="font-size: 26px; font-weight: 800; line-height: 1.35; letter-spacing: -.6px;">안녕하세요, 지훈님</div>
-              <div style="font-size: 15px; color: #8B95A1; margin-top: 4px; font-weight: 500;">오늘도 좋은 강의 만들어요</div>
-            </div>
+
+            <!-- Hero banner -->
+            <button onClick="{{ openAttendPick }}" style="width: 100%; text-align: left; background: linear-gradient(120deg,#EFF4FF,#E7F0FF); border-radius: 22px; padding: 22px; margin-bottom: 16px; position: relative; overflow: hidden;">
+              <div style="font-size: 20px; font-weight: 800; letter-spacing: -.4px; line-height: 1.35; max-width: 210px; position: relative; z-index: 1;">지훈님, 오늘<br>강의 2개가 있어요 🎓</div>
+              <span style="display: inline-flex; align-items: center; gap: 5px; margin-top: 16px; background: var(--accent,#3182F6); color: #fff; font-size: 13.5px; font-weight: 700; padding: 11px 17px; border-radius: 13px; position: relative; z-index: 1;">오늘 일정 보기<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><path d="M9 18l6-6-6-6"></path></svg></span>
+              <div style="position: absolute; right: -14px; bottom: -14px; width: 110px; height: 110px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #7CA9FF, var(--accent,#3182F6));"></div>
+            </button>
 
             <!-- Today stats -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
-              <div style="background: #F2F4F6; border-radius: 18px; padding: 16px 16px 18px;">
-                <div style="font-size: 13px; color: #6B7684; font-weight: 600;">오늘 신청자</div>
-                <div style="font-size: 26px; font-weight: 800; margin-top: 8px; letter-spacing: -.5px;">12<span style="font-size: 15px; color: #8B95A1; font-weight: 700;">명</span></div>
-              </div>
-              <div style="background: #F2F4F6; border-radius: 18px; padding: 16px 16px 18px;">
-                <div style="font-size: 13px; color: #6B7684; font-weight: 600;">오늘 강의</div><div style="font-size: 26px; font-weight: 800; margin-top: 8px; letter-spacing: -.5px">2<span style="font-size: 15px; color: #8B95A1; font-weight: 700;">개</span></div>
-                
-              </div>
+            <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+              <div style="flex: 1; background: #F8F9FB; border-radius: 18px; padding: 16px; text-align: center;"><div style="font-size: 24px; font-weight: 800; color: var(--accent,#3182F6);">12</div><div style="font-size: 11.5px; color: #6B7684; font-weight: 600; margin-top: 2px;">신규 신청</div></div>
+              <div style="flex: 1; background: #F8F9FB; border-radius: 18px; padding: 16px; text-align: center;"><div style="font-size: 24px; font-weight: 800; color: #0CA678;">2</div><div style="font-size: 11.5px; color: #6B7684; font-weight: 600; margin-top: 2px;">오늘 강의</div></div>
+              <div style="flex: 1; background: #F8F9FB; border-radius: 18px; padding: 16px; text-align: center;"><div style="font-size: 24px; font-weight: 800; color: #F76707;">3</div><div style="font-size: 11.5px; color: #6B7684; font-weight: 600; margin-top: 2px;">결제 대기</div></div>
             </div>
-            <button onClick="{{ goSettleTab }}" style="width: 100%; text-align: left; background: var(--accent-soft,#EFF6FF); border-radius: 18px; padding: 18px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px;">
+
+            <!-- Payment pending highlight -->
+            <button onClick="{{ goSettleTab }}" style="width: 100%; text-align: left; background: #FFF4EC; border-radius: 18px; padding: 16px 18px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 26px;">
               <div>
-                <div style="font-size: 13px; color: var(--accent,#3182F6); font-weight: 700;">결제 대기</div>
-                <div style="font-size: 18px; font-weight: 800; margin-top: 4px; color: #191F28;">3건 · 135,000원 확인 필요</div>
+                <div style="font-size: 13px; color: #E8590C; font-weight: 700;">결제 대기&nbsp;</div>
+                <div style="font-size: 16px; font-weight: 800; margin-top: 4px; color: #191F28;">3건 · 135,000원 확인 필요</div>
               </div>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent,#3182F6)" stroke-width="2.2"><path d="M9 18l6-6-6-6"></path></svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E8590C" stroke-width="2.2"><path d="M9 18l6-6-6-6"></path></svg>
             </button>
+
+            <!-- Manage grid -->
+            <div style="font-size: 17px; font-weight: 800; letter-spacing: -.4px; margin-bottom: 12px;">내 클래스 관리하기&nbsp;</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 26px;">
+              <button onClick="{{ openAttendPick }}" style="text-align: left; background: #FFF4EC; border-radius: 18px; padding: 16px; position: relative;">
+                
+                <div style="width: 42px; height: 42px; border-radius: 12px; background: #fff; display: flex; align-items: center; justify-content: center;"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#F76707" stroke-width="2"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg></div>
+                <div style="font-size: 14.5px; font-weight: 800; margin-top: 11px;">출석 QR</div>
+                <div style="font-size: 11.5px; color: #B36A2E; font-weight: 500; margin-top: 2px;">강의 선택 · 오늘 2개</div>
+              </button>
+              <button onClick="{{ goCreate }}" style="text-align: left; background: #EFF6FF; border-radius: 18px; padding: 16px;">
+                <div style="width: 42px; height: 42px; border-radius: 12px; background: #fff; display: flex; align-items: center; justify-content: center;"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="var(--accent,#3182F6)" stroke-width="2.4"><path d="M12 5v14M5 12h14"></path></svg></div>
+                <div style="font-size: 14.5px; font-weight: 800; margin-top: 11px;">강의 만들기</div>
+                <div style="font-size: 11.5px; color: #5B87C4; font-weight: 500; margin-top: 2px;">1분이면 완성</div>
+              </button>
+            </div>
 
             <!-- Recruiting classes -->
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-              <span style="font-size: 18px; font-weight: 800; letter-spacing: -.4px;">모집중인 클래스</span>
+              <span style="font-size: 17px; font-weight: 800; letter-spacing: -.4px;">모집중인 클래스&nbsp;</span>
               <button onClick="{{ goClassesTab }}" style="font-size: 14px; color: #8B95A1; font-weight: 600;">전체보기</button>
             </div>
             
@@ -108,7 +124,7 @@
             </button>
 
             <!-- Recent applicants -->
-            <div style="font-size: 18px; font-weight: 800; letter-spacing: -.4px; margin-bottom: 12px;">최근 신청자</div>
+            <div style="font-size: 17px; font-weight: 800; letter-spacing: -.4px; margin-bottom: 12px;">최근 신청자&nbsp;</div>
             <div style="background: #fff; border: 1px solid #EDF0F3; border-radius: 20px; overflow: hidden;">
               <button onClick="{{ openApplicant }}" style="width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px 16px; text-align: left; border-bottom: 1px solid #F2F4F6;">
                 <div style="width: 42px; height: 42px; border-radius: 50%; background: #FFE9D9; color: #E8590C; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 16px;">김</div>
@@ -214,6 +230,11 @@
               <div style="background: #F2F4F6; border-radius: 16px; padding: 16px 10px; text-align: center;"><div style="font-size: 22px; font-weight: 800;">68</div><div style="font-size: 12px; color: #6B7684; font-weight: 600; margin-top: 3px;">누적 수강생</div></div>
               <div style="background: #F2F4F6; border-radius: 16px; padding: 16px 10px; text-align: center;"><div style="font-size: 22px; font-weight: 800;">4.9</div><div style="font-size: 12px; color: #6B7684; font-weight: 600; margin-top: 3px;">평균 만족도</div></div>
             </div>
+            <button onClick="{{ openMyCerts }}" style="width: 100%; text-align: left; background: #fff; border: 1px solid #EDF0F3; border-radius: 20px; padding: 17px 18px; margin-bottom: 14px; display: flex; align-items: center; gap: 14px; box-shadow: 0 2px 10px rgba(23,31,40,.04);">
+              <div style="width: 42px; height: 42px; border-radius: 12px; background: #FFF9DB; display: flex; align-items: center; justify-content: center; flex: none;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F08C00" stroke-width="2"><circle cx="12" cy="8" r="6"></circle><path d="M15.5 13.5L17 22l-5-3-5 3 1.5-8.5"></path></svg></div>
+              <div style="flex: 1;"><div style="font-size: 15px; font-weight: 700;">내가 수료한 강의</div><div style="font-size: 13px; color: #8B95A1; font-weight: 600; margin-top: 2px;">수료증 3장 · 수강 완료 5개</div></div>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4CBD3" stroke-width="2.2"><path d="M9 18l6-6-6-6"></path></svg>
+            </button>
             <div style="background: #fff; border: 1px solid #EDF0F3; border-radius: 20px; overflow: hidden;">
               <div style="padding: 17px 18px; border-bottom: 1px solid #F2F4F6; display: flex; justify-content: space-between; align-items: center; font-size: 15px; font-weight: 600;">정산 관리<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4CBD3" stroke-width="2.2"><path d="M9 18l6-6-6-6"></path></svg></div>
               <div style="padding: 17px 18px; border-bottom: 1px solid #F2F4F6; display: flex; justify-content: space-between; align-items: center; font-size: 15px; font-weight: 600;">알림 설정<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4CBD3" stroke-width="2.2"><path d="M9 18l6-6-6-6"></path></svg></div>
@@ -221,6 +242,88 @@
               <div style="padding: 17px 18px; display: flex; justify-content: space-between; align-items: center; font-size: 15px; font-weight: 600;">설정<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4CBD3" stroke-width="2.2"><path d="M9 18l6-6-6-6"></path></svg></div>
             </div>
             <button onClick="{{ goLogin }}" style="width: 100%; margin-top: 14px; padding: 16px; font-size: 14.5px; font-weight: 700; color: #8B95A1;">로그아웃</button>
+          </div>
+        </sc-if>
+
+        <!-- ============ MY CERTIFICATES (수료한 강의) ============ -->
+        <sc-if value="{{ isMyCerts }}" hint-placeholder-val="{{ false }}">
+          <div class="oc-screen" style="padding: 54px 20px 40px;">
+            <button onClick="{{ goMy }}" style="margin-bottom: 12px; margin-left: -6px; padding: 6px;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#191F28" stroke-width="2.2"><path d="M15 18l-6-6 6-6"></path></svg></button>
+            <div style="font-size: 24px; font-weight: 800; letter-spacing: -.5px;">수료한 강의</div>
+            <div style="font-size: 14px; color: #8B95A1; font-weight: 600; margin-top: 5px;">지금까지 완주한 클래스예요</div>
+            <div style="display: flex; gap: 10px; margin: 20px 0 6px;">
+              <div style="flex: 1; background: #FFF9DB; border-radius: 16px; padding: 15px; text-align: center;"><div style="font-size: 24px; font-weight: 800; color: #F08C00;">3</div><div style="font-size: 12px; color: #B8860B; font-weight: 600; margin-top: 3px;">수료증</div></div>
+              <div style="flex: 1; background: #F2F4F6; border-radius: 16px; padding: 15px; text-align: center;"><div style="font-size: 24px; font-weight: 800;">5</div><div style="font-size: 12px; color: #8B95A1; font-weight: 600; margin-top: 3px;">수강 완료</div></div>
+              <div style="flex: 1; background: #E6F9F1; border-radius: 16px; padding: 15px; text-align: center;"><div style="font-size: 24px; font-weight: 800; color: #0CA678;">96%</div><div style="font-size: 12px; color: #0CA678; font-weight: 600; margin-top: 3px;">평균 출석</div></div>
+            </div>
+            <div style="margin-top: 16px; display: flex; flex-direction: column; gap: 12px;">
+              <sc-for list="{{ myCertList }}" as="c" hint-placeholder-count="3">
+                <div style="background: #fff; border: 1px solid #EDF0F3; border-radius: 18px; padding: 16px; box-shadow: 0 2px 10px rgba(23,31,40,.04);">
+                  <div style="display: flex; align-items: center; gap: 13px;">
+                    <div style="width: 48px; height: 48px; border-radius: 14px; background: {{ c.grad }}; display: flex; align-items: center; justify-content: center; flex: none;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="8" r="6"></circle><path d="M15.5 13.5L17 22l-5-3-5 3 1.5-8.5"></path></svg></div>
+                    <div style="flex: 1; min-width: 0;">
+                      <div style="font-size: 15.5px; font-weight: 800; letter-spacing: -.3px;">{{ c.title }}</div>
+                      <div style="font-size: 12.5px; color: #8B95A1; font-weight: 600; margin-top: 3px;">{{ c.meta }}</div>
+                    </div>
+                    <span style="{{ c.tagStyle }}">{{ c.tag }}</span>
+                  </div>
+                  <div style="display: flex; gap: 8px; margin-top: 14px;">
+                    <button onClick="{{ c.view }}" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; background: var(--accent-soft,#EFF6FF); color: var(--accent,#3182F6); border-radius: 12px; padding: 11px; font-size: 13.5px; font-weight: 700;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent,#3182F6)" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>수료증 보기</button>
+                    <button onClick="{{ c.download }}" style="flex: none; display: flex; align-items: center; justify-content: center; gap: 6px; background: #F2F4F6; color: #4E5968; border-radius: 12px; padding: 11px 16px; font-size: 13.5px; font-weight: 700;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4E5968" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path></svg>저장</button>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ============ CERTIFICATE VIEW (수료증 보기) ============ -->
+        <sc-if value="{{ isCertView }}" hint-placeholder-val="{{ false }}">
+          <div class="oc-screen" style="position: absolute; inset: 0; background: #EEF1F5; display: flex; flex-direction: column; padding: 50px 20px 24px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+              <button onClick="{{ certBack }}" style="padding: 6px; margin-left: -6px;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#191F28" stroke-width="2.2"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <span style="font-size: 16px; font-weight: 700;">수료증</span>
+              <div style="width: 26px;"></div>
+            </div>
+            <!-- certificate paper -->
+            <div style="flex: 1; overflow-y: auto;" class="oc-scroll">
+              <div style="background: #fff; border-radius: 6px; padding: 8px; box-shadow: 0 18px 44px -12px rgba(23,31,40,.32);">
+                <div style="border: 2px solid {{ cert.accent }}; border-radius: 3px; padding: 3px;">
+                  <div style="border: 1px solid {{ cert.accent }}; padding: 34px 26px 30px; display: flex; flex-direction: column; align-items: center; text-align: center;">
+                    <div style="font-family: Georgia, serif; font-size: 13px; letter-spacing: 4px; color: {{ cert.accent }}; font-weight: 700;">CERTIFICATE</div>
+                    <div style="font-size: 20px; font-weight: 800; letter-spacing: -.3px; margin-top: 6px;">수료증</div>
+                    <div style="width: 44px; height: 3px; background: {{ cert.accent }}; border-radius: 2px; margin: 14px 0 22px;"></div>
+                    <div style="width: 74px; height: 74px; border-radius: 50%; background: {{ cert.grad }}; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 26px; font-weight: 800;">{{ certInitial }}</div>
+                    <div style="font-size: 21px; font-weight: 800; margin-top: 14px; letter-spacing: -.3px;">{{ certName }}</div>
+                    <div style="font-size: 13px; color: #8B95A1; font-weight: 600; margin-top: 4px;">{{ certMessage }}</div>
+                    <div style="font-size: 16.5px; font-weight: 800; margin-top: 20px; color: {{ cert.accent }}; line-height: 1.4;">{{ cert.title }}</div>
+                    <div style="display: flex; width: 100%; margin-top: 24px; padding-top: 22px; border-top: 1px solid #F0F2F5;">
+                      <div style="flex: 1;"><div style="font-size: 22px; font-weight: 800;">{{ cert.days }}</div><div style="font-size: 11px; color: #8B95A1; font-weight: 700; margin-top: 3px;">수강 일수</div></div>
+                      <div style="flex: 1; border-left: 1px solid #F0F2F5; border-right: 1px solid #F0F2F5;"><div style="font-size: 22px; font-weight: 800;">{{ cert.attend }}%</div><div style="font-size: 11px; color: #8B95A1; font-weight: 700; margin-top: 3px;">출석률</div></div>
+                      <div style="flex: 1;"><div style="font-size: 22px; font-weight: 800;">{{ cert.score }}</div><div style="font-size: 11px; color: #8B95A1; font-weight: 700; margin-top: 3px;">시험 점수</div></div>
+                    </div>
+                    <div style="display: flex; align-items: flex-end; justify-content: space-between; width: 100%; margin-top: 30px;">
+                      <div style="text-align: left;">
+                        <div style="font-size: 11.5px; color: #ADB5BD; font-weight: 600;">발급일</div>
+                        <div style="font-size: 13px; font-weight: 700; margin-top: 2px;">{{ cert.date }}</div>
+                        <div style="font-size: 11px; color: #ADB5BD; font-weight: 500; margin-top: 8px;">인증번호 OCC-{{ certNo }}</div>
+                      </div>
+                      <div style="text-align: right;">
+                        <div style="font-size: 13px; font-weight: 700;">{{ cert.instr }}</div>
+                        <div style="font-size: 11.5px; color: #8B95A1; font-weight: 600; margin-top: 2px;">원클릭 클래스</div>
+                        <div style="display: inline-flex; align-items: center; justify-content: center; width: 46px; height: 46px; border: 2px solid #E03131; border-radius: 8px; color: #E03131; font-size: 10px; font-weight: 800; margin-top: 6px; line-height: 1.1;">직인</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div style="height: 20px;"></div>
+            </div>
+            <!-- actions -->
+            <div style="display: flex; gap: 10px; padding-top: 12px;">
+              <button onClick="{{ certShare }}" style="flex: none; width: 56px; height: 54px; border-radius: var(--cta-r,15px); background: #F2F4F6; display: flex; align-items: center; justify-content: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4E5968" stroke-width="2"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"></path></svg></button>
+              <button onClick="{{ certSave }}" style="flex: 1; height: 54px; border-radius: var(--cta-r,15px); background: var(--accent,#3182F6); color: #fff; font-size: 15.5px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path></svg>이미지로 저장</button>
+            </div>
           </div>
         </sc-if>
 
@@ -234,7 +337,7 @@
             <div style="font-size: 14px; color: #8B95A1; font-weight: 600; margin-top: 8px;">신청 24 / 30명 · 모집 마감 D-7</div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 22px;">
-              <button onClick="{{ openClassApplicants }}" style="text-align: left; background: #fff; border: 1px solid #EDF0F3; border-radius: 18px; padding: 18px; box-shadow: 0 2px 10px rgba(23,31,40,.04);">
+              <button onClick="{{ openClassApplicants }}" style="text-align: left; background: #fff; border: 1px solid #EDF0F3; border-radius: 18px; padding: 18px; box-shadow: 0 2px 10px rgba(23,31,40,.04);" data-comment-anchor="b961090dfb-button">
                 <div style="width: 40px; height: 40px; border-radius: 12px; background: var(--accent-soft,#EFF6FF); display: flex; align-items: center; justify-content: center; margin-bottom: 12px;"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="var(--accent,#3182F6)" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11"></path></svg></div>
                 <div style="font-size: 15px; font-weight: 700;">신청자</div>
                 <div style="font-size: 13px; color: #8B95A1; font-weight: 600; margin-top: 3px;">24명 관리</div>
@@ -379,37 +482,110 @@
         <sc-if value="{{ isExam }}" hint-placeholder-val="{{ false }}">
           <div class="oc-screen" style="padding: 54px 20px 40px;">
             <button onClick="{{ openClass }}" style="margin-bottom: 12px; margin-left: -6px; padding: 6px;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#191F28" stroke-width="2.2"><path d="M15 18l-6-6 6-6"></path></svg></button>
-            <div style="font-size: 24px; font-weight: 800; letter-spacing: -.5px;">시험 결과</div>
-            <div style="font-size: 14px; color: #8B95A1; font-weight: 600; margin-top: 5px;">이수 평가 · 합격 기준 70점</div>
-            <button onClick="{{ openExamBuild }}" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--accent-soft,#EFF6FF); color: var(--accent,#3182F6); border-radius: 14px; padding: 14px; margin-top: 16px; font-size: 14.5px; font-weight: 700;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent,#3182F6)" stroke-width="2.2"><path d="M12 5v14M5 12h14"></path></svg>시험 문항 만들기 · 수정</button>
+            <div style="font-size: 24px; font-weight: 800; letter-spacing: -.5px;">시험</div>
+            <div style="font-size: 14px; color: #8B95A1; font-weight: 600; margin-top: 5px;">시험 {{ examCount }}개 · 탭하면 결과를 볼 수 있어요</div>
+            <div style="margin-top: 20px; display: flex; flex-direction: column; gap: 12px;">
+              <sc-for list="{{ examCards }}" as="e" hint-placeholder-count="2">
+                <button onClick="{{ e.open }}" style="text-align: left; background: #fff; border: 1px solid #EDF0F3; border-radius: 18px; padding: 18px; box-shadow: 0 2px 10px rgba(23,31,40,.04);">
+                  <div style="display: flex; align-items: flex-start; gap: 12px;">
+                    <div style="width: 42px; height: 42px; border-radius: 12px; background: #FFF4EC; display: flex; align-items: center; justify-content: center; flex: none;"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#F76707" stroke-width="2"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg></div>
+                    <div style="flex: 1; min-width: 0;">
+                      <div style="font-size: 16px; font-weight: 800; letter-spacing: -.3px;">{{ e.title }}</div>
+                      <div style="font-size: 13px; color: #8B95A1; font-weight: 600; margin-top: 3px;">{{ e.meta }}</div>
+                    </div>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C4CBD3" stroke-width="2.2" style="flex: none; margin-top: 2px;"><path d="M9 18l6-6-6-6"></path></svg>
+                  </div>
+                  <div style="display: flex; gap: 8px; margin-top: 14px;">
+                    <div style="flex: 1; background: #F8F9FB; border-radius: 12px; padding: 10px; text-align: center;"><div style="font-size: 17px; font-weight: 800;">{{ e.taken }}</div><div style="font-size: 11px; color: #8B95A1; font-weight: 600; margin-top: 1px;">응시</div></div>
+                    <div style="flex: 1; background: #E6F9F1; border-radius: 12px; padding: 10px; text-align: center;"><div style="font-size: 17px; font-weight: 800; color: #0CA678;">{{ e.passCount }}</div><div style="font-size: 11px; color: #0CA678; font-weight: 600; margin-top: 1px;">합격</div></div>
+                    <div style="flex: 1; background: #F8F9FB; border-radius: 12px; padding: 10px; text-align: center;"><div style="font-size: 17px; font-weight: 800; color: #ADB5BD;">{{ e.notTaken }}</div><div style="font-size: 11px; color: #8B95A1; font-weight: 600; margin-top: 1px;">미응시</div></div>
+                  </div>
+                </button>
+              </sc-for>
+              <button onClick="{{ ebAddExam }}" style="width: 100%; border: 1.5px dashed #C4CBD3; background: #FBFCFD; border-radius: 16px; padding: 18px; font-size: 14.5px; font-weight: 700; color: var(--accent,#3182F6); display: flex; align-items: center; justify-content: center; gap: 8px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent,#3182F6)" stroke-width="2.2"><path d="M12 5v14M5 12h14"></path></svg>새 시험 만들기</button>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ============ EXAM DETAIL (instructor per-exam result) ============ -->
+        <sc-if value="{{ isExamDetail }}" hint-placeholder-val="{{ false }}">
+          <div class="oc-screen" style="padding: 54px 20px 40px;">
+            <button onClick="{{ openExam }}" style="margin-bottom: 12px; margin-left: -6px; padding: 6px;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#191F28" stroke-width="2.2"><path d="M15 18l-6-6 6-6"></path></svg></button>
+            <div style="font-size: 24px; font-weight: 800; letter-spacing: -.5px;">{{ edTitle }}</div>
+            <div style="font-size: 14px; color: #8B95A1; font-weight: 600; margin-top: 5px;">{{ edMeta }}</div>
+            <div style="display: flex; gap: 8px; margin-top: 16px;">
+              <button onClick="{{ openExamBuild }}" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px; background: var(--accent-soft,#EFF6FF); color: var(--accent,#3182F6); border-radius: 14px; padding: 13px; font-size: 14px; font-weight: 700;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent,#3182F6)" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"></path></svg>문항 수정</button>
+              <button onClick="{{ startExamTake }}" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px; background: #F2F4F6; color: #4E5968; border-radius: 14px; padding: 13px; font-size: 14px; font-weight: 700;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#4E5968" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>학생으로 응시</button>
+            </div>
             <div style="display: flex; gap: 10px; margin: 20px 0;">
-              <div style="flex: 1; background: #F8F9FB; border-radius: 16px; padding: 15px 10px; text-align: center;"><div style="font-size: 22px; font-weight: 800;">15</div><div style="font-size: 12px; color: #8B95A1; font-weight: 600; margin-top: 3px;">응시</div></div>
-              <div style="flex: 1; background: #E6F9F1; border-radius: 16px; padding: 15px 10px; text-align: center;"><div style="font-size: 22px; font-weight: 800; color: #0CA678;">12</div><div style="font-size: 12px; color: #0CA678; font-weight: 600; margin-top: 3px;">합격</div></div>
-              <div style="flex: 1; background: #FFF0F0; border-radius: 16px; padding: 15px 10px; text-align: center;"><div style="font-size: 22px; font-weight: 800; color: #E03131;">3</div><div style="font-size: 12px; color: #E03131; font-weight: 600; margin-top: 3px;">불합격</div></div>
-              <div style="flex: 1; background: #F8F9FB; border-radius: 16px; padding: 15px 10px; text-align: center;"><div style="font-size: 22px; font-weight: 800; color: #ADB5BD;">9</div><div style="font-size: 12px; color: #8B95A1; font-weight: 600; margin-top: 3px;">미응시</div></div>
+              <div style="flex: 1; background: #F8F9FB; border-radius: 16px; padding: 15px 10px; text-align: center;"><div style="font-size: 22px; font-weight: 800;">{{ edTaken }}</div><div style="font-size: 12px; color: #8B95A1; font-weight: 600; margin-top: 3px;">응시</div></div>
+              <div style="flex: 1; background: #E6F9F1; border-radius: 16px; padding: 15px 10px; text-align: center;"><div style="font-size: 22px; font-weight: 800; color: #0CA678;">{{ edPass }}</div><div style="font-size: 12px; color: #0CA678; font-weight: 600; margin-top: 3px;">합격</div></div>
+              <div style="flex: 1; background: #FFF0F0; border-radius: 16px; padding: 15px 10px; text-align: center;"><div style="font-size: 22px; font-weight: 800; color: #E03131;">{{ edFail }}</div><div style="font-size: 12px; color: #E03131; font-weight: 600; margin-top: 3px;">불합격</div></div>
+              <div style="flex: 1; background: #F8F9FB; border-radius: 16px; padding: 15px 10px; text-align: center;"><div style="font-size: 22px; font-weight: 800; color: #ADB5BD;">{{ edNotTaken }}</div><div style="font-size: 12px; color: #8B95A1; font-weight: 600; margin-top: 3px;">미응시</div></div>
             </div>
             <div style="font-size: 15px; font-weight: 800; margin-bottom: 12px;">응시자 점수</div>
             <sc-for list="{{ examList }}" as="e" hint-placeholder-count="5">
-              <div style="display: flex; align-items: center; gap: 12px; padding: 12px 2px; border-bottom: 1px solid #F2F4F6;">
+              <button onClick="{{ e.open }}" style="width: 100%; text-align: left; display: flex; align-items: center; gap: 12px; padding: 12px 2px; border-bottom: 1px solid #F2F4F6; background: none;">
                 <div style="width: 40px; height: 40px; border-radius: 50%; background: {{ e.avBg }}; color: {{ e.avColor }}; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 15px; flex: none;">{{ e.initial }}</div>
                 <div style="flex: 1; font-size: 15px; font-weight: 700;">{{ e.name }}</div>
                 <span style="font-size: 16px; font-weight: 800; color: {{ e.scoreColor }};">{{ e.score }}</span>
                 <span style="font-size: 11px; font-weight: 700; color: {{ e.tagColor }}; background: {{ e.tagBg }}; padding: 4px 9px; border-radius: 7px;">{{ e.tag }}</span>
-              </div>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4CBD3" stroke-width="2.2" style="flex: none;"><path d="M9 18l6-6-6-6"></path></svg>
+              </button>
             </sc-for>
           </div>
         </sc-if>
 
-        <!-- ============ CERTIFICATE ============ -->
+        <!-- ============ EXAM TAKER REVIEW (per-applicant answers) ============ -->
+        <sc-if value="{{ isExamTaker }}" hint-placeholder-val="{{ false }}">
+          <div class="oc-screen" style="padding: 54px 20px 40px;">
+            <button onClick="{{ openExamDetailBack }}" style="margin-bottom: 12px; margin-left: -6px; padding: 6px;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#191F28" stroke-width="2.2"><path d="M15 18l-6-6 6-6"></path></svg></button>
+            <div style="display: flex; align-items: center; gap: 14px;">
+              <div style="width: 52px; height: 52px; border-radius: 50%; background: {{ etkAvBg }}; color: {{ etkAvColor }}; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 20px; flex: none;">{{ etkInitial }}</div>
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-size: 20px; font-weight: 800; letter-spacing: -.4px;">{{ etkName }}</div>
+                <div style="font-size: 13.5px; color: #8B95A1; font-weight: 600; margin-top: 2px;">{{ etkMeta }}</div>
+              </div>
+              <div style="text-align: right;">
+                <div style="font-size: 26px; font-weight: 800; color: {{ etkColor }}; line-height: 1;">{{ etkScore }}</div>
+                <span style="display: inline-block; font-size: 11px; font-weight: 700; color: {{ etkTagColor }}; background: {{ etkTagBg }}; padding: 3px 9px; border-radius: 7px; margin-top: 6px;">{{ etkTag }}</span>
+              </div>
+            </div>
+            <div style="display: flex; gap: 10px; margin: 20px 0 6px;">
+              <div style="flex: 1; background: #E6F9F1; border-radius: 14px; padding: 13px; text-align: center;"><div style="font-size: 20px; font-weight: 800; color: #0CA678;">{{ etkCorrect }}</div><div style="font-size: 12px; color: #0CA678; font-weight: 600; margin-top: 2px;">맞은 문제</div></div>
+              <div style="flex: 1; background: #FFF0F0; border-radius: 14px; padding: 13px; text-align: center;"><div style="font-size: 20px; font-weight: 800; color: #E03131;">{{ etkWrong }}</div><div style="font-size: 12px; color: #E03131; font-weight: 600; margin-top: 2px;">틀린 문제</div></div>
+            </div>
+            <div style="margin-top: 16px; display: flex; flex-direction: column; gap: 12px;">
+              <sc-for list="{{ etkQuestions }}" as="q" hint-placeholder-count="2">
+                <div style="background: #fff; border: 1px solid #EDF0F3; border-radius: 18px; padding: 16px; box-shadow: 0 2px 8px rgba(23,31,40,.03);">
+                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                    <span style="{{ q.badgeStyle }}">{{ q.badge }}</span>
+                    <span style="font-size: 12px; font-weight: 800; color: #8B95A1;">문제 {{ q.num }}</span>
+                  </div>
+                  <div style="font-size: 15.5px; font-weight: 700; line-height: 1.45; margin-bottom: 12px;">{{ q.text }}</div>
+                  <div style="display: flex; flex-direction: column; gap: 7px;">
+                    <sc-for list="{{ q.choices }}" as="c" hint-placeholder-count="4">
+                      <div style="{{ c.rowStyle }}">
+                        <span style="{{ c.markStyle }}">{{ c.mark }}</span>
+                        <span style="flex: 1;">{{ c.label }}</span>
+                        <sc-if value="{{ c.showTag }}" hint-placeholder-val="{{ false }}"><span style="{{ c.tagStyle }}">{{ c.tag }}</span></sc-if>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
         <sc-if value="{{ isCert }}" hint-placeholder-val="{{ false }}">
           <div class="oc-screen" style="padding: 54px 20px 40px;">
             <button onClick="{{ openClass }}" style="margin-bottom: 12px; margin-left: -6px; padding: 6px;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#191F28" stroke-width="2.2"><path d="M15 18l-6-6 6-6"></path></svg></button>
             <div style="font-size: 24px; font-weight: 800; letter-spacing: -.5px;">수료증 관리</div>
-            <div style="font-size: 14px; color: #8B95A1; font-weight: 600; margin-top: 5px;">출석·시험 기준 충족 시 발급돼요</div>
-            <div style="background: linear-gradient(135deg, var(--accent,#3182F6), var(--accent-2,#5B9BFF)); border-radius: 20px; padding: 22px; margin: 20px 0; color: #fff;">
-              <div style="display: flex; align-items: center; gap: 10px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="8" r="6"></circle><path d="M15.5 13.5L17 22l-5-3-5 3 1.5-8.5"></path></svg><span style="font-size: 15px; font-weight: 700;">수료 조건</span></div>
-              <div style="font-size: 13.5px; margin-top: 10px; opacity: .92; line-height: 1.6;">출석률 80% 이상 · 시험 70점 이상<br>조건 충족 시 자동으로 발급 대기에 올라가요</div>
-            </div>
+            <div style="font-size: 14px; color: #8B95A1; font-weight: 600; margin-top: 5px;">조건과 수료증 내용을 직접 설정할 수 있어요</div>
+            <button onClick="{{ openCertSetup }}" style="width: 100%; text-align: left; background: linear-gradient(135deg, var(--accent,#3182F6), var(--accent-2,#5B9BFF)); border-radius: 20px; padding: 22px; margin: 20px 0; color: #fff;">
+              <div style="display: flex; align-items: center; gap: 10px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="8" r="6"></circle><path d="M15.5 13.5L17 22l-5-3-5 3 1.5-8.5"></path></svg><span style="font-size: 15px; font-weight: 700;">수료 조건</span><div style="flex: 1;"></div><span style="font-size: 12.5px; font-weight: 700; background: rgba(255,255,255,.22); padding: 5px 11px; border-radius: 8px;">수정</span></div>
+              <div style="font-size: 13.5px; margin-top: 10px; opacity: .92; line-height: 1.6;">{{ certCondText }}<br>{{ certIssueText }}</div>
+            </button>
             <div style="display: flex; gap: 10px; margin-bottom: 16px;">
               <div style="flex: 1; background: #FFF9DB; border-radius: 14px; padding: 14px; text-align: center;"><div style="font-size: 22px; font-weight: 800; color: #F08C00;">12</div><div style="font-size: 12px; color: #B8860B; font-weight: 600; margin-top: 3px;">발급 대기</div></div>
               <div style="flex: 1; background: #F1F3F5; border-radius: 14px; padding: 14px; text-align: center;"><div style="font-size: 22px; font-weight: 800; color: #868E96;">0</div><div style="font-size: 12px; color: #868E96; font-weight: 600; margin-top: 3px;">발급 완료</div></div>
@@ -422,6 +598,89 @@
               </div>
             </sc-for>
             <button onClick="{{ toastIssueAll }}" style="width: 100%; height: 52px; border-radius: var(--cta-r,15px); background: var(--accent,#3182F6); color: #fff; font-size: 15.5px; font-weight: 700; margin-top: 20px;">대기 12명 일괄 발급</button>
+          </div>
+        </sc-if>
+
+        <!-- ============ CERTIFICATE SETUP (강사 커스텀) ============ -->
+        <sc-if value="{{ isCertSetup }}" hint-placeholder-val="{{ false }}">
+          <div class="oc-screen" style="padding: 54px 20px 40px;">
+            <button onClick="{{ openCert }}" style="margin-bottom: 12px; margin-left: -6px; padding: 6px;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#191F28" stroke-width="2.2"><path d="M15 18l-6-6 6-6"></path></svg></button>
+            <div style="font-size: 24px; font-weight: 800; letter-spacing: -.5px;">수료증 설정</div>
+            <div style="font-size: 14px; color: #8B95A1; font-weight: 600; margin-top: 5px;">발급 조건과 증서 내용을 직접 정해요</div>
+
+            <div style="font-size: 15px; font-weight: 800; margin: 24px 0 12px;">발급 조건</div>
+            <div style="display: flex; align-items: center; justify-content: space-between; background: #F2F4F6; border-radius: 14px; padding: 14px 16px;">
+              <span style="font-size: 14px; font-weight: 700;">최소 출석률</span>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <button onClick="{{ certAttendDown }}" style="width: 32px; height: 32px; border-radius: 9px; background: #fff; display: flex; align-items: center; justify-content: center;"><svg width="15" height="15" viewBox="0 0 24 24" stroke="#4E5968" stroke-width="2.6"><path d="M5 12h14"></path></svg></button>
+                <span style="font-size: 16px; font-weight: 800; min-width: 54px; text-align: center;">{{ cfgAttend }}%</span>
+                <button onClick="{{ certAttendUp }}" style="width: 32px; height: 32px; border-radius: 9px; background: #fff; display: flex; align-items: center; justify-content: center;"><svg width="15" height="15" viewBox="0 0 24 24" stroke="#4E5968" stroke-width="2.6"><path d="M12 5v14M5 12h14"></path></svg></button>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; background: #F2F4F6; border-radius: 14px; padding: 14px 16px; margin-top: 10px;">
+              <span style="font-size: 14px; font-weight: 700;">최소 시험 점수</span>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <button onClick="{{ certScoreDown }}" style="width: 32px; height: 32px; border-radius: 9px; background: #fff; display: flex; align-items: center; justify-content: center;"><svg width="15" height="15" viewBox="0 0 24 24" stroke="#4E5968" stroke-width="2.6"><path d="M5 12h14"></path></svg></button>
+                <span style="font-size: 16px; font-weight: 800; min-width: 54px; text-align: center;">{{ cfgScore }}점</span>
+                <button onClick="{{ certScoreUp }}" style="width: 32px; height: 32px; border-radius: 9px; background: #fff; display: flex; align-items: center; justify-content: center;"><svg width="15" height="15" viewBox="0 0 24 24" stroke="#4E5968" stroke-width="2.6"><path d="M12 5v14M5 12h14"></path></svg></button>
+              </div>
+            </div>
+            <button onClick="{{ certAutoToggle }}" style="width: 100%; display: flex; align-items: center; justify-content: space-between; background: #F2F4F6; border-radius: 14px; padding: 15px 16px; margin-top: 10px;">
+              <div style="text-align: left;"><div style="font-size: 14px; font-weight: 700;">자동 발급 대기 등록</div><div style="font-size: 12px; color: #8B95A1; font-weight: 500; margin-top: 2px;">조건 충족 시 자동으로 대기 목록에 추가</div></div>
+              <div style="{{ cfgAutoTrack }}"><div style="{{ cfgAutoKnob }}"></div></div>
+            </button>
+
+            <div style="font-size: 15px; font-weight: 800; margin: 26px 0 12px;">수료증 내용</div>
+            <div style="font-size: 13px; font-weight: 700; color: #4E5968; margin-bottom: 8px;">증서 문구</div>
+            <textarea value="{{ cfgMessage }}" onInput="{{ certMessageInput }}" placeholder="예) 위 사람은 아래 과정을 성실히 이수하였기에 이 증서를 수여합니다" style="width: 100%; border: none; background: #F2F4F6; border-radius: 14px; padding: 15px; font-size: 14.5px; font-weight: 500; outline: none; min-height: 96px; resize: none; line-height: 1.6;"></textarea>
+            <div style="font-size: 13px; font-weight: 700; color: #4E5968; margin: 14px 0 8px;">발급 기관 · 서명</div>
+            <input value="{{ cfgSigner }}" onInput="{{ certSignerInput }}" placeholder="예) 이지훈 강사" style="width: 100%; border: none; background: #F2F4F6; border-radius: 14px; padding: 15px; font-size: 14.5px; font-weight: 600; outline: none;">
+
+            <div style="font-size: 15px; font-weight: 800; margin: 26px 0 12px;">테두리 색상</div>
+            <div style="display: flex; gap: 10px;">
+              <sc-for list="{{ cfgColors }}" as="col" hint-placeholder-count="5">
+                <button onClick="{{ col.pick }}" style="{{ col.style }}"><sc-if value="{{ col.on }}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6L9 17l-5-5"></path></svg></sc-if></button>
+              </sc-for>
+            </div>
+
+            <button onClick="{{ certPreview }}" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--accent-soft,#EFF6FF); color: var(--accent,#3182F6); border-radius: 14px; padding: 15px; margin-top: 26px; font-size: 14.5px; font-weight: 700;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent,#3182F6)" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>수료증 미리보기</button>
+            <button onClick="{{ certCfgSave }}" style="width: 100%; height: 54px; border-radius: var(--cta-r,15px); background: var(--accent,#3182F6); color: #fff; font-size: 15.5px; font-weight: 700; margin-top: 10px;">저장하기</button>
+          </div>
+        </sc-if>
+
+        <!-- ============ ATTENDANCE QR — CLASS PICKER ============ -->
+        <sc-if value="{{ isAttendPick }}" hint-placeholder-val="{{ false }}">
+          <div class="oc-screen" style="padding: 54px 20px 40px;">
+            <button onClick="{{ goMain }}" style="margin-bottom: 12px; margin-left: -6px; padding: 6px;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#191F28" stroke-width="2.2"><path d="M15 18l-6-6 6-6"></path></svg></button>
+            <div style="font-size: 24px; font-weight: 800; letter-spacing: -.5px;">어떤 강의의 출석을 받을까요?</div>
+            <div style="font-size: 14px; color: #8B95A1; font-weight: 600; margin-top: 5px;">오늘 진행하는 강의를 선택하면 QR이 열려요</div>
+
+            <sc-if value="{{ qrPickTodayHas }}" hint-placeholder-val="{{ true }}">
+              <div style="font-size: 13px; font-weight: 700; color: var(--accent,#3182F6); margin: 22px 0 10px;">오늘 강의</div>
+            </sc-if>
+            <sc-for list="{{ qrPickToday }}" as="c" hint-placeholder-count="1">
+              <button onClick="{{ c.pick }}" style="width: 100%; text-align: left; background: #fff; border: 1px solid #EDF0F3; border-radius: 18px; padding: 16px; margin-bottom: 10px; display: flex; align-items: center; gap: 14px; box-shadow: 0 2px 10px rgba(23,31,40,.04);">
+                <div style="{{ c.thumbStyle }}"></div>
+                <div style="flex: 1; min-width: 0;">
+                  <div style="display: inline-block; font-size: 11px; font-weight: 700; color: #12B886; background: #E6F9F1; padding: 3px 8px; border-radius: 6px;">오늘 {{ c.time }}</div>
+                  <div style="font-size: 15.5px; font-weight: 700; margin-top: 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ c.title }}</div>
+                  <div style="font-size: 12.5px; color: #8B95A1; font-weight: 600; margin-top: 5px;">{{ c.session }} · 수강생 {{ c.total }}명</div>
+                </div>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C4CBD3" stroke-width="2.2"><path d="M9 18l6-6-6-6"></path></svg>
+              </button>
+            </sc-for>
+
+            <div style="font-size: 13px; font-weight: 700; color: #8B95A1; margin: 22px 0 10px;">진행중인 다른 강의</div>
+            <sc-for list="{{ qrPickOther }}" as="c" hint-placeholder-count="2">
+              <button onClick="{{ c.pick }}" style="width: 100%; text-align: left; background: #fff; border: 1px solid #EDF0F3; border-radius: 18px; padding: 16px; margin-bottom: 10px; display: flex; align-items: center; gap: 14px;">
+                <div style="{{ c.thumbStyle }}"></div>
+                <div style="flex: 1; min-width: 0;">
+                  <div style="font-size: 15.5px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ c.title }}</div>
+                  <div style="font-size: 12.5px; color: #8B95A1; font-weight: 600; margin-top: 5px;">{{ c.session }} · 수강생 {{ c.total }}명</div>
+                </div>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C4CBD3" stroke-width="2.2"><path d="M9 18l6-6-6-6"></path></svg>
+              </button>
+            </sc-for>
           </div>
         </sc-if>
 
@@ -443,11 +702,11 @@
                   <div style="{{ cell.style }}"></div>
                 </sc-for>
               </div>
-              <div style="text-align: center; font-size: 13px; font-weight: 700; color: #4E5968; margin-top: 16px;">노션 업무 자동화 · 3회차</div>
+              <div style="text-align: center; font-size: 13px; font-weight: 700; color: #4E5968; margin-top: 16px;">{{ qrClassLabel }}</div>
             </div>
             <div style="{{ qrInfoStyle }}">
               <span style="font-size: 14px; color: {{ qrSub }}; font-weight: 600;">실시간 출석</span>
-              <span style="font-size: 16px; font-weight: 800; color: {{ qrFg }};">{{ qrCheckedIn }}<span style="font-size: 13px; color: {{ qrSub }};"> / 24명</span></span>
+              <span style="font-size: 16px; font-weight: 800; color: {{ qrFg }};">{{ qrCheckedIn }}<span style="font-size: 13px; color: {{ qrSub }};"> / {{ qrClassTotal }}명</span></span>
             </div>
             <button onClick="{{ qrRefresh }}" style="{{ qrRefreshStyle }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{ qrFg }}" stroke-width="2.2"><path d="M23 4v6h-6M1 20v-6h6"></path><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"></path></svg>QR 새로고침</button>
           </div>
@@ -467,12 +726,25 @@
                     <div style="flex: 1;"></div>
                     <button onClick="{{ q.remove }}" style="padding: 4px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4CBD3" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"></path></svg></button>
                   </div>
-                  <input value="{{ q.text }}" onInput="{{ q.onText }}" placeholder="질문을 입력하세요" style="width: 100%; border: none; background: #F2F4F6; border-radius: 12px; padding: 13px 14px; font-size: 14.5px; font-weight: 600; outline: none; margin-bottom: 12px;" />
+                  <input value="{{ q.text }}" onInput="{{ q.onText }}" placeholder="질문을 입력하세요" style="width: 100%; border: none; background: #F2F4F6; border-radius: 12px; padding: 13px 14px; font-size: 14.5px; font-weight: 600; outline: none; margin-bottom: 12px;">
                   <div style="display: flex; gap: 8px;">
                     <sc-for list="{{ q.types }}" as="t" hint-placeholder-count="3">
                       <button onClick="{{ t.select }}" style="{{ t.style }}">{{ t.label }}</button>
                     </sc-for>
                   </div>
+                  <sc-if value="{{ q.isChoice }}" hint-placeholder-val="{{ false }}">
+                    <div style="margin-top: 14px; padding-top: 14px; border-top: 1px solid #F2F4F6;">
+                      <div style="font-size: 12px; color: #8B95A1; font-weight: 600; margin-bottom: 8px;">선택지</div>
+                      <sc-for list="{{ q.options }}" as="o" hint-placeholder-count="2">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                          <div style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid #D1D6DB; flex: none;"></div>
+                          <input value="{{ o.text }}" onInput="{{ o.onText }}" placeholder="{{ o.ph }}" style="flex: 1; border: none; background: #F8F9FB; border-radius: 10px; padding: 11px 12px; font-size: 14px; font-weight: 500; outline: none;">
+                          <button onClick="{{ o.remove }}" style="padding: 4px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C4CBD3" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"></path></svg></button>
+                        </div>
+                      </sc-for>
+                      <button onClick="{{ q.addOption }}" style="display: flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 700; color: var(--accent,#3182F6); padding: 6px 2px; margin-top: 2px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent,#3182F6)" stroke-width="2.4"><path d="M12 5v14M5 12h14"></path></svg>선택지 추가</button>
+                    </div>
+                  </sc-if>
                 </div>
               </sc-for>
               <button onClick="{{ sbAdd }}" style="width: 100%; border: 1.5px dashed #C4CBD3; background: #FBFCFD; border-radius: 16px; padding: 16px; font-size: 14.5px; font-weight: 700; color: #6B7684; display: flex; align-items: center; justify-content: center; gap: 8px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7684" stroke-width="2.2"><path d="M12 5v14M5 12h14"></path></svg>질문 추가</button>
@@ -488,7 +760,11 @@
             <button onClick="{{ openExam }}" style="margin-bottom: 12px; margin-left: -6px; padding: 6px;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#191F28" stroke-width="2.2"><path d="M15 18l-6-6 6-6"></path></svg></button>
             <div style="font-size: 24px; font-weight: 800; letter-spacing: -.5px;">시험 만들기</div>
             <div style="font-size: 14px; color: #8B95A1; font-weight: 600; margin-top: 5px;">정답을 표시하면 자동 채점돼요</div>
-            <div style="display: flex; align-items: center; justify-content: space-between; background: #F2F4F6; border-radius: 14px; padding: 14px 16px; margin-top: 18px;">
+            <div style="margin-top: 18px;">
+              <div style="font-size: 13px; font-weight: 700; color: #4E5968; margin-bottom: 8px;">시험 이름</div>
+              <input value="{{ ebTitle }}" onInput="{{ ebOnTitle }}" placeholder="예) 1주차 · 노션 기본 개념" style="width: 100%; border: none; background: #F2F4F6; border-radius: 12px; padding: 14px 15px; font-size: 15px; font-weight: 700; outline: none;">
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; background: #F2F4F6; border-radius: 14px; padding: 14px 16px; margin-top: 12px;">
               <span style="font-size: 14px; font-weight: 700;">합격 기준 점수</span>
               <div style="display: flex; align-items: center; gap: 10px;">
                 <button onClick="{{ passDown }}" style="width: 32px; height: 32px; border-radius: 9px; background: #fff; display: flex; align-items: center; justify-content: center;"><svg width="15" height="15" viewBox="0 0 24 24" stroke="#4E5968" stroke-width="2.6"><path d="M5 12h14"></path></svg></button>
@@ -504,12 +780,12 @@
                     <div style="flex: 1;"></div>
                     <button onClick="{{ q.remove }}" style="padding: 4px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4CBD3" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"></path></svg></button>
                   </div>
-                  <input value="{{ q.text }}" onInput="{{ q.onText }}" placeholder="문제를 입력하세요" style="width: 100%; border: none; background: #F2F4F6; border-radius: 12px; padding: 13px 14px; font-size: 14.5px; font-weight: 600; outline: none; margin-bottom: 12px;" />
+                  <input value="{{ q.text }}" onInput="{{ q.onText }}" placeholder="문제를 입력하세요" style="width: 100%; border: none; background: #F2F4F6; border-radius: 12px; padding: 13px 14px; font-size: 14.5px; font-weight: 600; outline: none; margin-bottom: 12px;">
                   <div style="font-size: 12px; color: #8B95A1; font-weight: 600; margin-bottom: 8px;">보기 · 정답을 탭하세요</div>
                   <sc-for list="{{ q.choices }}" as="ch" hint-placeholder-count="4">
                     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
                       <button onClick="{{ ch.pick }}" style="{{ ch.radioStyle }}"><sc-if value="{{ ch.correct }}" hint-placeholder-val="{{ false }}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6L9 17l-5-5"></path></svg></sc-if></button>
-                      <input value="{{ ch.text }}" onInput="{{ ch.onText }}" placeholder="{{ ch.ph }}" style="flex: 1; border: none; background: #F8F9FB; border-radius: 10px; padding: 11px 12px; font-size: 14px; font-weight: 500; outline: none;" />
+                      <input value="{{ ch.text }}" onInput="{{ ch.onText }}" placeholder="{{ ch.ph }}" style="flex: 1; border: none; background: #F8F9FB; border-radius: 10px; padding: 11px 12px; font-size: 14px; font-weight: 500; outline: none;">
                     </div>
                   </sc-for>
                 </div>
@@ -518,6 +794,7 @@
             </div>
             <button onClick="{{ ebSave }}" style="width: 100%; height: 54px; border-radius: var(--cta-r,15px); background: var(--accent,#3182F6); color: #fff; font-size: 15.5px; font-weight: 700; margin-top: 20px;">시험 저장하기</button>
             <button onClick="{{ startExamTake }}" style="width: 100%; padding: 15px; font-size: 14.5px; font-weight: 700; color: #6B7684; margin-top: 6px; display: flex; align-items: center; justify-content: center; gap: 7px;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6B7684" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>학생 화면으로 미리보기</button>
+            <button onClick="{{ ebDeleteExam }}" style="width: 100%; padding: 15px; font-size: 14px; font-weight: 700; color: #E03131; margin-top: 2px;">이 시험 삭제</button>
           </div>
         </sc-if>
 
@@ -1172,16 +1449,34 @@ class Component extends DCLogic {
     manageCap2: 30,
     qrSeed: 1,
     qrCheckedIn: 9,
+    qrClass: { title: '노션으로 시작하는 업무 자동화', session: '3회차', total: 24 },
     qrSecs: 300,
-    examPass: 70,
+    exSel: 0, etkSel: 0, certSel: null,
+    certCfg: { attend: 80, score: 70, auto: true, message: '위 사람은 아래 과정을 성실히 이수하였기에 이 증서를 수여합니다', signer: '이지훈 강사', color: '#3182F6' },
     ssIdx: 0, ssAns: {},
     exIdx: 0, exAns: {}, exTime: 600,
     surveyDraft: [
-      { text: '강의 전반에 만족하시나요?', type: 'choice' },
-      { text: '가장 도움이 된 부분은 무엇인가요?', type: 'text' }
+      { text: '강의 전반에 만족하시나요?', type: 'choice', options: ['매우 만족', '만족', '보통', '아쉬워요'] },
+      { text: '가장 도움이 된 부분은 무엇인가요?', type: 'text', options: ['', ''] }
     ],
-    examDraft: [
-      { text: '노션 데이터베이스의 기본 단위는?', choices: ['페이지', '블록', '워크스페이스', '팀'], answer: 1 }
+    exams: [
+      {
+        title: '1주차 · 노션 기본 개념',
+        pass: 70,
+        taken: 15, passCount: 12, failCount: 3, notTaken: 9, avg: 82,
+        questions: [
+          { text: '노션 데이터베이스의 기본 단위는?', choices: ['페이지', '블록', '워크스페이스', '팀'], answer: 1 },
+          { text: '반복 작업 자동화에 쓰는 기능은?', choices: ['템플릿 버튼', '이모지', '커버', '북마크'], answer: 0 }
+        ]
+      },
+      {
+        title: '2주차 · 데이터베이스 실전',
+        pass: 60,
+        taken: 11, passCount: 9, failCount: 2, notTaken: 13, avg: 74,
+        questions: [
+          { text: '관계형 속성으로 두 DB를 연결하는 속성은?', choices: ['Relation', 'Rollup', 'Formula', 'Select'], answer: 0 }
+        ]
+      }
     ],
     auth: {
       loginId: '', loginPw: '', email: '', userId: '', pw: '', name: '',
@@ -1204,12 +1499,13 @@ class Component extends DCLogic {
     const m = {
       '홈': { screen: 'main', tab: 'home' }, '클래스': { screen: 'main', tab: 'classes' },
       '신청자': { screen: 'main', tab: 'applicants' }, '마이': { screen: 'main', tab: 'my' },
+      '수료한 강의': { screen: 'myCerts' },
       '강의 만들기': { screen: 'create', step: 1 }, '클래스 상세': { screen: 'classDetail' },
       '신청자 상세': { screen: 'applicantDetail' }, '수강생 페이지': { screen: 'student' },
       '완료 화면': { screen: 'done' },
       '로그인': { screen: 'login' }, '회원가입': { screen: 'signup' }, '비회원 조회': { screen: 'guest' },
       '신청자 관리': { screen: 'classApplicants' }, '출석': { screen: 'attend' }, '설문': { screen: 'survey' },
-      '시험': { screen: 'exam' }, '수료증': { screen: 'cert' }, '강의 관리': { screen: 'manage' },
+      '시험': { screen: 'exam' }, '시험 상세': { screen: 'examDetail' }, '수료증': { screen: 'cert' }, '수료증 설정': { screen: 'certSetup' }, '강의 관리': { screen: 'manage' },
       '출석 QR': { screen: 'attendQr' }, '설문 만들기': { screen: 'surveyBuild' }, '시험 만들기': { screen: 'examBuild' },
       '설문 응답(학생)': { screen: 'surveyTake' }, '시험 응시(학생)': { screen: 'examTake' }
     };
@@ -1222,7 +1518,7 @@ class Component extends DCLogic {
       if (this.state.screen === 'attendQr') {
         this.setState(s => {
           const secs = s.qrSecs > 0 ? s.qrSecs - 1 : 0;
-          const bump = Math.random() > 0.6 && s.qrCheckedIn < 24 ? 1 : 0;
+          const bump = Math.random() > 0.6 && s.qrCheckedIn < (s.qrClass ? s.qrClass.total : 24) ? 1 : 0;
           return { qrSecs: secs, qrCheckedIn: s.qrCheckedIn + bump };
         });
       } else if (this.state.screen === 'examTake') {
@@ -1428,6 +1724,8 @@ class Component extends DCLogic {
   }
   goApplicants = () => this.setState({ screen: 'main', tab: 'applicants' });
   goMy = () => this.setState({ screen: 'main', tab: 'my' });
+  openMyCerts = () => this.setState({ screen: 'myCerts' });
+  openCertView(c) { return () => this.setState({ screen: 'certView', certSel: c }); }
   goMain = () => this.setState({ screen: 'main' });
   openClass = () => this.setState({ screen: 'classDetail' });
   openClassApplicants = () => this.setState({ screen: 'classApplicants', caFilter: 'all' });
@@ -1435,26 +1733,56 @@ class Component extends DCLogic {
   openSurvey = () => this.setState({ screen: 'survey' });
   openExam = () => this.setState({ screen: 'exam' });
   openCert = () => this.setState({ screen: 'cert' });
+  openCertSetup = () => this.setState({ screen: 'certSetup' });
+  _setCfg(patch) { this.setState(s => ({ certCfg: { ...s.certCfg, ...patch } })); }
+  certAttendUp = () => this._setCfg({ attend: Math.min(100, this.state.certCfg.attend + 5) });
+  certAttendDown = () => this._setCfg({ attend: Math.max(0, this.state.certCfg.attend - 5) });
+  certScoreUp = () => this._setCfg({ score: Math.min(100, this.state.certCfg.score + 5) });
+  certScoreDown = () => this._setCfg({ score: Math.max(0, this.state.certCfg.score - 5) });
+  certAutoToggle = () => this._setCfg({ auto: !this.state.certCfg.auto });
+  certMessageInput = (e) => this._setCfg({ message: e.target.value });
+  certSignerInput = (e) => this._setCfg({ signer: e.target.value });
+  certColorPick(c) { return () => this._setCfg({ color: c }); }
+  certCfgSave = () => { this.showToast('수료증 설정을 저장했어요'); this.openCert(); };
+  certPreviewFromCfg = () => this.setState(s => ({ screen: 'certView', certSel: { title: '노션으로 시작하는 업무 자동화', instr: s.certCfg.signer, date: '2026.07.15', attend: 100, score: 92, days: 30, grad: 'linear-gradient(135deg,#4C82F7,#7CA9FF)', accent: s.certCfg.color, preview: true } }));
   openManage = () => this.setState({ screen: 'manage' });
+  openAttendPick = () => this.setState({ screen: 'attendPick' });
+  pickAttendClass = (cls) => () => this.setState({ screen: 'attendQr', qrSecs: 300, qrSeed: 1, qrCheckedIn: 0, qrClass: cls });
   openAttendQr = () => this.setState({ screen: 'attendQr', qrSecs: 300 });
   openSurveyBuild = () => this.setState({ screen: 'surveyBuild' });
   openExamBuild = () => this.setState({ screen: 'examBuild' });
+  openExamDetail(i) { return () => this.setState({ screen: 'examDetail', exSel: i }); }
+  openExamTaker(i) { return () => this.setState({ screen: 'examTaker', etkSel: i }); }
+  openExamDetailBack = () => this.setState({ screen: 'examDetail' });
+  ebAddExam = () => this.setState(s => {
+    const ex = { title: '', pass: 70, taken: 0, passCount: 0, failCount: 0, notTaken: s.exams[0] ? (s.exams[0].taken + s.exams[0].notTaken) : 24, avg: 0, questions: [{ text: '', choices: ['', '', '', ''], answer: 0 }] };
+    return { exams: [...s.exams, ex], exSel: s.exams.length, screen: 'examBuild' };
+  });
+  ebDeleteExam = () => this.setState(s => {
+    const exams = s.exams.filter((_, j) => j !== s.exSel);
+    return { exams, exSel: 0, screen: 'exam' };
+  });
+  ebOnTitle = (e) => { const v = e.target.value; this.setState(s => { const ex = [...s.exams]; ex[s.exSel] = { ...ex[s.exSel], title: v }; return { exams: ex }; }); };
   qrRefresh = () => { this.setState(s => ({ qrSeed: s.qrSeed + 1, qrSecs: 300 })); this.showToast('QR을 새로고침했어요'); };
-  passUp = () => this.setState(s => ({ examPass: Math.min(100, s.examPass + 5) }));
-  passDown = () => this.setState(s => ({ examPass: Math.max(0, s.examPass - 5) }));
+  passUp = () => this.setState(s => { const ex = [...s.exams]; ex[s.exSel] = { ...ex[s.exSel], pass: Math.min(100, ex[s.exSel].pass + 5) }; return { exams: ex }; });
+  passDown = () => this.setState(s => { const ex = [...s.exams]; ex[s.exSel] = { ...ex[s.exSel], pass: Math.max(0, ex[s.exSel].pass - 5) }; return { exams: ex }; });
   // survey builder
-  sbAdd = () => this.setState(s => ({ surveyDraft: [...s.surveyDraft, { text: '', type: 'choice' }] }));
+  sbAdd = () => this.setState(s => ({ surveyDraft: [...s.surveyDraft, { text: '', type: 'choice', options: ['', ''] }] }));
   sbRemove(i) { return () => this.setState(s => ({ surveyDraft: s.surveyDraft.filter((_, j) => j !== i) })); }
   sbText(i) { return (e) => this.setState(s => { const d = [...s.surveyDraft]; d[i] = { ...d[i], text: e.target.value }; return { surveyDraft: d }; }); }
-  sbType(i, t) { return () => this.setState(s => { const d = [...s.surveyDraft]; d[i] = { ...d[i], type: t }; return { surveyDraft: d }; }); }
+  sbType(i, t) { return () => this.setState(s => { const d = [...s.surveyDraft]; const cur = d[i]; const opts = (cur.options && cur.options.length) ? cur.options : ['', '']; d[i] = { ...cur, type: t, options: opts }; return { surveyDraft: d }; }); }
+  sbAddOption(i) { return () => this.setState(s => { const d = [...s.surveyDraft]; d[i] = { ...d[i], options: [...(d[i].options || []), ''] }; return { surveyDraft: d }; }); }
+  sbRemoveOption(i, oi) { return () => this.setState(s => { const d = [...s.surveyDraft]; d[i] = { ...d[i], options: d[i].options.filter((_, j) => j !== oi) }; return { surveyDraft: d }; }); }
+  sbOptionText(i, oi) { return (e) => { const v = e.target.value; this.setState(s => { const d = [...s.surveyDraft]; const o = [...d[i].options]; o[oi] = v; d[i] = { ...d[i], options: o }; return { surveyDraft: d }; }); }; }
   sbSave = () => { this.showToast('설문을 저장했어요'); this.openSurvey(); };
-  // exam builder
-  ebAdd = () => this.setState(s => ({ examDraft: [...s.examDraft, { text: '', choices: ['', '', '', ''], answer: 0 }] }));
-  ebRemove(i) { return () => this.setState(s => ({ examDraft: s.examDraft.filter((_, j) => j !== i) })); }
-  ebText(i) { return (e) => this.setState(s => { const d = [...s.examDraft]; d[i] = { ...d[i], text: e.target.value }; return { examDraft: d }; }); }
-  ebChoice(i, ci) { return (e) => this.setState(s => { const d = [...s.examDraft]; const c = [...d[i].choices]; c[ci] = e.target.value; d[i] = { ...d[i], choices: c }; return { examDraft: d }; }); }
-  ebPick(i, ci) { return () => this.setState(s => { const d = [...s.examDraft]; d[i] = { ...d[i], answer: ci }; return { examDraft: d }; }); }
-  ebSave = () => { this.showToast('시험을 저장했어요'); this.openExam(); };
+  // exam builder (scoped to exams[exSel])
+  _setQs(s, fn) { const ex = [...s.exams]; const cur = ex[s.exSel]; ex[s.exSel] = { ...cur, questions: fn(cur.questions) }; return { exams: ex }; }
+  ebAdd = () => this.setState(s => this._setQs(s, qs => [...qs, { text: '', choices: ['', '', '', ''], answer: 0 }]));
+  ebRemove(i) { return () => this.setState(s => this._setQs(s, qs => qs.filter((_, j) => j !== i))); }
+  ebText(i) { return (e) => { const v = e.target.value; this.setState(s => this._setQs(s, qs => { const d = [...qs]; d[i] = { ...d[i], text: v }; return d; })); }; }
+  ebChoice(i, ci) { return (e) => { const v = e.target.value; this.setState(s => this._setQs(s, qs => { const d = [...qs]; const c = [...d[i].choices]; c[ci] = v; d[i] = { ...d[i], choices: c }; return d; })); }; }
+  ebPick(i, ci) { return () => this.setState(s => this._setQs(s, qs => { const d = [...qs]; d[i] = { ...d[i], answer: ci }; return d; })); }
+  ebSave = () => { this.showToast('시험을 저장했어요'); this.setState({ screen: 'examDetail' }); };
   // student survey taking
   startSurveyTake = () => this.setState({ screen: 'surveyTake', ssIdx: 0, ssAns: {} });
   ssPick(i, val) { return () => this.setState(s => ({ ssAns: { ...s.ssAns, [i]: val } })); }
@@ -1465,7 +1793,7 @@ class Component extends DCLogic {
   startExamTake = () => this.setState({ screen: 'examTake', exIdx: 0, exAns: {}, exTime: 600 });
   etPick(i, ci) { return () => this.setState(s => ({ exAns: { ...s.exAns, [i]: ci } })); }
   etPrev = () => this.setState(s => s.exIdx > 0 ? { exIdx: s.exIdx - 1 } : { screen: 'main' });
-  etNext = () => this.setState(s => s.exIdx < s.examDraft.length - 1 ? { exIdx: s.exIdx + 1 } : { screen: 'examResult' });
+  etNext = () => this.setState(s => s.exIdx < (s.exams[s.exSel].questions.length - 1) ? { exIdx: s.exIdx + 1 } : { screen: 'examResult' });
   _studentVals(s) {
     const accent = this.props.accentColor || '#3182F6';
     const accentSoft = this.hexToRgba(accent, 0.12);
@@ -1490,13 +1818,15 @@ class Component extends DCLogic {
     const stQ = {
       text: sq.text || '질문',
       isChoice: sq.type === 'choice', isRating: sq.type === 'rating', isText: sq.type === 'text',
-      options: choiceOpts.map(o => ({ label: o, pick: this.ssPick(s.ssIdx, o), style: optBtn(sAns === o) })),
+      options: ((sq.options && sq.options.length ? sq.options : choiceOpts).filter(o => o !== '')).map(o => ({ label: o, pick: this.ssPick(s.ssIdx, o), style: optBtn(sAns === o) })),
       stars: [1, 2, 3, 4, 5].map(n => ({ n, pick: this.ssPick(s.ssIdx, n), style: starBtn(sAns === n) }))
     };
     const sAnswered = sq.type === 'text' || sAns !== undefined;
 
-    // exam current question
-    const eq = s.examDraft[s.exIdx] || { text: '', choices: [], answer: 0 };
+    // exam current question (scoped to selected exam)
+    const exQs = (s.exams[s.exSel] && s.exams[s.exSel].questions) || [];
+    const exPass = (s.exams[s.exSel] && s.exams[s.exSel].pass) || 70;
+    const eq = exQs[s.exIdx] || { text: '', choices: [], answer: 0 };
     const eAns = s.exAns[s.exIdx];
     const eNumStyle = (on) => ({
       width: '26px', height: '26px', borderRadius: '50%', flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1512,10 +1842,10 @@ class Component extends DCLogic {
     };
 
     // exam result
-    const total = s.examDraft.length || 1;
-    const correct = s.examDraft.reduce((n, q, i) => n + (s.exAns[i] === q.answer ? 1 : 0), 0);
+    const total = exQs.length || 1;
+    const correct = exQs.reduce((n, q, i) => n + (s.exAns[i] === q.answer ? 1 : 0), 0);
     const score = Math.round(correct / total * 100);
-    const passed = score >= s.examPass;
+    const passed = score >= exPass;
     const erColor = passed ? '#12B886' : '#E8590C';
     const erDash = (2 * Math.PI * 80 * score / 100) + ' 999';
 
@@ -1529,19 +1859,19 @@ class Component extends DCLogic {
       stPct: ((s.ssIdx + 1) / (s.surveyDraft.length || 1) * 100) + '%',
       stQ, stText: typeof sAns === 'string' ? sAns : '', stOnText: this.ssOnText,
       // exam
-      etPrev: this.etPrev, etStep: (s.exIdx + 1) + ' / ' + s.examDraft.length,
-      etPct: ((s.exIdx + 1) / (s.examDraft.length || 1) * 100) + '%',
+      etPrev: this.etPrev, etStep: (s.exIdx + 1) + ' / ' + exQs.length,
+      etPct: ((s.exIdx + 1) / (exQs.length || 1) * 100) + '%',
       etTime: Math.floor(s.exTime / 60) + ':' + String(s.exTime % 60).padStart(2, '0'),
       etQ,
       // result
       erScore: score, erColor, erDash,
       erVerdict: passed ? '합격했어요! 🎉' : '조금 아쉬워요',
-      erDetail: correct + ' / ' + total + '문제 정답 · 합격 기준 ' + s.examPass + '점',
+      erDetail: correct + ' / ' + total + '문제 정답 · 합격 기준 ' + exPass + '점',
       // taker CTA
       takerDisabled: isSurveyTake ? !sAnswered : (eAns === undefined),
       takerLabel: isSurveyTake
         ? (s.ssIdx < s.surveyDraft.length - 1 ? '다음' : '제출하기')
-        : (s.exIdx < s.examDraft.length - 1 ? '다음' : '제출하기'),
+        : (s.exIdx < (exQs.length - 1) ? '다음' : '제출하기'),
       takerNext: isSurveyTake ? this.ssNext : this.etNext,
       takerStyle: (() => {
         const dis = isSurveyTake ? !sAnswered : (eAns === undefined);
@@ -1631,13 +1961,47 @@ class Component extends DCLogic {
       { text: '다른 분께 추천하시겠어요?', options: [{ label: '추천', pct: '94%' }, { label: '보통', pct: '6%' }] }
     ];
     // exam
+    const sel = s.exams[s.exSel] || s.exams[0] || { title: '', pass: 70, taken: 0, passCount: 0, failCount: 0, notTaken: 0, avg: 0, questions: [] };
     const examScores = [['김', '#FFE9D9', '#E8590C', '김서연', 92], ['이', '#E3F0FF', '#1B64DA', '이준호', 78], ['박', '#EDEBFF', '#6741D9', '박민지', 88], ['최', '#E6F9F1', '#0CA678', '최유진', 64], ['정', '#FFF0F0', '#E03131', '정하늘', 55]];
-    const examList = examScores.map(([initial, avBg, avColor, name, score]) => {
-      const pass = score >= 70;
+    const examList = examScores.map(([initial, avBg, avColor, name, score], idx) => {
+      const pass = score >= sel.pass;
       return {
-        initial, avBg, avColor, name, score: score + '점',
+        initial, avBg, avColor, name, score: score + '점', open: this.openExamTaker(idx),
         scoreColor: pass ? '#191F28' : '#E03131',
         tag: pass ? '합격' : '불합격', tagColor: pass ? '#0CA678' : '#E03131', tagBg: pass ? '#E6F9F1' : '#FFF0F0'
+      };
+    });
+    // per-taker answer review
+    const tk = examScores[s.etkSel] || examScores[0];
+    const tkScore = tk[4];
+    const tkQs = sel.questions;
+    const tkN = tkQs.length || 1;
+    const tkCorrectN = Math.round(tkScore / 100 * tkN);
+    const tkPass = tkScore >= sel.pass;
+    const etkQuestions = tkQs.map((q, i) => {
+      const isRight = i < tkCorrectN;
+      const chosen = isRight ? q.answer : (q.answer + 1) % (q.choices.length || 1);
+      return {
+        num: i + 1, text: q.text || '문제',
+        badge: isRight ? '정답' : '오답',
+        badgeStyle: 'font-size: 11.5px; font-weight: 800; padding: 4px 10px; border-radius: 8px; color: ' + (isRight ? '#0CA678' : '#E03131') + '; background: ' + (isRight ? '#E6F9F1' : '#FFF0F0') + ';',
+        choices: q.choices.map((ct, ci) => {
+          const isAnswer = ci === q.answer;
+          const isChosen = ci === chosen;
+          const wrongChoice = isChosen && !isAnswer;
+          let bg = '#F8F9FB', color = '#4E5968', border = '1px solid transparent';
+          if (isAnswer) { bg = '#E6F9F1'; color = '#0CA678'; border = '1px solid #C3F0DA'; }
+          if (wrongChoice) { bg = '#FFF0F0'; color = '#E03131'; border = '1px solid #FFD6D6'; }
+          return {
+            label: ct || ('보기 ' + (ci + 1)),
+            rowStyle: 'display: flex; align-items: center; gap: 9px; padding: 11px 13px; border-radius: 11px; font-size: 14px; font-weight: 600; background: ' + bg + '; color: ' + color + '; border: ' + border + ';',
+            mark: isAnswer ? '✓' : (wrongChoice ? '✕' : (ci + 1)),
+            markStyle: 'width: 20px; height: 20px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: #fff; background: ' + (isAnswer ? '#12B886' : (wrongChoice ? '#E03131' : '#C4CBD3')) + ';',
+            showTag: isAnswer || wrongChoice,
+            tag: isAnswer ? '정답' : '선택',
+            tagStyle: 'font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 6px; color: ' + (isAnswer ? '#0CA678' : '#E03131') + '; background: ' + (isAnswer ? 'rgba(12,166,120,.12)' : 'rgba(224,49,49,.1)') + ';'
+          };
+        })
       };
     });
     // cert
@@ -1650,12 +2014,44 @@ class Component extends DCLogic {
     const on = s.managePublic;
     return {
       isAttend: s.screen === 'attend', isSurvey: s.screen === 'survey', isExam: s.screen === 'exam',
+      isExamDetail: s.screen === 'examDetail',
+      isExamTaker: s.screen === 'examTaker', openExamDetailBack: this.openExamDetailBack,
+      etkInitial: tk[0], etkAvBg: tk[1], etkAvColor: tk[2], etkName: tk[3],
+      etkScore: tkScore + '점', etkColor: tkPass ? '#0CA678' : '#E03131',
+      etkTag: tkPass ? '합격' : '불합격', etkTagColor: tkPass ? '#0CA678' : '#E03131', etkTagBg: tkPass ? '#E6F9F1' : '#FFF0F0',
+      etkMeta: sel.title + ' · 합격 기준 ' + sel.pass + '점',
+      etkCorrect: tkCorrectN, etkWrong: tkN - tkCorrectN, etkQuestions,
       isCert: s.screen === 'cert', isManage: s.screen === 'manage',
+      isCertSetup: s.screen === 'certSetup', openCertSetup: this.openCertSetup,
+      certCondText: '출석률 ' + s.certCfg.attend + '% 이상 · 시험 ' + s.certCfg.score + '점 이상',
+      certIssueText: s.certCfg.auto ? '조건 충족 시 자동으로 발급 대기에 올라가요' : '조건 충족 시 직접 발급할 수 있어요',
+      cfgAttend: s.certCfg.attend, cfgScore: s.certCfg.score, cfgMessage: s.certCfg.message, cfgSigner: s.certCfg.signer,
+      certAttendUp: this.certAttendUp, certAttendDown: this.certAttendDown,
+      certScoreUp: this.certScoreUp, certScoreDown: this.certScoreDown,
+      certAutoToggle: this.certAutoToggle, certMessageInput: this.certMessageInput, certSignerInput: this.certSignerInput,
+      certCfgSave: this.certCfgSave, certPreview: this.certPreviewFromCfg,
+      cfgAutoTrack: { width: '46px', height: '28px', borderRadius: '14px', flex: 'none', padding: '3px', transition: 'background .2s', background: s.certCfg.auto ? (this.props.accentColor || '#3182F6') : '#D1D6DB', display: 'flex', justifyContent: s.certCfg.auto ? 'flex-end' : 'flex-start' },
+      cfgAutoKnob: { width: '22px', height: '22px', borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.2)' },
+      cfgColors: ['#3182F6', '#7048E8', '#0CA678', '#F76707', '#191F28'].map(c => ({
+        pick: this.certColorPick(c), on: s.certCfg.color === c,
+        style: { width: '46px', height: '46px', borderRadius: '12px', flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', background: c, border: s.certCfg.color === c ? '3px solid #191F28' : '3px solid transparent' }
+      })),
       openAttend: this.openAttend, openSurvey: this.openSurvey, openExam: this.openExam,
       openCert: this.openCert, openManage: this.openManage,
       sessions, attendList, attendPresent: ppl.length - absentCount, attendTotal: ppl.length,
       toastAllPresent: this.toastAllPresent,
       surveyQs, examList, certList, toastIssueAll: this.toastIssueAll,
+      // exam list + detail
+      examCount: s.exams.length,
+      ebAddExam: this.ebAddExam,
+      examCards: s.exams.map((ex, i) => ({
+        title: ex.title || '제목 없는 시험', open: this.openExamDetail(i),
+        meta: '문항 ' + ex.questions.length + '개 · 합격 기준 ' + ex.pass + '점',
+        taken: ex.taken, passCount: ex.passCount, notTaken: ex.notTaken
+      })),
+      edTitle: sel.title || '제목 없는 시험',
+      edMeta: '문항 ' + sel.questions.length + '개 · 합격 기준 ' + sel.pass + '점 · 평균 ' + sel.avg + '점',
+      edTaken: sel.taken, edPass: sel.passCount, edFail: sel.failCount, edNotTaken: sel.notTaken,
       togglePublic: this.togglePublic, toggleRecruit: this.toggleRecruit, capDown: this.capDown, capUp: this.capUp,
       manageCap: s.manageCap2,
       recruitStateText: s.manageRecruit === 'open' ? '모집 중 · 신청 받는 중' : '모집 마감됨',
@@ -1665,6 +2061,25 @@ class Component extends DCLogic {
       toastEdit: this.toastEdit, toastDelete: this.toastDelete,
       // QR
       isAttendQr: s.screen === 'attendQr', openAttendQr: this.openAttendQr, qrRefresh: this.qrRefresh,
+      isAttendPick: s.screen === 'attendPick', openAttendPick: this.openAttendPick,
+      qrClassLabel: (s.qrClass ? s.qrClass.title + ' · ' + s.qrClass.session : '노션 업무 자동화 · 3회차'),
+      qrClassTotal: (s.qrClass ? s.qrClass.total : 24),
+      ...(function(self){
+        const thumb = (g) => ({ width: '48px', height: '48px', borderRadius: '13px', flex: 'none', background: g });
+        const today = [
+          { title: '노션으로 시작하는 업무 자동화', time: '오후 8:00', session: '3회차', total: 24, grad: 'linear-gradient(135deg,#4C82F7,#7CA9FF)' },
+          { title: '주말 원데이 캘리그라피 클래스', time: '오후 2:00', session: '1회차', total: 15, grad: 'linear-gradient(135deg,#22B573,#5BD79A)' }
+        ];
+        const other = [
+          { title: '초보를 위한 홈카페 클래스', session: '2회차', total: 12, grad: 'linear-gradient(135deg,#F76707,#FFA94D)' },
+          { title: '퇴근 후 수채화 드로잉', session: '5회차', total: 8, grad: 'linear-gradient(135deg,#7048E8,#B197FC)' }
+        ];
+        return {
+          qrPickTodayHas: today.length > 0,
+          qrPickToday: today.map(c => ({ title: c.title, time: c.time, session: c.session, total: c.total, thumbStyle: thumb(c.grad), pick: self.pickAttendClass({ title: c.title, session: c.session, total: c.total }) })),
+          qrPickOther: other.map(c => ({ title: c.title, session: c.session, total: c.total, thumbStyle: thumb(c.grad), pick: self.pickAttendClass({ title: c.title, session: c.session, total: c.total }) }))
+        };
+      })(this),
       qrSize: 21, qrCells: this._qrCells(s.qrSeed, 21), qrCheckedIn: s.qrCheckedIn,
       qrTime: Math.floor(s.qrSecs / 60) + ':' + String(s.qrSecs % 60).padStart(2, '0'),
       qrFg: qrDark ? '#fff' : '#191F28',
@@ -1677,6 +2092,10 @@ class Component extends DCLogic {
       sbAdd: this.sbAdd, sbSave: this.sbSave,
       sbList: s.surveyDraft.map((q, i) => ({
         num: i + 1, text: q.text, onText: this.sbText(i), remove: this.sbRemove(i),
+        isChoice: q.type === 'choice', addOption: this.sbAddOption(i),
+        options: (q.options || []).map((ot, oi) => ({
+          text: ot, ph: '선택지 ' + (oi + 1), onText: this.sbOptionText(i, oi), remove: this.sbRemoveOption(i, oi)
+        })),
         types: [['choice', '객관식'], ['rating', '평점'], ['text', '주관식']].map(([k, label]) => ({
           label, select: this.sbType(i, k),
           style: {
@@ -1687,8 +2106,9 @@ class Component extends DCLogic {
       })),
       // exam builder
       isExamBuild: s.screen === 'examBuild', openExamBuild: this.openExamBuild,
-      examPass: s.examPass, passUp: this.passUp, passDown: this.passDown, ebAdd: this.ebAdd, ebSave: this.ebSave,
-      ebList: s.examDraft.map((q, i) => ({
+      ebTitle: sel.title, ebOnTitle: this.ebOnTitle, ebDeleteExam: this.ebDeleteExam,
+      examPass: sel.pass, passUp: this.passUp, passDown: this.passDown, ebAdd: this.ebAdd, ebSave: this.ebSave,
+      ebList: sel.questions.map((q, i) => ({
         num: i + 1, text: q.text, onText: this.ebText(i), remove: this.ebRemove(i),
         choices: q.choices.map((ct, ci) => ({
           text: ct, ph: '보기 ' + (ci + 1), onText: this.ebChoice(i, ci), pick: this.ebPick(i, ci),
@@ -1903,6 +2323,28 @@ class Component extends DCLogic {
       isClasses: isMain && s.tab === 'classes',
       isApplicants: isMain && s.tab === 'applicants',
       isMy: isMain && s.tab === 'my',
+      isMyCerts: screen === 'myCerts', openMyCerts: this.openMyCerts,
+      isCertView: screen === 'certView',
+      cert: s.certSel || {}, certName: (s.auth && s.auth.name) || '이지훈',
+      certMessage: s.certCfg.message,
+      certBack: (s.certSel && s.certSel.preview) ? this.openCertSetup : this.openMyCerts,
+      certInitial: (((s.auth && s.auth.name) || '이지훈').trim()[0]) || '이',
+      certNo: s.certSel ? ((s.certSel.date || '').replace(/\./g, '') + '-' + String(s.certSel.score || 0)) : '',
+      certShare: () => this.showToast('공유 링크를 복사했어요'),
+      certSave: () => this.showToast('수료증을 이미지로 저장했어요'),
+      myCertList: [
+        { title: '데이터 시각화 마스터', instr: '이지훈 강사', date: '2026.06.14', attend: 100, score: 94, days: 42, meta: '2026.06 수료 · 출석 100% · 시험 94점', grad: 'linear-gradient(135deg,#4C82F7,#7CA9FF)', accent: '#3182F6', done: true },
+        { title: 'UX 리서치 실무 4주', instr: '김서연 강사', date: '2026.05.02', attend: 92, score: 88, days: 28, meta: '2026.05 수료 · 출석 92% · 시험 88점', grad: 'linear-gradient(135deg,#7048E8,#9775FA)', accent: '#7048E8', done: true },
+        { title: '사진 보정 클래스', instr: '박민지 강사', date: '2026.03.20', attend: 96, score: 90, days: 21, meta: '2026.03 수료 · 출석 96% · 수료증 발급', grad: 'linear-gradient(135deg,#0CA678,#38D9A9)', accent: '#0CA678', done: true },
+        { title: '브랜딩 기초 클래스', instr: '최유진 강사', date: '2026.02.10', attend: 74, score: 62, days: 35, meta: '2026.02 수강 완료 · 수료증 미발급', grad: 'linear-gradient(135deg,#F76707,#FFA94D)', accent: '#F76707', done: false },
+        { title: '카피라이팅 입문', instr: '정하늘 강사', date: '2025.12.05', attend: 58, score: 55, days: 20, meta: '2025.12 수강 완료 · 수료 조건 미충족', grad: 'linear-gradient(135deg,#868E96,#ADB5BD)', accent: '#868E96', done: false }
+      ].map(c => ({
+        title: c.title, meta: c.meta, grad: c.grad,
+        tag: c.done ? '수료증' : '수강완료',
+        tagStyle: 'font-size: 11px; font-weight: 700; padding: 4px 9px; border-radius: 7px; flex: none; color: ' + (c.done ? '#F08C00' : '#8B95A1') + '; background: ' + (c.done ? '#FFF9DB' : '#F2F4F6') + ';',
+        view: c.done ? this.openCertView(c) : () => this.showToast('아직 수료증이 발급되지 않았어요'),
+        download: () => this.showToast(c.done ? '수료증을 저장했어요' : '발급 후 저장할 수 있어요')
+      })),
       ...this._classVals(s),
       isClassDetail: screen === 'classDetail',
       isClassApplicants: screen === 'classApplicants',
@@ -2048,3 +2490,4 @@ class Component extends DCLogic {
 </script>
 </body>
 </html>
+

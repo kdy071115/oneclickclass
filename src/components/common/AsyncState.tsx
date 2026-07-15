@@ -1,0 +1,2 @@
+import { AlertCircle, Inbox } from 'lucide-react';
+export function AsyncState({loading,error,empty,onRetry}:{loading:boolean;error?:string;empty?:boolean;onRetry?:()=>void}){ if(loading)return <div className="state"><span className="spinner"/>불러오는 중...</div>; if(error)return <div className="state"><AlertCircle/><p>{error}</p><button className="text-btn" onClick={onRetry}>다시 시도</button></div>; if(empty)return <div className="state"><Inbox/><p>표시할 데이터가 없어요.</p></div>; return null; }

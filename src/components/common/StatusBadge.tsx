@@ -1,0 +1,1 @@
+export function StatusBadge({children}:{children:string}){ const tone=children.includes('대기')?'orange':children.includes('완료')||children==='진행중'?'green':children==='환불'||children==='종료'?'gray':'blue'; return <span className={`badge ${tone}`}>{children}</span>; }
