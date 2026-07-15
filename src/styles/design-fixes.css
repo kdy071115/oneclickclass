@@ -512,7 +512,18 @@
   color: #fff;
   padding: 58px 20px 12px;
   display: flex;
+  align-items: center;
   justify-content: space-between;
+}
+.exact-preview > header button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #fff;
+}
+.exact-preview > header button svg {
+  width: 18px;
+  height: 18px;
 }
 .exact-preview > header b {
   font-size: 14px;

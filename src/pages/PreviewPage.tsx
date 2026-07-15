@@ -1,5 +1,5 @@
 import { ArrowLeft } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { initialClassDraft } from '../constants/classDraft';
 import { loadClassDraft } from '../utils/classDraft';
 
@@ -13,6 +13,7 @@ export function StudentClassPage() {
 
 function ClassPublicPage({ preview = false }: { preview?: boolean }) {
   const nav = useNavigate();
+  const { id = 'notion' } = useParams();
   const draft = loadClassDraft(initialClassDraft);
   const title = draft.title || '노션으로 시작하는 업무 자동화';
   const summary = draft.summary || '반복 업무를 자동화하는 실전 4주 과정';
@@ -27,7 +28,10 @@ function ClassPublicPage({ preview = false }: { preview?: boolean }) {
     <div className="preview-page exact-preview">
       {preview ? (
         <header>
-          <b>미리보기</b>
+          <button type="button" onClick={() => nav(`/classes/${id}`)} aria-label="관리 페이지로 돌아가기">
+            <ArrowLeft />
+            <b>미리보기</b>
+          </button>
           <Link to="/classes/new?edit=1">수정하기</Link>
         </header>
       ) : (

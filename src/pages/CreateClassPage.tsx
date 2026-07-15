@@ -58,7 +58,7 @@ export function CreateClassPage() {
       return setError('진행 장소를 입력해 주세요.');
     setError('');
     if (step < 5) setStep(step + 1);
-    else nav('/classes/notion/preview');
+    else nav('/classes/notion/preview?draft=1');
   }
   function addThumbnail(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];

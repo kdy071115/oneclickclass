@@ -43,7 +43,7 @@ export function ExamResultPage() {
   const { id = 'notion' } = useParams();
   return (
     <div className="page subpage">
-      <PageHeader title="최종 수료 시험" subtitle="응시 19명 · 합격 기준 70점" />
+      <PageHeader title="최종 수료 시험" subtitle="응시 19명 · 합격 기준 70점" backTo={`/classes/${id}/exams`} />
       <div className="score-overview">
         <div>
           <b>82</b>
@@ -78,9 +78,10 @@ export function ExamResultPage() {
   );
 }
 export function ExamTakerPage() {
+  const { id = 'notion' } = useParams();
   return (
     <div className="page subpage">
-      <PageHeader title="" />
+      <PageHeader title="" backTo={`/classes/${id}/exams/final`} />
       <div className="taker-profile">
         <i>김</i>
         <span>
@@ -126,13 +127,14 @@ export function ExamTakerPage() {
 }
 
 export function CertificateSetupPage() {
+  const { id = 'notion' } = useParams();
   const [attendance, setAttendance] = useState(80);
   const [score, setScore] = useState(70);
   const [auto, setAuto] = useState(true);
   const [color, setColor] = useState('#3182f6');
   return (
     <div className="page subpage certificate-setup">
-      <PageHeader title="수료증 설정" subtitle="발급 조건과 증서 내용을 직접 정해요" />
+      <PageHeader title="수료증 설정" subtitle="발급 조건과 증서 내용을 직접 정해요" backTo={`/classes/${id}/certificates`} />
       <h3>발급 조건</h3>
       <Stepper
         label="최소 출석률"
@@ -223,6 +225,7 @@ export function AttendPickerPage() {
       <PageHeader
         title="어떤 강의의 출석을 받을까요?"
         subtitle="오늘 진행하는 강의를 선택하면 QR이 열려요"
+        backTo="/classes"
       />
       <div className="picker-label today">오늘 강의</div>
       <Link className="pick-class today-card" to={`/classes/${today[0]}/attendance/qr`}>

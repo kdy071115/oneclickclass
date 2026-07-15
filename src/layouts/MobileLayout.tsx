@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { StatusBar } from '../components/common/StatusBar';
 export function MobileLayout() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const nav = useNavigate();
   const preview = /^\/classes\/[^/]+\/preview$/.test(pathname);
+  const publishPreview = preview && new URLSearchParams(search).has('draft');
   const enroll = /^\/classes\/[^/]+\/enroll$/.test(pathname);
   const [toast, setToast] = useState('');
   const apply = () => {
@@ -19,10 +20,10 @@ export function MobileLayout() {
         <div className="scroll">
           <Outlet />
         </div>
-        {(preview || enroll) && (
+        {(publishPreview || enroll) && (
           <div className="layout-fixed-action">
-            <button className="primary" onClick={preview ? () => nav('/classes/published') : apply}>
-              {preview ? '공개하기' : '신청하기'}
+            <button className="primary" onClick={publishPreview ? () => nav('/classes/published') : apply}>
+              {publishPreview ? '공개하기' : '신청하기'}
             </button>
           </div>
         )}

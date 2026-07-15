@@ -12,7 +12,7 @@ const menus = [
 export function ClassDetailPage() {
   const { id = 'notion' } = useParams();
   return <div className="page subpage class-dashboard original-detail">
-    <PageHeader title="" />
+    <PageHeader title="" backTo="/classes" />
     <div className="class-cover" />
     <h1>노션으로 시작하는<br />업무 자동화</h1>
     <p className="muted">신청 24 / 30명 · 모집 마감 D-7</p>
