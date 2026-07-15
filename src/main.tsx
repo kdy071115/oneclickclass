@@ -1,1 +1,10 @@
-import { StrictMode } from 'react'; import { createRoot } from 'react-dom/client'; import App from './App'; import './styles/global.css'; import './styles/advanced.css'; import './styles/create.css'; import './styles/shell.css'; import './styles/qr.css'; createRoot(document.getElementById('root')!).render(<StrictMode><App/></StrictMode>);
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App';
+import './styles/global.css';
+import './styles/advanced.css';
+import './styles/create.css';
+import './styles/shell.css';
+import './styles/qr.css';
+import './styles/design-fixes.css';
+createRoot(document.getElementById('root')!).render(<StrictMode><App/></StrictMode>);

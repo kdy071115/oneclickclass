@@ -1,4 +1,4 @@
-.standalone.framed>form{border:11px solid #000;border-radius:54px}
+.standalone.framed>form,.standalone.framed>section{border:11px solid #000;border-radius:54px}
 .standalone-status{position:absolute;top:0;left:0;right:0;height:43px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;font-size:11px;z-index:5}
 .standalone-status i{position:absolute;top:0;left:50%;translate:-50%;width:118px;height:32px;border-radius:20px;background:#000}
 @media(max-width:500px){.standalone.framed>form{border:0;border-radius:0}.standalone-status{display:none}}
