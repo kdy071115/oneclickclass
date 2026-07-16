@@ -1,0 +1,40 @@
+import type { AttendanceStatus, PaymentStatus } from '../utils/status';
+
+export interface PageQuery {
+  page?: number;
+  size?: number;
+  search?: string;
+  sort?: string;
+  direction?: 'asc' | 'desc';
+}
+
+export interface PageResponse<T> {
+  items: T[];
+  page: number;
+  size: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface ApiError {
+  code: string;
+  message: string;
+  status: number;
+  details?: Record<string, string>;
+}
+
+export interface QrSession {
+  token: string;
+  expiresAt: string;
+}
+
+export interface AttendanceRow {
+  id: string;
+  name: string;
+  checkedAt?: string;
+  status: AttendanceStatus;
+}
+
+export interface ApplicantUpdate {
+  payment: PaymentStatus;
+}

@@ -1,0 +1,19 @@
+.oc-auth-layout { min-height: 100dvh; display: grid; grid-template-columns: minmax(360px, 44%) minmax(520px, 1fr); background: #fff; }
+.oc-auth-layout > aside { display: flex; flex-direction: column; justify-content: space-between; padding: 48px; background: var(--color-primary); color: #fff; }
+.oc-auth-brand { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 800; }
+.oc-auth-brand span { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; background: #fff; color: var(--color-primary); }
+.oc-auth-layout > aside h1 { margin: 0 0 18px; font-size: clamp(32px, 3.2vw, 52px); line-height: 1.25; letter-spacing: 0; }
+.oc-auth-layout > aside p { max-width: 520px; margin: 0; color: rgba(255,255,255,.78); font-size: 17px; line-height: 1.7; }
+.oc-auth-layout > aside small { color: rgba(255,255,255,.66); }
+.oc-auth-content { min-width: 0; display: grid; place-items: center; padding: 32px; background: #fff; }
+.oc-auth-content > .standalone { position: static; width: min(100%, 460px); min-height: 0; height: auto; display: block; padding: 0; overflow: visible; }
+.oc-auth-content > .standalone > section, .oc-auth-content > .standalone > form { position: static; inset: auto; width: 100%; min-height: 0; height: auto; max-height: calc(100dvh - 64px); overflow-y: auto; transform: none; border: 0 !important; border-radius: 0; box-shadow: none; }
+.oc-auth-content .statusbar { display: none; }
+@media (max-width: 899px) {
+  .oc-auth-layout { display: block; background: #fff; }
+  .oc-auth-layout > aside { display: none; }
+  .oc-auth-content { display: block; min-height: 100dvh; padding: 0; background: #fff; }
+  .oc-auth-content > .standalone { width: 100%; min-height: 100dvh; height: 100dvh; background: #fff; }
+  .oc-auth-content > .standalone > section, .oc-auth-content > .standalone > form { width: 100%; min-height: 100dvh; height: 100dvh; max-height: none; border-radius: 0; }
+  .oc-auth-content .statusbar { display: flex; }
+}

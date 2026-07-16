@@ -1,5 +1,6 @@
-import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppLayout } from '../layouts/AppLayout';
+import { AuthLayout } from '../layouts/AuthLayout';
 import { MobileLayout } from '../layouts/MobileLayout';
 import {
   NotificationsPage,
@@ -37,6 +38,7 @@ import {
   SurveyDonePage,
   SurveyTakePage,
 } from '../pages/StudentPages';
+import { ProtectedRoute, RoleGuard } from './guards';
 const operations = [
   'applicants',
   'attendance',
@@ -49,9 +51,10 @@ const operations = [
 ].map((path) => ({ path: `/classes/:id/${path}`, element: <ClassOperationsPage /> }));
 export const router = createBrowserRouter([
   {
-    element: <AppLayout />,
+    element: <ProtectedRoute><AppLayout /></ProtectedRoute>,
     children: [
-      { path: '/', element: <HomePage /> },
+      { path: '/', element: <Navigate to="/dashboard" replace /> },
+      { path: '/dashboard', element: <HomePage /> },
       { path: '/classes', element: <ClassesPage /> },
       { path: '/classes/:id', element: <ClassDetailPage /> },
       ...operations,
@@ -66,7 +69,8 @@ export const router = createBrowserRouter([
       { path: '/my/certificates', element: <CertificatesPage /> },
       { path: '/my/certificates/:id', element: <CertificateViewPage /> },
       { path: '/notifications', element: <NotificationsPage /> },
-      { path: '/settlement', element: <SettlementPage /> },
+      { path: '/settlement', element: <Navigate to="/settlements" replace /> },
+      { path: '/settlements', element: <RoleGuard allowed={['teacher']}><SettlementPage /></RoleGuard> },
       { path: '/notification-settings', element: <NotificationSettingsPage /> },
       { path: '/support', element: <SupportPage /> },
       { path: '/settings', element: <SettingsPage /> },
@@ -87,9 +91,14 @@ export const router = createBrowserRouter([
       { path: '/classes/published', element: <PublishDonePage /> },
     ],
   },
-  { path: '/classes/new', element: <CreateClassPage /> },
-  { path: '/login', element: <LoginPage /> },
-  { path: '/signup', element: <SignupPage /> },
-  { path: '/guest', element: <GuestPage /> },
+  { path: '/classes/new', element: <ProtectedRoute><RoleGuard allowed={['teacher']}><CreateClassPage /></RoleGuard></ProtectedRoute> },
+  {
+    element: <AuthLayout />,
+    children: [
+      { path: '/login', element: <LoginPage /> },
+      { path: '/signup', element: <SignupPage /> },
+      { path: '/guest', element: <GuestPage /> },
+    ],
+  },
   { path: '*', element: <NotFoundPage /> },
 ]);

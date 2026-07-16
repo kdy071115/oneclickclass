@@ -1,10 +1,6 @@
 import {
   Bell,
-  BookOpen,
-  CreditCard,
-  Grid2X2,
   Heart,
-  Home,
   LogOut,
   Plus,
   Search,
@@ -12,37 +8,17 @@ import {
   UserRound,
   Users,
 } from 'lucide-react';
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { clearSession, getSession } from '../auth/session';
 import { StatusBar } from '../components/common/StatusBar';
+import { mobileNav, studentNav, teacherNav } from '../constants/navigation';
 import { useRole } from '../hooks/useRole';
-
-const mobileNav = [
-  ['/', Home, '홈'],
-  ['/classes', Grid2X2, '클래스'],
-  ['/applicants', Users, '신청자'],
-  ['/my', UserRound, '마이'],
-] as const;
-
-const teacherNav = [
-  ['/', Grid2X2, '대시보드'],
-  ['/classes', BookOpen, '클래스'],
-  ['/applicants', Users, '신청자', '3'],
-  ['/settlement', CreditCard, '정산 관리'],
-  ['/my/certificates', Heart, '수료증'],
-  ['/settings', Settings, '설정'],
-] as const;
-
-const studentNav = [
-  ['/', Home, '홈'],
-  ['/classes', BookOpen, '클래스'],
-  ['/wishlist', Heart, '관심 클래스'],
-  ['/my/certificates', Heart, '수료증'],
-  ['/settings', Settings, '설정'],
-] as const;
 
 export function AppLayout() {
   const { role, setRole } = useRole();
+  const navigate = useNavigate();
   const { pathname } = useLocation();
+  const user = getSession()?.user;
   const teacher = role === 'teacher';
   const webNav = teacher ? teacherNav : studentNav;
   const [title, subtitle] = getPageTitle(pathname, teacher);
@@ -52,7 +28,7 @@ export function AppLayout() {
       <section className="phone oc-shell">
         <StatusBar />
         <aside className="oc-sidebar web-only">
-          <Link className="oc-brand" to="/">
+          <Link className="oc-brand" to="/dashboard">
             <span>✓</span>
             원클릭 클래스
           </Link>
@@ -66,7 +42,7 @@ export function AppLayout() {
           </div>
           <nav className="oc-side-nav">
             {webNav.map(([to, Icon, label, badge]) => (
-              <NavLink key={to} to={to} end={to === '/'}>
+              <NavLink key={to} to={to} end={to === '/dashboard'}>
                 <Icon size={21} />
                 <span>{label}</span>
                 {badge && <em>{badge}</em>}
@@ -74,11 +50,12 @@ export function AppLayout() {
             ))}
           </nav>
           <div className="oc-user">
-            <span>지</span>
-            <b>김지훈<small>{teacher ? '스탠다드 플랜' : '수강생'}</small></b>
-            <Link to="/login" aria-label="로그아웃">
+            <span>{user?.name.slice(0, 1) ?? '지'}</span>
+            <b>{user?.name ?? '김지훈'}<small>{teacher ? '스탠다드 플랜' : '수강생'}</small></b>
+            <Link to="/settings" aria-label="설정" title="설정"><Settings size={17} /></Link>
+            <button aria-label="로그아웃" onClick={() => { clearSession(); navigate('/login', { replace: true }); }}>
               <LogOut size={17} />
-            </Link>
+            </button>
           </div>
         </aside>
         <div className="oc-main">
@@ -91,9 +68,6 @@ export function AppLayout() {
               <Search size={17} />
               <input placeholder="클래스·신청자 검색" />
             </label>
-            <Link className="oc-icon-link" to="/settings" aria-label="설정">
-              <Settings size={20} />
-            </Link>
             <Link className="oc-icon-link unread" to="/notifications" aria-label="알림">
               <Bell size={20} />
             </Link>
@@ -110,7 +84,7 @@ export function AppLayout() {
         </div>
         <nav className={`five-nav ${teacher ? '' : 'student-nav'} app-only`}>
           {mobileNav.slice(0, 2).map(([to, Icon, label]) => (
-            <NavLink key={to} to={to} end={to === '/'}>
+            <NavLink key={to} to={to} end={to === '/dashboard'}>
               <Icon size={22} />
               <small>{label}</small>
             </NavLink>
@@ -142,7 +116,7 @@ export function AppLayout() {
 }
 
 function getPageTitle(pathname: string, teacher: boolean) {
-  if (pathname === '/') return teacher ? ['대시보드', '오늘 강의 2개, 신규 신청 3건이 있어요'] : ['홈', '이어서 들을 강의를 확인하세요'];
+  if (pathname === '/' || pathname === '/dashboard') return teacher ? ['대시보드', '오늘 강의 2개, 신규 신청 3건이 있어요'] : ['홈', '이어서 들을 강의를 확인하세요'];
   if (pathname.startsWith('/classes')) return ['클래스', teacher ? '내가 연 강의를 관리하세요' : '수강 중인 클래스를 확인하세요'];
   if (pathname.startsWith('/applicants')) return ['신청자', '신청 현황과 결제 상태를 확인하세요'];
   if (pathname.startsWith('/settlement')) return ['정산 관리', '매출과 정산 예정 금액을 확인하세요'];

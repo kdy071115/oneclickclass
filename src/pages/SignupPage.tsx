@@ -1,15 +1,22 @@
 import { FormEvent, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { authService } from '../api/services';
+import { setSession } from '../auth/session';
 import { PageHeader } from '../components/common/PageHeader';
 import { StatusBar } from '../components/common/StatusBar';
+import { useRole, type UserRole } from '../hooks/useRole';
 
 const termLabels = ['(필수) 서비스 이용약관', '(필수) 개인정보 수집·이용 동의', '(선택) 마케팅 정보 수신 동의'];
 
 export function SignupPage() {
   const nav = useNavigate();
+  const { setRole } = useRole();
   const [terms, setTerms] = useState([false, false, false]);
   const [openTerm, setOpenTerm] = useState('');
   const [fields, setFields] = useState({ email: '', id: '', password: '', name: '' });
+  const [role, setSignupRole] = useState<UserRole>('teacher');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
   const valid =
     fields.email.includes('@') &&
     fields.id.length > 2 &&
@@ -18,9 +25,21 @@ export function SignupPage() {
     terms[0] &&
     terms[1];
 
-  function submit(e: FormEvent) {
+  async function submit(e: FormEvent) {
     e.preventDefault();
-    if (valid) nav('/');
+    if (!valid) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      const session = await authService.signup({ email: fields.email, username: fields.id, password: fields.password, name: fields.name, role });
+      setSession(session);
+      setRole(session.user.role);
+      nav('/dashboard', { replace: true });
+    } catch {
+      setError('회원가입에 실패했어요. 잠시 후 다시 시도해 주세요.');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -28,6 +47,10 @@ export function SignupPage() {
       <form className="page signup" onSubmit={submit}>
         <StatusBar />
         <PageHeader title="회원가입" subtitle="1분이면 가입 완료돼요" />
+        <div className="segments role-segments" aria-label="가입 유형">
+          <button type="button" className={role === 'teacher' ? 'active' : ''} onClick={() => setSignupRole('teacher')}>강의자</button>
+          <button type="button" className={role === 'student' ? 'active' : ''} onClick={() => setSignupRole('student')}>수강생</button>
+        </div>
         {[
           ['email', '이메일', 'example@email.com'],
           ['id', '아이디', '사용할 아이디'],
@@ -82,8 +105,9 @@ export function SignupPage() {
             원클릭 클래스 이용을 위한 기본 약관입니다. 자세한 내용은 가입 후 설정에서 다시 확인할 수 있어요.
           </p>
         )}
-        <button className="primary signup-cta" disabled={!valid}>
-          가입 완료
+        {error && <p className="form-error">{error}</p>}
+        <button className="primary signup-cta" disabled={!valid || submitting}>
+          {submitting ? '가입 중...' : '가입 완료'}
         </button>
       </form>
     </main>
