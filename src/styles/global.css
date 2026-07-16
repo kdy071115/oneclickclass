@@ -1011,6 +1011,191 @@ a {
   color: #fff !important;
   box-shadow: 0 8px 20px #3182f655;
 }
+
+@media (min-width: 900px) {
+  .stage {
+    min-height: 100dvh;
+    height: auto;
+    display: block;
+    padding: 0;
+    overflow: visible;
+    background: #fff;
+  }
+
+  .phone {
+    position: relative;
+    inset: auto;
+    transform: none;
+    width: 100%;
+    min-height: 100dvh;
+    height: auto;
+    margin: 0 auto;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+    overflow: visible;
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+  }
+
+  .phone .statusbar {
+    display: none;
+  }
+
+  .scroll {
+    position: relative;
+    grid-column: 2;
+    min-height: 100dvh;
+    overflow: visible;
+    background: #fff;
+    border-left: 1px solid #edf0f3;
+  }
+
+  .phone nav,
+  .phone nav.five-nav,
+  .phone nav.five-nav.student-nav {
+    position: sticky;
+    top: 0;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    grid-column: 1;
+    grid-row: 1;
+    height: 100dvh;
+    grid-template-columns: 1fr;
+    grid-auto-rows: 52px;
+    align-content: start;
+    gap: 6px;
+    padding: 84px 22px 24px;
+    border-top: 0;
+    border-right: 1px solid #e5e8eb;
+    background: #fff;
+  }
+
+  .phone nav::before {
+    content: "원클릭 클래스";
+    position: absolute;
+    top: 32px;
+    left: 24px;
+    color: var(--blue);
+    font-size: 20px;
+    font-weight: 800;
+  }
+
+  .phone nav a {
+    min-height: 52px;
+    border-radius: 14px;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 12px;
+    padding: 0 14px;
+    color: #6b7684;
+  }
+
+  .phone nav a.active {
+    color: var(--blue);
+    background: #eff6ff;
+  }
+
+  .phone nav small {
+    font-size: 14px;
+  }
+
+  .nav-create {
+    order: -1;
+    width: auto;
+    height: 52px;
+    margin: 0 !important;
+    border-radius: 14px !important;
+    box-shadow: none;
+  }
+
+  .nav-create::after {
+    content: "강의 만들기";
+    font-size: 14px;
+    font-weight: 800;
+  }
+
+  .page {
+    width: min(1120px, calc(100% - 96px));
+    min-height: 100dvh;
+    margin: 0;
+    padding: 48px 36px 96px;
+  }
+
+  .home header .logo {
+    display: none;
+  }
+
+  .home header::before {
+    content: "대시보드";
+    font-size: 30px;
+    font-weight: 800;
+  }
+
+  .hero {
+    height: 210px;
+  }
+
+  .hero strong {
+    font-size: 28px;
+  }
+
+  .stats,
+  .manage-grid,
+  .student-stack {
+    max-width: none;
+  }
+
+  .class-card,
+  .student-class-card,
+  .applicant-row,
+  .menu-row,
+  .menu-box button {
+    transition: background 0.15s, border-color 0.15s, transform 0.15s;
+  }
+
+  .class-card:hover,
+  .student-class-card:hover,
+  .menu-row:hover,
+  .menu-box button:hover {
+    background: #f8f9fb;
+    border-color: #dfe4ea;
+  }
+
+  .standalone {
+    min-height: 100dvh;
+    height: auto;
+    padding: 48px 20px;
+    overflow: auto;
+    background: #f4f6f8;
+  }
+
+  .standalone > section,
+  .standalone > form,
+  .standalone > div {
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
+    width: min(460px, 100%);
+    min-height: auto;
+    height: auto;
+    border-radius: 28px;
+    box-shadow: 0 24px 60px -36px #17202c73;
+  }
+
+  .standalone .statusbar {
+    display: none;
+  }
+
+  .standalone .page {
+    min-height: auto;
+    height: auto;
+    padding: 36px 28px;
+  }
+}
 .search {
   height: 48px;
   display: flex;

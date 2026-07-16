@@ -969,6 +969,31 @@
   font-weight: 700;
   margin-top: 10px;
 }
+.term-preview,
+.guest-result {
+  border-radius: 14px;
+  background: #f8f9fb;
+  color: #4e5968;
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 13px 14px;
+}
+.term-preview b,
+.guest-result b,
+.guest-result small {
+  display: block;
+}
+.guest-result {
+  margin-top: 12px;
+}
+.guest-result b {
+  color: #191f28;
+  font-size: 14px;
+}
+.guest-result small {
+  color: #6b7684;
+  margin-top: 4px;
+}
 .confetti {
   position: absolute;
   z-index: 1;

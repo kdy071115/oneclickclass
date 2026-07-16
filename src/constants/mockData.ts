@@ -27,7 +27,7 @@ export const wishlistItems: MarketClass[] = [
   ...recommendedClasses,
   { id: 'homecafe', title: '초보를 위한 홈카페 클래스', meta: '오프라인 · 원데이', price: '40,000원', color: '#22b573' },
 ];
-export const dashboard: Dashboard = {newApplicants:12,todayClasses:2,pendingPayments:3,pendingAmount:135000,classes:classes.slice(0,2),applicants,studentStats,studentInProgress,recommendedClasses};
+export const dashboard: Dashboard = {newApplicants:3,todayClasses:2,pendingPayments:3,pendingAmount:135000,classes:classes.slice(0,2),applicants,studentStats,studentInProgress,recommendedClasses};
 export const classDetail:ClassDetail={...classes[0],summary:'반복 업무를 자동화하는 실전 4주 과정',description:'데이터베이스 설계부터 반복 업무 자동화, 팀 협업 템플릿까지 4주 동안 직접 만들며 배웁니다.',instructor:'이지훈',price:45000,recruitEndDate:'7월 29일',sessions:4,location:'ZOOM 온라인',rating:4.9};
 export const surveyQuestions:SurveyQuestion[]=[{id:'s1',text:'강의 전반에 만족하시나요?',type:'choice',options:['매우 만족','만족','보통','아쉬워요']},{id:'s2',text:'강사의 설명은 이해하기 쉬웠나요?',type:'rating'},{id:'s3',text:'가장 좋았던 점을 알려주세요',type:'text'}];
 export const examQuestions:ExamQuestion[]=[{id:'e1',text:'노션 데이터베이스의 핵심 구성 요소는?',choices:['페이지와 속성','폴더와 파일','셀과 시트','슬라이드와 도형'],answer:0},{id:'e2',text:'반복 업무를 자동화할 때 가장 먼저 할 일은?',choices:['도구 구매','반복 과정 정의','팀원 채용','디자인 변경'],answer:1},{id:'e3',text:'자동화 결과를 점검하는 가장 좋은 방법은?',choices:['한 번에 배포','작은 범위로 테스트','설명서 생략','권한 전체 공개'],answer:1}];

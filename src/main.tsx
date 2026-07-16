@@ -7,4 +7,5 @@ import './styles/create.css';
 import './styles/shell.css';
 import './styles/qr.css';
 import './styles/design-fixes.css';
+import './styles/web.css';
 createRoot(document.getElementById('root')!).render(<StrictMode><App/></StrictMode>);
