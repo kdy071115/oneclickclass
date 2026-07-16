@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   CalendarDays,
   Check,
+  ChevronRight,
   Image,
   Layers3,
   MapPin,
@@ -14,8 +15,11 @@ import {
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { StatusBar } from '../components/common/StatusBar';
-import { initialClassDraft } from '../constants/classDraft';
-import { loadClassDraft, saveClassDraft } from '../utils/classDraft';
+import { FileDropzone, Stepper } from '../components/ui';
+import { classService } from '../api/services';
+import { addressSuggestions, initialClassDraft } from '../constants/classDraft';
+import { clearClassDraft, loadClassDraft, saveClassDraft } from '../utils/classDraft';
+import { getClassThumbnail, saveClassThumbnail } from '../utils/classThumbnail';
 
 const types = [
   ['online', Video, '온라인', '녹화 영상으로 진행'],
@@ -35,10 +39,13 @@ const extraQuestions = ['성별', '연령대', '소속·직업', '신청 동기'
 export function CreateClassPage() {
   const nav = useNavigate();
   const [params] = useSearchParams();
+  const editId = params.get('edit');
   const [step, setStep] = useState(() => (params.has('edit') ? 2 : 1));
-  const [draft, setDraft] = useState(() =>
-    params.has('edit') ? loadClassDraft(initialClassDraft) : initialClassDraft,
-  );
+  const [draft, setDraft] = useState(() => {
+    const savedDraft = loadClassDraft(initialClassDraft);
+    const savedThumbnail = editId ? getClassThumbnail(editId) : '';
+    return savedThumbnail ? { ...savedDraft, thumbnail: savedThumbnail } : savedDraft;
+  });
   const [calendar, setCalendar] = useState<'startDate' | 'recruitEndDate'>();
   const [addressOpen, setAddressOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -46,8 +53,16 @@ export function CreateClassPage() {
   const [customOpen, setCustomOpen] = useState(false);
   const [customQuestion, setCustomQuestion] = useState('');
   const [tool, setTool] = useState('YouTube');
-  useEffect(() => saveClassDraft(draft), [draft]);
-  function next(e: FormEvent) {
+  const [submitting, setSubmitting] = useState(false);
+  const [savedAt, setSavedAt] = useState('');
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      saveClassDraft(draft);
+      setSavedAt(new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit' }).format(new Date()));
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [draft]);
+  async function next(e: FormEvent) {
     e.preventDefault();
     const needsUrl = draft.type !== 'offline';
     const needsAddress = draft.type === 'offline' || draft.type === 'hybrid';
@@ -58,18 +73,125 @@ export function CreateClassPage() {
       return setError('진행 장소를 입력해 주세요.');
     setError('');
     if (step < 5) setStep(step + 1);
-    else nav('/classes/notion/preview?draft=1');
+    else {
+      setSubmitting(true);
+      try {
+        const created = editId
+          ? await classService.update(editId, draft)
+          : await classService.create(draft);
+        if (draft.thumbnail) saveClassThumbnail(created.id, draft.thumbnail);
+        clearClassDraft();
+        nav(editId ? `/classes/${created.id}` : `/classes/${created.id}/preview?draft=1`);
+      } catch {
+        setError('강의를 저장하지 못했어요. 잠시 후 다시 시도해 주세요.');
+      } finally {
+        setSubmitting(false);
+      }
+    }
   }
-  function addThumbnail(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  function setThumbnail(file: File) {
     const reader = new FileReader();
     reader.onload = () => setDraft((current) => ({ ...current, thumbnail: String(reader.result) }));
     reader.readAsDataURL(file);
   }
+  function addThumbnail(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) {
+      setError('썸네일은 JPG, PNG, WEBP 형식의 5MB 이하 파일만 가능해요.');
+      return;
+    }
+    setError('');
+    setThumbnail(file);
+  }
   const title = labels[step - 1];
   return (
-    <main className="standalone framed">
+    <>
+    <form className="oc-create-web oc-web-page" onSubmit={next}>
+      <div className="oc-create-steps">
+        <button type="button" onClick={() => nav('/classes')} aria-label="클래스로 돌아가기">
+          <ArrowLeft size={18} />
+        </button>
+        {labels.map((item, index) => (
+          <button
+            type="button"
+            className={step === index + 1 ? 'active' : ''}
+            onClick={() => setStep(index + 1)}
+            key={item[0]}
+          >
+            <span>{index + 1}</span>
+            <b>{item[0].replace('\n', ' ')}</b>
+          </button>
+        ))}
+      </div>
+      <section className="oc-create-editor">
+        <div className="oc-web-head inline">
+          <h1>{title[0].replace('\n', ' ')}</h1>
+          <p>{title[1]}</p>
+        </div>
+        <div className="oc-create-box">
+          {step === 1 && (
+            <div className="oc-type-grid">
+              {types.map(([value, Icon, label, desc]) => (
+                <button
+                  type="button"
+                  className={draft.type === value ? 'active' : ''}
+                  onClick={() => setDraft({ ...draft, type: value })}
+                  key={value}
+                >
+                  <i><Icon /></i>
+                  <b>{label}</b>
+                  <small>{desc}</small>
+                  {draft.type === value && <Check size={18} />}
+                </button>
+              ))}
+            </div>
+          )}
+          {step === 2 && (
+            <div className="oc-form-grid">
+              <Field label="강의 제목" value={draft.title} onChange={(v) => setDraft({ ...draft, title: v })} placeholder="예) 노션으로 시작하는 업무 자동화" />
+              <Field label="한 줄 소개" value={draft.summary} onChange={(v) => setDraft({ ...draft, summary: v })} placeholder="예) 반복 업무를 자동화하는 4주 과정" />
+              <label className="create-field wide">상세 소개<textarea value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="강의에서 배우는 내용을 자유롭게 적어주세요" /></label>
+              <div className="create-field wide">썸네일{draft.thumbnail && <img className="oc-thumbnail-preview" src={draft.thumbnail} alt="선택한 썸네일 미리보기" />}<FileDropzone onFile={setThumbnail} /></div>
+            </div>
+          )}
+          {step === 3 && (
+            <div className="oc-form-grid">
+              <DateField label="강의 일정" value={draft.startDate} onClick={() => setCalendar('startDate')} />
+              <DateField label="모집 마감일" value={draft.recruitEndDate} onClick={() => setCalendar('recruitEndDate')} onClear={() => setDraft({ ...draft, recruitEndDate: '' })} />
+              <label className="create-field">모집 정원<div className="capacity"><button type="button" onClick={() => setDraft({ ...draft, capacity: Math.max(1, draft.capacity - 5) })}><Minus /></button><input aria-label="모집 정원" inputMode="numeric" value={draft.capacity} onChange={(e) => setDraft({ ...draft, capacity: Math.max(1, Number(e.target.value.replace(/\D/g, '')) || 1) })} /><small>명</small><button type="button" onClick={() => setDraft({ ...draft, capacity: draft.capacity + 5 })}><Plus /></button></div></label>
+              <label className="create-field">참가비<div className="fee-tabs"><button type="button" className={draft.payment === 'free' ? 'active' : ''} onClick={() => setDraft({ ...draft, payment: 'free' })}>무료</button><button type="button" className={draft.payment === 'paid' ? 'active' : ''} onClick={() => setDraft({ ...draft, payment: 'paid' })}>유료</button></div></label>
+              {draft.payment === 'paid' && <div className="price-input wide"><input inputMode="numeric" value={draft.price || ''} onChange={(e) => setDraft({ ...draft, price: Number(e.target.value) })} placeholder="0" /><b>원</b></div>}
+            </div>
+          )}
+          {step === 4 && (
+            <>
+              <div className="required-fields">
+                {['이름', '전화번호', '이메일'].map((x) => <div key={x}><Check /><b>{x}</b><small>필수</small></div>)}
+              </div>
+              <label className="create-field oc-question-area">추가 질문 <small>(선택)</small><div className="question-chips">{extraQuestions.map((q) => <button type="button" className={draft.questions.includes(q) ? 'active' : ''} onClick={() => setDraft({ ...draft, questions: draft.questions.includes(q) ? draft.questions.filter((x) => x !== q) : [...draft.questions, q] })} key={q}>{q}</button>)}<button type="button" onClick={() => setCustomOpen(true)}><Plus />직접 추가</button></div></label>
+              {customOpen && <div className="custom-question"><input autoFocus value={customQuestion} onChange={(e) => setCustomQuestion(e.target.value)} placeholder="직접 물어볼 질문" /><button type="button" disabled={!customQuestion.trim()} onClick={() => { setDraft({ ...draft, questions: [...draft.questions, customQuestion.trim()] }); setCustomQuestion(''); setCustomOpen(false); }}>추가</button></div>}
+            </>
+          )}
+          {step === 5 && (
+            <div className="oc-form-grid">
+              {draft.type !== 'offline' && <><label className="create-field wide">진행 도구<div className="question-chips tools">{['YouTube', 'Zoom', 'Meet', '기타 URL'].map((x) => <button type="button" className={tool === x ? 'active' : ''} onClick={() => setTool(x)} key={x}>{x}</button>)}</div></label><Field label="참여 링크" value={draft.url} onChange={(v) => setDraft({ ...draft, url: v })} placeholder="https://" /></>}
+              {(draft.type === 'offline' || draft.type === 'hybrid') && <><label className="create-field">도로명 주소<button className="date-field" type="button" onClick={() => setAddressOpen(true)}><span>{draft.address || '도로명 주소를 검색하세요'}</span><Search /></button></label><Field label="상세 주소" value={draft.detailedAddress} onChange={(v) => setDraft({ ...draft, detailedAddress: v })} placeholder="예) 3층 302호" /></>}
+            </div>
+          )}
+          {error && <p className="form-error">{error}</p>}
+        </div>
+        <div className="oc-create-actions">
+          {savedAt && <small>임시저장 {savedAt}</small>}
+          <button type="button" onClick={() => (step > 1 ? setStep(step - 1) : nav('/classes'))}>이전</button>
+          <button className="oc-create-submit" type="submit" disabled={submitting}>
+            {submitting ? '저장 중' : step < 5 ? '다음 단계' : '미리보기'}
+            <ChevronRight size={18} />
+          </button>
+        </div>
+      </section>
+    </form>
+    <main className="standalone framed create-mobile">
       <form className="page create exact-create" onSubmit={next}>
         <StatusBar />
         <div className="create-scroll">
@@ -82,14 +204,11 @@ export function CreateClassPage() {
               <ArrowLeft />
             </button>
             <span />
-            <button type="button" onClick={() => nav('/')}>
+            <button type="button" onClick={() => nav('/dashboard')}>
               닫기
             </button>
           </header>
-          <div className="create-progress">
-            <i style={{ width: `${step * 20}%` }} />
-            <b>{step} / 5</b>
-          </div>
+          <Stepper current={step - 1} steps={labels.map((item) => item[0].replace('\n', ' '))} />
           <h1>
             {title[0].split('\n').map((line, i) => (
               <span key={line}>
@@ -349,60 +468,14 @@ export function CreateClassPage() {
           )}
           {error && <p className="form-error">{error}</p>}
         </div>
-        <button className="primary create-cta" type="submit">
-          {step < 5 ? '다음' : '미리보기'}
+        <button className="primary create-cta" type="submit" disabled={submitting}>
+          {submitting ? '저장 중' : step < 5 ? '다음' : '미리보기'}
         </button>
-        {calendar && (
-          <CalendarSheet
-            title={calendar === 'startDate' ? '강의 일정을 골라주세요' : '모집 마감일을 골라주세요'}
-            onClose={() => setCalendar(undefined)}
-            onPick={(date) => {
-              setDraft({ ...draft, [calendar]: date });
-              setCalendar(undefined);
-            }}
-          />
-        )}
-        {addressOpen && (
-          <div className="sheet-overlay" onClick={() => setAddressOpen(false)}>
-            <section className="address-sheet" onClick={(e) => e.stopPropagation()}>
-              <i />
-              <header>
-                <b>주소 검색</b>
-                <button type="button" onClick={() => setAddressOpen(false)}>
-                  닫기
-                </button>
-              </header>
-              <label>
-                <Search />
-                <input
-                  autoFocus
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="도로명, 건물명 또는 지번 검색"
-                />
-              </label>
-              {query &&
-                ['서울 마포구 연남로 12', '서울 마포구 양화로 45', '서울 성동구 왕십리로 115'].map(
-                  (x) => (
-                    <button
-                      type="button"
-                      className="address-result"
-                      onClick={() => {
-                        setDraft({ ...draft, address: x });
-                        setAddressOpen(false);
-                      }}
-                      key={x}
-                    >
-                      <b>{x}</b>
-                      <small>서울특별시 상세 주소</small>
-                    </button>
-                  ),
-                )}
-            </section>
-          </div>
-        )}
       </form>
     </main>
+    {calendar && <CalendarSheet title={calendar === 'startDate' ? '강의 일정을 골라주세요' : '모집 마감일을 골라주세요'} onClose={() => setCalendar(undefined)} onPick={(date) => { setDraft({ ...draft, [calendar]: date }); setCalendar(undefined); }} />}
+    {addressOpen && <div className="sheet-overlay" onClick={() => setAddressOpen(false)}><section className="address-sheet" onClick={(e) => e.stopPropagation()}><i /><header><b>주소 검색</b><button type="button" onClick={() => setAddressOpen(false)}>닫기</button></header><label><Search /><input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="도로명, 건물명 또는 지번 검색" /></label>{query && addressSuggestions.map((x) => <button type="button" className="address-result" onClick={() => { setDraft({ ...draft, address: x }); setAddressOpen(false); }} key={x}><b>{x}</b><small>서울특별시 상세 주소</small></button>)}</section></div>}
+    </>
   );
 }
 function Field({
@@ -458,7 +531,10 @@ function CalendarSheet({
   onClose: () => void;
   onPick: (date: string) => void;
 }) {
-  const [month, setMonth] = useState(() => new Date(2026, 7, 1));
+  const [month, setMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
   const year = month.getFullYear();
   const monthIndex = month.getMonth();
   const days = Array.from({ length: new Date(year, monthIndex + 1, 0).getDate() }, (_, i) => i + 1);
@@ -497,7 +573,7 @@ function CalendarSheet({
           {days.map((day) => (
             <button
               type="button"
-              className={day === 5 ? 'active' : ''}
+              className={new Date().toDateString() === new Date(year, monthIndex, day).toDateString() ? 'active' : ''}
               onClick={() =>
                 onPick(
                   `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,

@@ -6,9 +6,9 @@ export const classes: ClassItem[] = [
   {id:'photo',title:'스마트폰 사진 보정 클래스',status:'종료',type:'온라인',date:'6월 14일',enrolled:20,capacity:20,color:'#f76707'},
 ];
 export const applicants: Applicant[] = [
-  {id:'1',name:'김서연',classTitle:'노션 업무 자동화',appliedAt:'방금',payment:'결제대기',amount:45000},
-  {id:'2',name:'이준호',classTitle:'캘리그라피 클래스',appliedAt:'12분 전',payment:'결제완료',amount:45000},
-  {id:'3',name:'박민지',classTitle:'노션 업무 자동화',appliedAt:'1시간 전',payment:'결제완료',amount:45000},
+  {id:'1',name:'김서연',classTitle:'노션 업무 자동화',appliedAt:'방금',payment:'결제대기',amount:45000,phone:'010-2345-6789',email:'seoyeon@email.com',answers:[{label:'신청 동기',value:'반복 업무를 줄이고 팀의 업무 효율을 높이고 싶어요.'},{label:'노션 사용 경험',value:'개인 메모와 프로젝트 관리에 1년 정도 사용했어요.'}]},
+  {id:'2',name:'이준호',classTitle:'캘리그라피 클래스',appliedAt:'12분 전',payment:'결제완료',amount:45000,phone:'010-4782-1135',email:'junho@example.com',answers:[{label:'신청 동기',value:'취미로 글씨를 배워 지인에게 카드를 만들어 주고 싶어요.'}]},
+  {id:'3',name:'박민지',classTitle:'노션 업무 자동화',appliedAt:'1시간 전',payment:'결제완료',amount:45000,phone:'010-8891-2047',email:'minji@example.com',answers:[{label:'신청 동기',value:'회사에서 반복하는 업무 템플릿을 체계적으로 만들고, 팀원들이 같은 방식으로 협업할 수 있는 워크스페이스를 구축하고 싶어요. 자동화 기능까지 적용해 매일 발생하는 단순 작업 시간을 줄이는 것이 목표예요.'}]},
 ];
 export const studentStats = [
   { value: '2', label: '수강 중', color: '#3182f6' },
@@ -27,18 +27,18 @@ export const wishlistItems: MarketClass[] = [
   ...recommendedClasses,
   { id: 'homecafe', title: '초보를 위한 홈카페 클래스', meta: '오프라인 · 원데이', price: '40,000원', color: '#22b573' },
 ];
-export const dashboard: Dashboard = {newApplicants:12,todayClasses:2,pendingPayments:3,pendingAmount:135000,classes:classes.slice(0,2),applicants,studentStats,studentInProgress,recommendedClasses};
+export const dashboard: Dashboard = {newApplicants:3,todayClasses:2,pendingPayments:3,pendingAmount:135000,classes:classes.slice(0,2),applicants,studentStats,studentInProgress,recommendedClasses};
 export const classDetail:ClassDetail={...classes[0],summary:'반복 업무를 자동화하는 실전 4주 과정',description:'데이터베이스 설계부터 반복 업무 자동화, 팀 협업 템플릿까지 4주 동안 직접 만들며 배웁니다.',instructor:'이지훈',price:45000,recruitEndDate:'7월 29일',sessions:4,location:'ZOOM 온라인',rating:4.9};
 export const surveyQuestions:SurveyQuestion[]=[{id:'s1',text:'강의 전반에 만족하시나요?',type:'choice',options:['매우 만족','만족','보통','아쉬워요']},{id:'s2',text:'강사의 설명은 이해하기 쉬웠나요?',type:'rating'},{id:'s3',text:'가장 좋았던 점을 알려주세요',type:'text'}];
 export const examQuestions:ExamQuestion[]=[{id:'e1',text:'노션 데이터베이스의 핵심 구성 요소는?',choices:['페이지와 속성','폴더와 파일','셀과 시트','슬라이드와 도형'],answer:0},{id:'e2',text:'반복 업무를 자동화할 때 가장 먼저 할 일은?',choices:['도구 구매','반복 과정 정의','팀원 채용','디자인 변경'],answer:1},{id:'e3',text:'자동화 결과를 점검하는 가장 좋은 방법은?',choices:['한 번에 배포','작은 범위로 테스트','설명서 생략','권한 전체 공개'],answer:1}];
 export const certificates:CertificateItem[]=[{id:'0',title:'데이터 시각화 마스터',completedAt:'2026.06',attendance:100,score:94,color:'#4c82f7'},{id:'1',title:'UX 리서치 실무 4주',completedAt:'2026.05',attendance:92,score:88,color:'#7048e8'},{id:'2',title:'사진 보정 클래스',completedAt:'2026.03',attendance:96,score:0,color:'#0ca678'}];
 export const notifications: NotificationItem[] = [
-  { id: 'n1', group: '오늘', type: 'apply', title: '새로운 신청', message: "김서연님이 '노션 업무 자동화'를 신청했어요", time: '방금', unread: true },
-  { id: 'n2', group: '오늘', type: 'pay', title: '결제 완료', message: '이준호님이 45,000원 결제를 완료했어요', time: '12분 전', unread: true },
-  { id: 'n3', group: '어제', type: 'review', title: '새 후기', message: "'캘리그라피 클래스'에 별점 5점 후기가 등록됐어요", time: '어제', unread: false },
-  { id: 'n4', group: '어제', type: 'settle', title: '정산 완료', message: '7월 1일 정산 금액 820,000원이 입금됐어요', time: '어제', unread: false },
-  { id: 'n5', group: '이전 알림', type: 'pay', title: '결제 대기', message: '박민지님 신청이 입금 대기 중이에요', time: '3일 전', unread: false },
-  { id: 'n6', group: '이전 알림', type: 'notice', title: '공지사항', message: '원클릭 클래스에 정산 리포트 기능이 추가됐어요', time: '5일 전', unread: false },
+  { id: 'n1', group: '오늘', type: 'apply', title: '새로운 신청', message: "김서연님이 '노션 업무 자동화'를 신청했어요", time: '방금', unread: true, target: '/applicants/1' },
+  { id: 'n2', group: '오늘', type: 'pay', title: '결제 완료', message: '이준호님이 45,000원 결제를 완료했어요', time: '12분 전', unread: true, target: '/applicants/2' },
+  { id: 'n3', group: '어제', type: 'review', title: '새 후기', message: "'캘리그라피 클래스'에 별점 5점 후기가 등록됐어요", time: '어제', unread: false, target: '/classes/calligraphy' },
+  { id: 'n4', group: '어제', type: 'settle', title: '정산 완료', message: '7월 1일 정산 금액 820,000원이 입금됐어요', time: '어제', unread: false, target: '/settlements' },
+  { id: 'n5', group: '이전 알림', type: 'pay', title: '결제 대기', message: '박민지님 신청이 입금 대기 중이에요', time: '3일 전', unread: false, target: '/applicants/3' },
+  { id: 'n6', group: '이전 알림', type: 'notice', title: '공지사항', message: '원클릭 클래스에 정산 리포트 기능이 추가됐어요', time: '5일 전', unread: false, target: '/settlements' },
 ];
 export const settlementRows: SettlementRow[] = [
   { id: 'st1', title: '노션으로 시작하는 업무 자동화', date: '2026.07.15 정산 예정', amount: '+135,000원', status: 'wait' },

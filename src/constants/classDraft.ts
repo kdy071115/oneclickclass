@@ -16,3 +16,9 @@ export const initialClassDraft: ClassDraft = {
   address: '',
   detailedAddress: '',
 };
+
+export const addressSuggestions = [
+  '서울 마포구 연남로 12',
+  '서울 마포구 양화로 45',
+  '서울 성동구 왕십리로 115',
+] as const;

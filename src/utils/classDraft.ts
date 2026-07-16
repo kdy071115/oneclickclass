@@ -18,3 +18,7 @@ export function saveClassDraft(draft: ClassDraft) {
     sessionStorage.setItem(CLASS_DRAFT_KEY, JSON.stringify({ ...draft, thumbnail: '' }));
   }
 }
+
+export function clearClassDraft() {
+  sessionStorage.removeItem(CLASS_DRAFT_KEY);
+}

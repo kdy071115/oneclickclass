@@ -1,5 +1,6 @@
-import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppLayout } from '../layouts/AppLayout';
+import { AuthLayout } from '../layouts/AuthLayout';
 import { MobileLayout } from '../layouts/MobileLayout';
 import {
   NotificationsPage,
@@ -37,6 +38,7 @@ import {
   SurveyDonePage,
   SurveyTakePage,
 } from '../pages/StudentPages';
+import { ProtectedRoute, RoleGuard } from './guards';
 const operations = [
   'applicants',
   'attendance',
@@ -49,15 +51,27 @@ const operations = [
 ].map((path) => ({ path: `/classes/:id/${path}`, element: <ClassOperationsPage /> }));
 export const router = createBrowserRouter([
   {
-    element: <AppLayout />,
+    element: <ProtectedRoute><AppLayout /></ProtectedRoute>,
     children: [
-      { path: '/', element: <HomePage /> },
+      { path: '/', element: <Navigate to="/dashboard" replace /> },
+      { path: '/dashboard', element: <HomePage /> },
       { path: '/classes', element: <ClassesPage /> },
+      { path: '/classes/:id', element: <ClassDetailPage /> },
+      ...operations,
+      { path: '/classes/:id/attendance/qr', element: <QrPage /> },
+      { path: '/classes/:id/exams/:examId', element: <ExamResultPage /> },
+      { path: '/classes/:id/exams/:examId/:personId', element: <ExamTakerPage /> },
+      { path: '/classes/:id/certificates/setup', element: <CertificateSetupPage /> },
       { path: '/applicants', element: <ApplicantsPage /> },
+      { path: '/applicants/:id', element: <ApplicantDetailPage /> },
       { path: '/wishlist', element: <WishlistPage /> },
       { path: '/my', element: <MyPage /> },
+      { path: '/my/certificates', element: <CertificatesPage /> },
+      { path: '/my/certificates/:id', element: <CertificateViewPage /> },
+      { path: '/learn/classes/:id', element: <StudentClassPage /> },
       { path: '/notifications', element: <NotificationsPage /> },
-      { path: '/settlement', element: <SettlementPage /> },
+      { path: '/settlement', element: <Navigate to="/settlements" replace /> },
+      { path: '/settlements', element: <RoleGuard allowed={['teacher']}><SettlementPage /></RoleGuard> },
       { path: '/notification-settings', element: <NotificationSettingsPage /> },
       { path: '/support', element: <SupportPage /> },
       { path: '/settings', element: <SettingsPage /> },
@@ -67,29 +81,24 @@ export const router = createBrowserRouter([
   {
     element: <MobileLayout />,
     children: [
-      { path: '/classes/:id', element: <ClassDetailPage /> },
-      ...operations,
-      { path: '/classes/:id/attendance/qr', element: <QrPage /> },
-      { path: '/classes/:id/exams/:examId', element: <ExamResultPage /> },
-      { path: '/classes/:id/exams/:examId/:personId', element: <ExamTakerPage /> },
-      { path: '/classes/:id/certificates/setup', element: <CertificateSetupPage /> },
       { path: '/classes/:id/preview', element: <PreviewPage /> },
       { path: '/classes/:id/enroll', element: <StudentClassPage /> },
-      { path: '/learn/classes/:id', element: <StudentClassPage /> },
       { path: '/attendance/select', element: <AttendPickerPage /> },
       { path: '/learn/survey/take', element: <SurveyTakePage /> },
       { path: '/learn/survey/done', element: <SurveyDonePage /> },
       { path: '/learn/exam/take', element: <ExamTakePage /> },
       { path: '/learn/exam/result', element: <ExamResultStudentPage /> },
       { path: '/classes/published', element: <PublishDonePage /> },
-      { path: '/applicants/:id', element: <ApplicantDetailPage /> },
-      { path: '/my/certificates', element: <CertificatesPage /> },
-      { path: '/my/certificates/:id', element: <CertificateViewPage /> },
     ],
   },
-  { path: '/classes/new', element: <CreateClassPage /> },
-  { path: '/login', element: <LoginPage /> },
-  { path: '/signup', element: <SignupPage /> },
-  { path: '/guest', element: <GuestPage /> },
+  { path: '/classes/new', element: <ProtectedRoute><RoleGuard allowed={['teacher']}><CreateClassPage /></RoleGuard></ProtectedRoute> },
+  {
+    element: <AuthLayout />,
+    children: [
+      { path: '/login', element: <LoginPage /> },
+      { path: '/signup', element: <SignupPage /> },
+      { path: '/guest', element: <GuestPage /> },
+    ],
+  },
   { path: '*', element: <NotFoundPage /> },
 ]);

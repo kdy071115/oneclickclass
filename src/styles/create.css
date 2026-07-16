@@ -447,3 +447,9 @@
   background: #e5e8eb;
   color: #adb5bd;
 }
+.oc-thumbnail-preview {
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  border-radius: var(--radius-lg);
+}

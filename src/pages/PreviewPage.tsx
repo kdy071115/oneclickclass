@@ -1,4 +1,4 @@
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, CalendarDays, CheckCircle2, Clock3, Play, UserRound } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { initialClassDraft } from '../constants/classDraft';
 import { loadClassDraft } from '../utils/classDraft';
@@ -25,7 +25,16 @@ function ClassPublicPage({ preview = false }: { preview?: boolean }) {
       ? [draft.address, draft.detailedAddress].filter(Boolean).join(' ')
       : draft.url || 'ZOOM 온라인';
   return (
-    <div className="preview-page exact-preview">
+    <>
+    {!preview && <div className="student-class-web web-only">
+      <Link className="oc-back-link" to="/classes"><ArrowLeft size={16}/> 클래스 목록</Link>
+      <section className="student-learning-hero">
+        <div className="student-learning-cover">{draft.thumbnail ? <img src={draft.thumbnail} alt="클래스 썸네일"/> : <div><Play size={32}/><b>대표 썸네일</b></div>}</div>
+        <div className="student-learning-copy"><span className="operation-status wait">수강 중</span><h1>{title}</h1><p>{summary}</p><div className="student-instructor"><i>지</i><span><b>이지훈 강사</b><small>누적 수강생 68명 · 만족도 4.9</small></span></div><div className="student-progress-head"><span>전체 진도</span><b>62%</b></div><div className="oc-progress"><i style={{width:'62%'}}/></div><button className="student-continue"><Play size={18} fill="currentColor"/> 2강 이어서 듣기</button></div>
+      </section>
+      <div className="student-learning-layout"><main><section className="oc-panel"><div className="oc-panel-title"><h2>커리큘럼</h2><span>3개 섹션</span></div>{[['1','노션 데이터베이스 설계','45분',true],['2','반복 업무 자동화','52분',false],['3','팀 협업 템플릿','48분',false]].map(([n,t,time,done])=><button className={`student-lesson ${done?'done':''}`} key={String(n)}><span>{done?<CheckCircle2/>:n}</span><b>{t}<small><Clock3 size={14}/>{time}</small></b><Play size={18}/></button>)}</section><section className="oc-panel student-intro"><h2>클래스 소개</h2><p>{description}</p></section></main><aside><section className="oc-panel student-schedule"><h2>학습 정보</h2><p><CalendarDays/><span>일정<b>{draft.startDate||'자유 수강'}</b></span></p><p><UserRound/><span>수강 기간<b>4주</b></span></p><p><Play/><span>진행 방식<b>{location}</b></span></p></section></aside></div>
+    </div>}
+    <div className={`preview-page exact-preview ${preview ? '' : 'app-only'}`}>
       {preview ? (
         <header>
           <button type="button" onClick={() => nav(`/classes/${id}`)} aria-label="관리 페이지로 돌아가기">
@@ -112,5 +121,6 @@ function ClassPublicPage({ preview = false }: { preview?: boolean }) {
         </section>
       </main>
     </div>
+    </>
   );
 }

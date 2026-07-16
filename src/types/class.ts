@@ -8,6 +8,7 @@ export interface ClassItem {
   enrolled: number;
   capacity: number;
   color: string;
+  thumbnail?: string;
 }
 export interface Applicant {
   id: string;
@@ -16,6 +17,9 @@ export interface Applicant {
   appliedAt: string;
   payment: '결제대기' | '결제완료' | '환불';
   amount: number;
+  phone: string;
+  email: string;
+  answers: { label: string; value: string }[];
 }
 export interface Dashboard {
   newApplicants: number;
@@ -101,6 +105,7 @@ export interface NotificationItem {
   message: string;
   time: string;
   unread: boolean;
+  target: string;
 }
 export interface SettlementRow {
   id: string;
