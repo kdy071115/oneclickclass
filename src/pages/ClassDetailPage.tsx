@@ -8,6 +8,7 @@ import {
   Copy,
   Edit3,
   Eye,
+  Image,
   Link2,
   MoreVertical,
   QrCode,
@@ -75,7 +76,7 @@ export function ClassDetailPage() {
                     <span><CalendarDays size={18} /> <b>4주</b> 프로그램</span>
                   </div>
                 </div>
-                {thumbnail ? <img className="oc-detail-thumbnail" src={thumbnail} alt="클래스 썸네일" /> : <div className="oc-notion-art" aria-hidden="true"><div className="art-card a" /><div className="art-card b" /><div className="art-card c" /><div className="art-logo">N</div><div className="art-node slack">S</div><div className="art-node sheet">▣</div></div>}
+                {thumbnail ? <img className="oc-detail-thumbnail" src={thumbnail} alt="클래스 썸네일" /> : <div className="oc-operation-thumbnail"><Image size={30} /><span>대표 썸네일</span></div>}
               </div>
               <div className="oc-detail-actions">
                 <button type="button"><Link2 size={17} /> 공유하기</button>

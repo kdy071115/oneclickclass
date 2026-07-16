@@ -16,6 +16,7 @@ export function ApplicantDetailPage() {
   const [payment, setPayment] = useState<'결제대기' | '결제완료' | '환불'>();
   const [message, setMessage] = useState('');
   const [notice, setNotice] = useState('');
+  const [expandedAnswers, setExpandedAnswers] = useState<string[]>([]);
 
   if (loading || error || !data) {
     return <><div className="oc-web-page"><AsyncState loading={loading} error={error} onRetry={retry} /></div><div className="page subpage"><AsyncState loading={loading} error={error} onRetry={retry} /></div></>;
@@ -44,28 +45,24 @@ export function ApplicantDetailPage() {
           <Badge tone={getStatusTone(currentPayment)}>{currentPayment}</Badge>
         </header>
         <div className="applicant-detail-grid">
-          <main>
-            <section className="oc-panel applicant-info-panel">
+            <section className="oc-panel applicant-info-panel applicant-grid-info">
               <h2>신청 정보</h2>
               <dl><div><dt><Phone size={17} /> 전화번호</dt><dd>{data.phone}</dd></div><div><dt><Mail size={17} /> 이메일</dt><dd>{data.email}</dd></div><div><dt>신청 금액</dt><dd>{won(data.amount)}</dd></div></dl>
             </section>
-            <section className="oc-panel applicant-answer-panel">
-              <h2>신청서 답변</h2>
-              {data.answers.map((answer) => <div key={answer.label}><b>{answer.label}</b><p>{answer.value}</p></div>)}
-            </section>
-          </main>
-          <aside>
-            <section className="oc-panel applicant-payment-panel">
+            <section className="oc-panel applicant-payment-panel applicant-grid-payment">
               <div><span>결제 상태</span><Badge tone={getStatusTone(currentPayment)}>{currentPayment}</Badge></div>
               <strong>{won(data.amount)}</strong>
               <Button onClick={() => void confirmPayment()} disabled={currentPayment === '결제완료'}>{currentPayment === '결제완료' ? <><Check size={17} /> 확인 완료</> : '결제 확인'}</Button>
             </section>
-            <section className="oc-panel applicant-message-panel">
+            <section className="oc-panel applicant-answer-panel applicant-grid-answers">
+              <h2>신청서 답변</h2>
+              {data.answers.map((answer) => {const expanded=expandedAnswers.includes(answer.label);const long=answer.value.length>55;return <div key={answer.label}><b>{answer.label}</b><p className={long&&!expanded?'is-clamped':''}>{answer.value}</p>{long&&<button className="applicant-answer-more" onClick={()=>setExpandedAnswers(expanded?expandedAnswers.filter(label=>label!==answer.label):[...expandedAnswers,answer.label])} aria-expanded={expanded}>{expanded?'접기':'더보기'}</button>}</div>})}
+            </section>
+            <section className="oc-panel applicant-message-panel applicant-grid-message">
               <h2>메시지 보내기</h2>
               <Textarea label="내용" value={message} onChange={(event) => setMessage(event.target.value)} placeholder="신청자에게 전달할 내용을 입력하세요" />
               <Button onClick={() => void sendMessage()} disabled={!message.trim()}>발송</Button>
             </section>
-          </aside>
         </div>
         {notice && <div className="done-toast" aria-live="polite">{notice}</div>}
       </div>

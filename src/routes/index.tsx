@@ -68,6 +68,7 @@ export const router = createBrowserRouter([
       { path: '/my', element: <MyPage /> },
       { path: '/my/certificates', element: <CertificatesPage /> },
       { path: '/my/certificates/:id', element: <CertificateViewPage /> },
+      { path: '/learn/classes/:id', element: <StudentClassPage /> },
       { path: '/notifications', element: <NotificationsPage /> },
       { path: '/settlement', element: <Navigate to="/settlements" replace /> },
       { path: '/settlements', element: <RoleGuard allowed={['teacher']}><SettlementPage /></RoleGuard> },
@@ -82,7 +83,6 @@ export const router = createBrowserRouter([
     children: [
       { path: '/classes/:id/preview', element: <PreviewPage /> },
       { path: '/classes/:id/enroll', element: <StudentClassPage /> },
-      { path: '/learn/classes/:id', element: <StudentClassPage /> },
       { path: '/attendance/select', element: <AttendPickerPage /> },
       { path: '/learn/survey/take', element: <SurveyTakePage /> },
       { path: '/learn/survey/done', element: <SurveyDonePage /> },

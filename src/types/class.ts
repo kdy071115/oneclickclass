@@ -105,6 +105,7 @@ export interface NotificationItem {
   message: string;
   time: string;
   unread: boolean;
+  target: string;
 }
 export interface SettlementRow {
   id: string;

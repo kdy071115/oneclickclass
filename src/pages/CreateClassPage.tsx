@@ -19,6 +19,7 @@ import { FileDropzone, Stepper } from '../components/ui';
 import { classService } from '../api/services';
 import { addressSuggestions, initialClassDraft } from '../constants/classDraft';
 import { clearClassDraft, loadClassDraft, saveClassDraft } from '../utils/classDraft';
+import { getClassThumbnail, saveClassThumbnail } from '../utils/classThumbnail';
 
 const types = [
   ['online', Video, '온라인', '녹화 영상으로 진행'],
@@ -38,8 +39,13 @@ const extraQuestions = ['성별', '연령대', '소속·직업', '신청 동기'
 export function CreateClassPage() {
   const nav = useNavigate();
   const [params] = useSearchParams();
+  const editId = params.get('edit');
   const [step, setStep] = useState(() => (params.has('edit') ? 2 : 1));
-  const [draft, setDraft] = useState(() => loadClassDraft(initialClassDraft));
+  const [draft, setDraft] = useState(() => {
+    const savedDraft = loadClassDraft(initialClassDraft);
+    const savedThumbnail = editId ? getClassThumbnail(editId) : '';
+    return savedThumbnail ? { ...savedDraft, thumbnail: savedThumbnail } : savedDraft;
+  });
   const [calendar, setCalendar] = useState<'startDate' | 'recruitEndDate'>();
   const [addressOpen, setAddressOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -70,9 +76,12 @@ export function CreateClassPage() {
     else {
       setSubmitting(true);
       try {
-        const created = await classService.create(draft);
+        const created = editId
+          ? await classService.update(editId, draft)
+          : await classService.create(draft);
+        if (draft.thumbnail) saveClassThumbnail(created.id, draft.thumbnail);
         clearClassDraft();
-        nav(`/classes/${created.id}/preview?draft=1`);
+        nav(editId ? `/classes/${created.id}` : `/classes/${created.id}/preview?draft=1`);
       } catch {
         setError('강의를 저장하지 못했어요. 잠시 후 다시 시도해 주세요.');
       } finally {

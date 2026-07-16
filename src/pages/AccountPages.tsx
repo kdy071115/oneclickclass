@@ -1,11 +1,13 @@
 import {
   ArrowLeft,
+  Camera,
   CreditCard,
   Download,
   Heart,
   Megaphone,
   MessageCircle,
   Star,
+  Trash2,
   UserPlus,
   Wallet,
 } from 'lucide-react';
@@ -18,6 +20,8 @@ import { AsyncState } from '../components/common/AsyncState';
 import { Button, Input, Modal } from '../components/ui';
 import { useAsync } from '../hooks/useAsync';
 import { won } from '../utils/format';
+import { readImageFile } from '../utils/classThumbnail';
+import { saveProfileImage, useProfileImage } from '../hooks/useProfileImage';
 
 function Top({ title, subtitle, right }: { title: string; subtitle?: string; right?: ReactNode }) {
   const nav = useNavigate();
@@ -127,10 +131,12 @@ export function NotificationsPage() {
             <h2>최근 알림</h2>
             <button onClick={() => setRead(true)}>모두 읽음</button>
           </div>
-          {data.map((n) => {
-            const Icon = iconMap[n.type];
-            return (
-              <div className="oc-attend-row" key={n.id}>
+          {groups.map((group) => <section className="oc-notification-group" key={group}>
+            <h3>{group}</h3>
+            {data.filter((n) => n.group === group).map((n) => {
+              const Icon = iconMap[n.type];
+              return (
+              <Link className="oc-attend-row" to={n.target} key={n.id}>
                 <span className="oc-avatar" style={{ background: '#eff6ff', color: '#3182f6' }}>
                   <Icon size={18} />
                 </span>
@@ -140,9 +146,10 @@ export function NotificationsPage() {
                 </b>
                 <small>{n.time}</small>
                 {n.unread && !read && <em>새 알림</em>}
-              </div>
+              </Link>
             );
-          })}
+            })}
+          </section>)}
         </div>
       </div>
       <div className="page account-page no-bottom">
@@ -154,11 +161,11 @@ export function NotificationsPage() {
               const Icon = iconMap[n.type];
               const unread = n.unread && !read;
               return (
-                <button className={`notice-row ${unread ? 'unread' : ''}`} key={n.id}>
+                <Link className={`notice-row ${unread ? 'unread' : ''}`} to={n.target} key={n.id}>
                   <i className={n.type}><Icon /></i>
                   <span><b>{n.title}{unread && <em />}</b><small>{n.message}</small></span>
                   <time>{n.time}</time>
-                </button>
+                </Link>
               );
             })}
           </section>
@@ -341,15 +348,27 @@ export function SettingsPage() {
 }
 
 function SettingsLike({ title, sub, rows }: { title: string; sub: string; rows: { label: string; sub: string; on: boolean; toggle: () => void }[] }) {
+  const profileImage = useProfileImage();
+  const [profileError, setProfileError] = useState('');
+  const changeProfile = async (file?: File) => {
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) {
+      setProfileError('프로필 이미지는 JPG, PNG, WEBP 형식의 5MB 이하 파일만 가능해요.');
+      return;
+    }
+    setProfileError('');
+    saveProfileImage(await readImageFile(file));
+  };
   return (
     <div className="oc-web-page" style={{ maxWidth: 760 }}>
       <WebHead title={title} sub={sub} />
       <div className="oc-panel">
-        <div className="oc-attend-row">
-          <span className="oc-avatar" style={{ width: 62, height: 62, background: '#eff6ff', color: '#3182f6' }}>지</span>
+        <div className="oc-attend-row profile-setting-row">
+          <span className="oc-avatar profile-setting-avatar" style={{ width: 72, height: 72 }}>{profileImage ? <img src={profileImage} alt="현재 프로필" /> : '지'}</span>
           <b>김지훈<small>jihoon@example.com · 스탠다드 플랜</small></b>
-          <button className="oc-soft-button">프로필 수정</button>
+          <div className="profile-setting-actions"><label className="oc-soft-button"><Camera size={16}/>{profileImage ? '사진 변경' : '사진 추가'}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => void changeProfile(event.target.files?.[0])}/></label>{profileImage&&<button aria-label="프로필 사진 삭제" onClick={()=>saveProfileImage('')}><Trash2 size={17}/></button>}</div>
         </div>
+        {profileError&&<p className="profile-setting-error" role="alert">{profileError}</p>}
       </div>
       <div className="oc-panel" style={{ marginTop: 20 }}>
         <div className="oc-panel-title"><h2>알림 설정</h2></div>
