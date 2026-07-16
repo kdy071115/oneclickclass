@@ -5,9 +5,11 @@ import { classService } from '../api/services';
 import { AsyncState } from '../components/common/AsyncState';
 import { ApplicantRow } from '../components/feature/ApplicantRow';
 import { ClassCard } from '../components/feature/ClassCard';
+import { Badge } from '../components/ui';
 import { useAsync } from '../hooks/useAsync';
 import { useRole } from '../hooks/useRole';
 import { won } from '../utils/format';
+import { getStatusTone } from '../utils/status';
 
 export function HomePage() {
   const nav = useNavigate();
@@ -31,7 +33,7 @@ export function HomePage() {
   const teacher = role === 'teacher';
   const tintCards = teacher
     ? [
-        ['이번 달 매출', '전월 대비 +18%', won(2145000), '#e7f0ff', '/settlement'],
+        ['이번 달 매출', '전월 대비 +18%', won(2145000), '#e7f0ff', '/settlements'],
         ['신규 신청', '오늘 접수', `${data.newApplicants}건`, '#ffeedd', '/applicants'],
         ['진행중 클래스', '수강생 52명', `${data.todayClasses}개`, '#eceafe', '/classes'],
       ]
@@ -88,7 +90,7 @@ export function HomePage() {
                 </span>
               </div>
             </div>
-            <button className="oc-promo" onClick={() => nav(teacher ? '/settlement' : '/classes')}>
+            <button className="oc-promo" onClick={() => nav(teacher ? '/settlements' : '/classes')}>
               <small>{teacher ? 'PRO' : '추천'}</small>
               <b>{teacher ? '프로 플랜으로 정산 수수료를 낮춰보세요' : '관심 분야에 새 클래스가 열렸어요'}</b>
             </button>
@@ -155,7 +157,7 @@ export function HomePage() {
         <section className="oc-insights">
           {[
             ['신청 추세', '지난주 대비 신규 신청이 18% 늘었어요. 마감 임박 클래스를 홍보해보세요.', '신청자 보기', '/applicants'],
-            ['정산 예정', '7월 15일 135,000원 정산이 예정돼 있어요. 계좌를 확인해 두세요.', '정산 보기', '/settlement'],
+            ['정산 예정', '7월 15일 135,000원 정산이 예정돼 있어요. 계좌를 확인해 두세요.', '정산 보기', '/settlements'],
             ['새 후기', '브랜딩 기초 클래스에 후기 3건이 등록됐어요. 답글을 남겨보세요.', '자세히 보기', '/classes'],
           ].map(([title, desc, cta, to]) => (
             <Link className="oc-card" to={to} key={title}>
@@ -187,9 +189,7 @@ export function HomePage() {
                     <b>{title}</b>
                     <small>{meta}</small>
                   </span>
-                  <span className="oc-status" style={{ color: '#3182f6', background: '#eff6ff' }}>
-                    {badge}
-                  </span>
+                  <Badge tone="primary">{badge}</Badge>
                 </div>
               ))}
             </div>
@@ -209,15 +209,7 @@ export function HomePage() {
                     <b>{a.name}</b>
                     <small>{a.classTitle} · {a.appliedAt}</small>
                   </span>
-                  <span
-                    className="oc-status"
-                    style={{
-                      color: a.payment === '결제대기' ? '#e8590c' : '#0ca678',
-                      background: a.payment === '결제대기' ? '#fff4ec' : '#e6f9f1',
-                    }}
-                  >
-                    {a.payment}
-                  </span>
+                  <Badge tone={getStatusTone(a.payment)}>{a.payment}</Badge>
                 </Link>
               ))}
             </div>

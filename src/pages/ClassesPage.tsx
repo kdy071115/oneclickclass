@@ -1,17 +1,37 @@
 import { useCallback, useState } from 'react';
+import { LayoutGrid, List } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { classService } from '../api/services';
 import { AsyncState } from '../components/common/AsyncState';
 import { ClassCard } from '../components/feature/ClassCard';
+import { Badge, IconButton, Table, type TableColumn } from '../components/ui';
 import { useAsync } from '../hooks/useAsync';
-import type { ClassStatus } from '../types/class';
+import type { ClassItem, ClassStatus } from '../types/class';
+import { getStatusTone } from '../utils/status';
+import { getClassThumbnail } from '../utils/classThumbnail';
 export function ClassesPage() {
   const load = useCallback(() => classService.list(), []);
   const { data = [], loading, error, retry } = useAsync(load);
   const [mode, setMode] = useState<'mine' | 'watch'>('mine');
   const [filter, setFilter] = useState<'전체' | ClassStatus>('전체');
+  const [sort, setSort] = useState<'title' | 'status'>('title');
+  const [direction, setDirection] = useState<'asc' | 'desc'>('asc');
+  const [view, setView] = useState<'table' | 'cards'>('cards');
+  const [favorites, setFavorites] = useState<string[]>([]);
   const base = mode === 'mine' ? data : data.slice(0, 2);
   const shown = filter === '전체' ? base : base.filter((x) => x.status === filter);
+  const sorted = [...shown].sort((a, b) => a[sort].localeCompare(b[sort]) * (direction === 'asc' ? 1 : -1));
+  const columns: TableColumn<ClassItem>[] = [
+    { key: 'title', header: '클래스', sortable: true, render: (item) => { const thumbnail = item.thumbnail || getClassThumbnail(item.id); return <Link className="class-table-title" to={mode === 'watch' ? `/learn/classes/${item.id}` : `/classes/${item.id}`}><i style={thumbnail ? { backgroundImage: `url(${thumbnail})` } : { background: item.color }} /><strong>{item.title}</strong></Link>; } },
+    { key: 'schedule', header: '유형/일정', render: (item) => <>{item.type} · {item.date}</> },
+    { key: 'enrolled', header: '신청 현황', render: (item) => <>{item.enrolled} / {item.capacity}명</> },
+    { key: 'status', header: '상태', sortable: true, render: (item) => <Badge tone={getStatusTone(item.status)}>{item.status}</Badge> },
+  ];
+  const handleSort = (key: string) => {
+    if (key !== 'title' && key !== 'status') return;
+    if (sort === key) setDirection(direction === 'asc' ? 'desc' : 'asc');
+    else { setSort(key); setDirection('asc'); }
+  };
   return (
     <>
       <div className="oc-web-page">
@@ -27,56 +47,16 @@ export function ClassesPage() {
             수강 중인 강의 2
           </button>
         </div>
-        <div className="oc-filters">
-          {(['전체', '모집중', '진행중', '종료'] as const).map((x) => (
-            <button className={filter === x ? 'active' : ''} onClick={() => setFilter(x)} key={x}>
-              {x}
-            </button>
-          ))}
-        </div>
-        <AsyncState loading={loading} error={error} empty={!loading && !error && !shown.length} onRetry={retry} />
-        {!loading && !error && !!shown.length && (
-          <div className="oc-table">
-            <div className="oc-table-head">
-              <span>클래스</span>
-              <span>유형/일정</span>
-              <span>신청 현황</span>
-              <span>상태</span>
-              <span />
-            </div>
-            {shown.map((c) => (
-              <Link className="oc-table-row" to={mode === 'watch' ? `/learn/classes/${c.id}` : `/classes/${c.id}`} key={c.id}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                  <i
-                    style={{
-                      width: 52,
-                      height: 52,
-                      borderRadius: 14,
-                      background: `linear-gradient(135deg,${c.color},color-mix(in srgb, ${c.color}, white 35%))`,
-                    }}
-                  />
-                  <strong>{c.title}</strong>
-                </span>
-                <span>
-                  {c.type} · {c.date}
-                </span>
-                <span>
-                  {c.enrolled} / {c.capacity}명
-                </span>
-                <span
-                  className="oc-status"
-                  style={{
-                    color: c.status === '모집중' ? '#3182f6' : c.status === '진행중' ? '#0ca678' : '#868e96',
-                    background: c.status === '모집중' ? '#eff6ff' : c.status === '진행중' ? '#e6f9f1' : '#f1f3f5',
-                  }}
-                >
-                  {c.status}
-                </span>
-                <span>›</span>
-              </Link>
-            ))}
+        <div className="class-list-toolbar">
+          <div className="oc-filters">
+            {(['전체', '모집중', '진행중', '종료'] as const).map((x) => <button className={filter === x ? 'active' : ''} onClick={() => setFilter(x)} key={x}>{x}</button>)}
           </div>
-        )}
+          <div className="class-view-switch" aria-label="보기 방식">
+            <IconButton label="카드로 보기" className={view === 'cards' ? 'active' : ''} onClick={() => setView('cards')}><LayoutGrid size={18} /></IconButton>
+            <IconButton label="표로 보기" className={view === 'table' ? 'active' : ''} onClick={() => setView('table')}><List size={19} /></IconButton>
+          </div>
+        </div>
+        {error ? <AsyncState loading={false} error={error} onRetry={retry} /> : view === 'table' ? <Table columns={columns} rows={sorted} rowKey={(item) => item.id} loading={loading} sortKey={sort} sortDirection={direction} onSort={handleSort} /> : <div className="class-web-grid">{sorted.map((item) => <ClassCard item={item} variant="grid" to={mode === 'watch' ? `/learn/classes/${item.id}` : undefined} favorite={mode === 'watch' && !favorites.includes(item.id)} onFavorite={() => setFavorites([...favorites, item.id])} key={item.id} />)}</div>}
       </div>
       <div className="page">
         <div className="title-row">

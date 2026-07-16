@@ -1,11 +1,13 @@
-import { Search } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { applicantService } from '../api/services';
 import { AsyncState } from '../components/common/AsyncState';
 import { ApplicantRow } from '../components/feature/ApplicantRow';
+import { Avatar, Badge, SearchInput, Table, type TableColumn } from '../components/ui';
 import { useAsync } from '../hooks/useAsync';
+import type { Applicant } from '../types/class';
 import { won } from '../utils/format';
+import { getStatusTone } from '../utils/status';
 
 const filters = ['전체', '결제완료', '결제대기', '환불'] as const;
 
@@ -14,11 +16,26 @@ export function ApplicantsPage() {
   const { data = [], loading, error, retry } = useAsync(load);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<(typeof filters)[number]>('전체');
+  const [sort, setSort] = useState<'name' | 'payment'>('name');
+  const [direction, setDirection] = useState<'asc' | 'desc'>('asc');
   const shown = data.filter((x) => {
     const matchesQuery = (x.name + x.classTitle).includes(query);
     const matchesFilter = filter === '전체' || x.payment === filter;
     return matchesQuery && matchesFilter;
   });
+  const sorted = [...shown].sort((a, b) => a[sort].localeCompare(b[sort]) * (direction === 'asc' ? 1 : -1));
+  const columns: TableColumn<Applicant>[] = [
+    { key: 'name', header: '신청자', sortable: true, render: (item) => <Link className="ui-person-cell" to={`/applicants/${item.id}`}><Avatar name={item.name} /><strong>{item.name}</strong></Link> },
+    { key: 'class', header: '클래스', render: (item) => item.classTitle },
+    { key: 'date', header: '신청일', render: (item) => item.appliedAt },
+    { key: 'payment', header: '결제', sortable: true, render: (item) => <Badge tone={getStatusTone(item.payment)}>{item.payment}</Badge> },
+    { key: 'amount', header: '금액', render: (item) => won(item.amount) },
+  ];
+  const handleSort = (key: string) => {
+    if (key !== 'name' && key !== 'payment') return;
+    if (sort === key) setDirection(direction === 'asc' ? 'desc' : 'asc');
+    else { setSort(key); setDirection('asc'); }
+  };
 
   return (
     <>
@@ -27,10 +44,7 @@ export function ApplicantsPage() {
           <h1>신청자</h1>
           <p>신청 현황과 결제 상태를 확인하세요</p>
         </div>
-        <label className="search" style={{ maxWidth: 420 }}>
-          <Search size={18} />
-          <input aria-label="신청자 검색" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="이름·클래스로 검색" />
-        </label>
+        <div className="oc-search-limit"><SearchInput value={query} onChange={(e) => setQuery(e.target.value)} placeholder="이름·클래스로 검색" /></div>
         <div className="oc-filters">
           {filters.map((x) => (
             <button className={filter === x ? 'active' : ''} onClick={() => setFilter(x)} key={x}>
@@ -38,47 +52,11 @@ export function ApplicantsPage() {
             </button>
           ))}
         </div>
-        <AsyncState loading={loading} error={error} empty={!loading && !error && !shown.length} onRetry={retry} />
-        {!loading && !error && !!shown.length && (
-          <div className="oc-table">
-            <div className="oc-table-head">
-              <span>신청자</span>
-              <span>클래스</span>
-              <span>신청일</span>
-              <span>결제</span>
-              <span>금액</span>
-            </div>
-            {shown.map((a, index) => (
-              <Link className="oc-table-row" to={`/applicants/${a.id}`} key={a.id}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span className="oc-avatar" style={{ background: ['#ffe9d9', '#e7f0ff', '#edebff'][index % 3], color: ['#e8590c', '#1b64da', '#6741d9'][index % 3] }}>
-                    {a.name[0]}
-                  </span>
-                  <strong>{a.name}</strong>
-                </span>
-                <span>{a.classTitle}</span>
-                <span>{a.appliedAt}</span>
-                <span
-                  className="oc-status"
-                  style={{
-                    color: a.payment === '결제완료' ? '#0ca678' : a.payment === '결제대기' ? '#e8590c' : '#f03e3e',
-                    background: a.payment === '결제완료' ? '#e6f9f1' : a.payment === '결제대기' ? '#fff4ec' : '#fff0f0',
-                  }}
-                >
-                  {a.payment}
-                </span>
-                <span>{won(a.amount)}</span>
-              </Link>
-            ))}
-          </div>
-        )}
+        {error ? <AsyncState loading={false} error={error} onRetry={retry} /> : <Table columns={columns} rows={sorted} rowKey={(item) => item.id} loading={loading} sortKey={sort} sortDirection={direction} onSort={handleSort} />}
       </div>
       <div className="page">
         <h1>신청자</h1>
-        <label className="search">
-          <Search size={18} />
-          <input aria-label="신청자 검색" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="이름·전화번호로 검색" />
-        </label>
+        <SearchInput value={query} onChange={(e) => setQuery(e.target.value)} placeholder="이름·전화번호로 검색" />
         <AsyncState loading={loading} error={error} empty={!loading && !error && !shown.length} onRetry={retry} />
         <div className="group-label">오늘</div>
         {shown.slice(0, 2).map((a, i) => (

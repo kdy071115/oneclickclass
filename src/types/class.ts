@@ -8,6 +8,7 @@ export interface ClassItem {
   enrolled: number;
   capacity: number;
   color: string;
+  thumbnail?: string;
 }
 export interface Applicant {
   id: string;
