@@ -350,6 +350,28 @@
     margin-bottom: 20px;
   }
 
+  .dashboard-overview {
+    align-items: stretch;
+  }
+
+  .dashboard-primary,
+  .dashboard-secondary {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .dashboard-primary .oc-tint-grid {
+    flex: 1;
+  }
+
+  .dashboard-primary .oc-tint-card {
+    height: 100%;
+  }
+
+  .dashboard-secondary .oc-summary-card {
+    flex: 1;
+  }
+
   .oc-panel {
     border: 1px solid #edf0f3;
     border-radius: 14px;
@@ -806,6 +828,20 @@
     color: #fff;
     font-size: 12px;
     font-weight: 800;
+  }
+
+  .oc-thumbnail-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .oc-thumbnail-placeholder b {
+    font-size: 14px;
   }
 
   .oc-detail-body {
@@ -1391,13 +1427,65 @@
   }
 
   .oc-cert-page {
-    max-width: 760px;
+    width: min(960px, 100%);
+    margin: 0 auto;
   }
 
   .oc-cert-page .certificate {
     width: 100%;
-    min-height: 520px;
+    min-height: 0;
+    aspect-ratio: 297 / 210;
+    margin: 0 auto 16px;
     box-shadow: none;
+  }
+
+  .applicant-detail-web {
+    max-width: 1120px;
+    margin: 0 auto;
+  }
+
+  .applicant-detail-head {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 24px;
+    margin-bottom: 20px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: #fff;
+    box-shadow: var(--shadow-card);
+  }
+
+  .applicant-detail-head > div {
+    flex: 1;
+  }
+
+  .applicant-detail-head h1,
+  .applicant-detail-head p,
+  .applicant-info-panel h2,
+  .applicant-answer-panel h2,
+  .applicant-message-panel h2 {
+    margin: 0;
+  }
+
+  .applicant-detail-head h1 { font-size: 22px; }
+  .applicant-detail-head p { margin-top: 5px; color: var(--color-text-secondary); }
+  .applicant-detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; }
+  .applicant-detail-grid main, .applicant-detail-grid aside { display: flex; flex-direction: column; gap: 20px; }
+  .applicant-info-panel dl { margin: 20px 0 0; }
+  .applicant-info-panel dl > div { display: grid; grid-template-columns: 160px 1fr; gap: 20px; padding: 15px 0; border-top: 1px solid var(--color-border); }
+  .applicant-info-panel dt { display: flex; align-items: center; gap: 8px; color: var(--color-text-secondary); }
+  .applicant-info-panel dd { margin: 0; font-weight: 700; }
+  .applicant-answer-panel > div { margin-top: 18px; padding: 18px; border-radius: var(--radius-md); background: var(--color-background); }
+  .applicant-answer-panel p { margin: 8px 0 0; color: var(--color-text-secondary); line-height: 1.6; }
+  .applicant-payment-panel > div { display: flex; align-items: center; justify-content: space-between; }
+  .applicant-payment-panel > strong { display: block; margin: 20px 0; font-size: 26px; }
+  .applicant-payment-panel .ui-button, .applicant-message-panel .ui-button { width: 100%; }
+  .applicant-message-panel .ui-field { margin-top: 16px; }
+  .applicant-message-panel .ui-textarea { min-height: 120px; }
+
+  @media (max-width: 1100px) {
+    .applicant-detail-grid { grid-template-columns: 1fr; }
   }
 
   .oc-crumb {

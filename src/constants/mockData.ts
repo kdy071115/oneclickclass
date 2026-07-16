@@ -6,9 +6,9 @@ export const classes: ClassItem[] = [
   {id:'photo',title:'스마트폰 사진 보정 클래스',status:'종료',type:'온라인',date:'6월 14일',enrolled:20,capacity:20,color:'#f76707'},
 ];
 export const applicants: Applicant[] = [
-  {id:'1',name:'김서연',classTitle:'노션 업무 자동화',appliedAt:'방금',payment:'결제대기',amount:45000},
-  {id:'2',name:'이준호',classTitle:'캘리그라피 클래스',appliedAt:'12분 전',payment:'결제완료',amount:45000},
-  {id:'3',name:'박민지',classTitle:'노션 업무 자동화',appliedAt:'1시간 전',payment:'결제완료',amount:45000},
+  {id:'1',name:'김서연',classTitle:'노션 업무 자동화',appliedAt:'방금',payment:'결제대기',amount:45000,phone:'010-2345-6789',email:'seoyeon@email.com',answers:[{label:'신청 동기',value:'반복 업무를 줄이고 팀의 업무 효율을 높이고 싶어요.'},{label:'노션 사용 경험',value:'개인 메모와 프로젝트 관리에 1년 정도 사용했어요.'}]},
+  {id:'2',name:'이준호',classTitle:'캘리그라피 클래스',appliedAt:'12분 전',payment:'결제완료',amount:45000,phone:'010-4782-1135',email:'junho@example.com',answers:[{label:'신청 동기',value:'취미로 글씨를 배워 지인에게 카드를 만들어 주고 싶어요.'}]},
+  {id:'3',name:'박민지',classTitle:'노션 업무 자동화',appliedAt:'1시간 전',payment:'결제완료',amount:45000,phone:'010-8891-2047',email:'minji@example.com',answers:[{label:'신청 동기',value:'회사 업무 템플릿을 체계적으로 만들고 싶어요.'}]},
 ];
 export const studentStats = [
   { value: '2', label: '수강 중', color: '#3182f6' },

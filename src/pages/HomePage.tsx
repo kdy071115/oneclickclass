@@ -51,8 +51,8 @@ export function HomePage() {
           <p>{teacher ? '오늘 강의 2개, 신규 신청 3건이 있어요' : '이어서 들을 강의를 확인하세요'}</p>
         </div>
 
-        <section className="oc-grid-2">
-          <div>
+        <section className="oc-grid-2 dashboard-overview">
+          <div className="dashboard-primary">
             <div className="oc-hero-title">지훈님, 안녕하세요</div>
             <div className="oc-hero-sub">
               {teacher ? '클래스 운영 현황을 한눈에 확인하세요' : '오늘 학습할 내용을 이어서 볼 수 있어요'}
@@ -68,7 +68,7 @@ export function HomePage() {
               ))}
             </div>
           </div>
-          <div>
+          <div className="dashboard-secondary">
             <div className="oc-summary-card">
               <div className="oc-summary-row">
                 <span>

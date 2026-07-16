@@ -45,6 +45,23 @@ test('비회원 신청 조회 폼을 검증한다', async ({ page }) => {
   await expect(page.getByText('노션으로 시작하는 업무 자동화')).toBeVisible();
 });
 
+test('신청자 상세와 수료증을 데스크톱에서 표시한다', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop');
+  await login(page);
+  await page.goto('/applicants/1');
+  const detail = page.locator('.applicant-detail-web');
+  await expect(detail.getByRole('heading', { name: '김서연', exact: true })).toBeVisible();
+  await expect(detail.getByText('seoyeon@email.com', { exact: true })).toBeVisible();
+  await expect(detail.getByRole('button', { name: '결제 확인', exact: true })).toBeVisible();
+
+  await page.goto('/my/certificates/0');
+  const certificate = page.locator('.oc-cert-page .certificate');
+  await expect(certificate).toBeVisible();
+  const box = await certificate.boundingBox();
+  expect(box).not.toBeNull();
+  expect((box?.width ?? 0) / (box?.height ?? 1)).toBeCloseTo(297 / 210, 2);
+});
+
 test('데스크톱 강의 일정 캘린더에서 날짜를 선택한다', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop');
   await login(page);
