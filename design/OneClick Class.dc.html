@@ -55,11 +55,19 @@
           <div class="oc-screen" style="padding: 52px 18px 120px;">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
               <span style="font-size: 22px; font-weight: 800; color: var(--accent,#3182F6); letter-spacing: -.5px;">원클릭 클래스</span>
-              <div style="width: 40px; height: 40px; border-radius: 50%; background: #F2F4F6; display: flex; align-items: center; justify-content: center;">
+              <button onClick="{{ openNotifications }}" style="position: relative; width: 40px; height: 40px; border-radius: 50%; background: #F2F4F6; display: flex; align-items: center; justify-content: center;">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4E5968" stroke-width="1.8"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.7 21a2 2 0 0 1-3.4 0"></path></svg>
-              </div>
+                <span style="position: absolute; top: 8px; right: 9px; width: 8px; height: 8px; border-radius: 50%; background: #F03E3E; border: 1.5px solid #F2F4F6;"></span>
+              </button>
             </div>
 
+            <!-- role toggle -->
+            <div style="display: flex; background: #F2F4F6; border-radius: 14px; padding: 4px; margin-bottom: 18px;">
+              <button onClick="{{ setRoleTeacher }}" style="{{ roleTeacherStyle }}">강의자 홈</button>
+              <button onClick="{{ setRoleStudent }}" style="{{ roleStudentStyle }}">수강생 홈</button>
+            </div>
+
+            <sc-if value="{{ isTeacherHome }}" hint-placeholder-val="{{ true }}">
             <!-- Hero banner -->
             <button onClick="{{ openAttendPick }}" style="width: 100%; text-align: left; background: linear-gradient(120deg,#EFF4FF,#E7F0FF); border-radius: 22px; padding: 22px; margin-bottom: 16px; position: relative; overflow: hidden;">
               <div style="font-size: 20px; font-weight: 800; letter-spacing: -.4px; line-height: 1.35; max-width: 210px; position: relative; z-index: 1;">지훈님, 오늘<br>강의 2개가 있어요 🎓</div>
@@ -141,6 +149,76 @@
                 <div style="flex: 1;"><div style="font-size: 15px; font-weight: 700;">박민지</div><div style="font-size: 12.5px; color: #8B95A1; font-weight: 500; margin-top: 2px;">노션 업무 자동화 · 1시간 전</div></div>
                 <span style="font-size: 12px; font-weight: 700; color: #12B886; background: #E6F9F1; padding: 4px 9px; border-radius: 7px;">결제완료</span>
               </button>
+            </div>
+            </sc-if>
+
+            <!-- ===== STUDENT HOME ===== -->
+            <sc-if value="{{ isStudentHome }}" hint-placeholder-val="{{ false }}">
+            <button onClick="{{ goClassesWatch }}" style="width: 100%; text-align: left; background: linear-gradient(120deg,#EAFBF3,#DDF6EA); border-radius: 22px; padding: 22px; margin-bottom: 16px; position: relative; overflow: hidden;">
+              <div style="font-size: 20px; font-weight: 800; letter-spacing: -.4px; line-height: 1.35; max-width: 230px; position: relative; z-index: 1;">지훈님, 오늘<br>이어서 들을 강의가 있어요</div>
+              <div style="display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; font-size: 13.5px; font-weight: 700; color: #0CA678; position: relative; z-index: 1;">이어서 학습하기<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0CA678" stroke-width="2.4"><path d="M9 18l6-6-6-6"></path></svg></div>
+              <div style="position: absolute; right: -18px; bottom: -22px; width: 120px; height: 120px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #7DE0B4, #0CA678); opacity: .32;"></div>
+            </button>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 24px;">
+              <sc-for list="{{ studentStats }}" as="st" hint-placeholder-count="3">
+                <div style="background: #F8F9FB; border-radius: 16px; padding: 15px 10px; text-align: center;"><div style="font-size: 20px; font-weight: 800; color: {{ st.color }};">{{ st.value }}</div><div style="font-size: 11.5px; color: #6B7684; font-weight: 600; margin-top: 4px;">{{ st.label }}</div></div>
+              </sc-for>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+              <span style="font-size: 17px; font-weight: 800; letter-spacing: -.4px;">수강 중인 강의</span>
+              <button onClick="{{ goClassesWatch }}" style="font-size: 14px; color: #8B95A1; font-weight: 600;">전체보기</button>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 28px;">
+              <sc-for list="{{ studentInProgress }}" as="c" hint-placeholder-count="2">
+                <button onClick="{{ goClassesWatch }}" style="width: 100%; text-align: left; background: #fff; border: 1px solid #EDF0F3; border-radius: 18px; padding: 14px; display: flex; gap: 14px; box-shadow: 0 2px 10px rgba(23,31,40,.04);">
+                  <div style="width: 58px; height: 58px; border-radius: 14px; background: {{ c.grad }}; flex: none;"></div>
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 15px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ c.title }}</div>
+                    <div style="font-size: 12.5px; color: #8B95A1; font-weight: 600; margin-top: 4px;">{{ c.meta }}</div>
+                    <div style="height: 5px; background: #EDF0F3; border-radius: 3px; margin-top: 10px; overflow: hidden;"><div style="width: {{ c.pct }}; height: 100%; background: {{ c.barColor }}; border-radius: 3px;"></div></div>
+                  </div>
+                </button>
+              </sc-for>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+              <span style="font-size: 17px; font-weight: 800; letter-spacing: -.4px;">이런 클래스는 어때요?</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <sc-for list="{{ recommendClasses }}" as="c" hint-placeholder-count="2">
+                <button onClick="{{ goWishlist }}" style="width: 100%; text-align: left; background: #fff; border: 1px solid #EDF0F3; border-radius: 18px; padding: 14px; display: flex; gap: 14px; align-items: center; box-shadow: 0 2px 10px rgba(23,31,40,.04);">
+                  <div style="width: 58px; height: 58px; border-radius: 14px; background: {{ c.grad }}; flex: none;"></div>
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 15px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ c.title }}</div>
+                    <div style="font-size: 12.5px; color: #8B95A1; font-weight: 600; margin-top: 4px;">{{ c.meta }}</div>
+                    <div style="font-size: 14px; font-weight: 800; color: var(--accent,#3182F6); margin-top: 6px;">{{ c.price }}</div>
+                  </div>
+                </button>
+              </sc-for>
+            </div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <!-- ============ WISHLIST TAB (수강생 · 관심) ============ -->
+        <sc-if value="{{ isWishlist }}" hint-placeholder-val="{{ false }}">
+          <div class="oc-screen" style="padding: 62px 20px 120px;">
+            <div style="font-size: 26px; font-weight: 800; letter-spacing: -.6px; margin-bottom: 6px;">관심 클래스</div>
+            <div style="font-size: 14px; color: #8B95A1; font-weight: 600; margin-bottom: 22px;">찜한 클래스를 모아봤어요</div>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <sc-for list="{{ wishlistItems }}" as="w" hint-placeholder-count="3">
+                <div style="width: 100%; background: #fff; border: 1px solid #EDF0F3; border-radius: 18px; padding: 14px; display: flex; gap: 14px; align-items: center; box-shadow: 0 2px 10px rgba(23,31,40,.04);">
+                  <div style="width: 60px; height: 60px; border-radius: 14px; background: {{ w.grad }}; flex: none;"></div>
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 15.5px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ w.title }}</div>
+                    <div style="font-size: 12.5px; color: #8B95A1; font-weight: 600; margin-top: 4px;">{{ w.meta }}</div>
+                    <div style="font-size: 14px; font-weight: 800; color: var(--accent,#3182F6); margin-top: 6px;">{{ w.price }}</div>
+                  </div>
+                  <button onClick="{{ w.unheart }}" style="width: 38px; height: 38px; border-radius: 50%; background: #FFF0F0; display: flex; align-items: center; justify-content: center; flex: none;"><svg width="20" height="20" viewBox="0 0 24 24" fill="#F03E3E" stroke="#F03E3E" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"></path></svg></button>
+                </div>
+              </sc-for>
             </div>
           </div>
         </sc-if>
@@ -236,12 +314,247 @@
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4CBD3" stroke-width="2.2"><path d="M9 18l6-6-6-6"></path></svg>
             </button>
             <div style="background: #fff; border: 1px solid #EDF0F3; border-radius: 20px; overflow: hidden;">
-              <div style="padding: 17px 18px; border-bottom: 1px solid #F2F4F6; display: flex; justify-content: space-between; align-items: center; font-size: 15px; font-weight: 600;">정산 관리<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4CBD3" stroke-width="2.2"><path d="M9 18l6-6-6-6"></path></svg></div>
-              <div style="padding: 17px 18px; border-bottom: 1px solid #F2F4F6; display: flex; justify-content: space-between; align-items: center; font-size: 15px; font-weight: 600;">알림 설정<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4CBD3" stroke-width="2.2"><path d="M9 18l6-6-6-6"></path></svg></div>
-              <div style="padding: 17px 18px; border-bottom: 1px solid #F2F4F6; display: flex; justify-content: space-between; align-items: center; font-size: 15px; font-weight: 600;">고객센터<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4CBD3" stroke-width="2.2"><path d="M9 18l6-6-6-6"></path></svg></div>
-              <div style="padding: 17px 18px; display: flex; justify-content: space-between; align-items: center; font-size: 15px; font-weight: 600;">설정<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4CBD3" stroke-width="2.2"><path d="M9 18l6-6-6-6"></path></svg></div>
+              <button onClick="{{ openSettle }}" style="width: 100%; text-align: left; padding: 17px 18px; border-bottom: 1px solid #F2F4F6; display: flex; justify-content: space-between; align-items: center; font-size: 15px; font-weight: 600;"><span>정산 관리</span><span style="display: flex; align-items: center; gap: 8px;"><span style="font-size: 13.5px; font-weight: 700; color: #0CA678;">135,000원 정산 예정</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4CBD3" stroke-width="2.2"><path d="M9 18l6-6-6-6"></path></svg></span></button>
+              <button onClick="{{ openPayment }}" style="width: 100%; text-align: left; padding: 17px 18px; border-bottom: 1px solid #F2F4F6; display: flex; justify-content: space-between; align-items: center; font-size: 15px; font-weight: 600;"><span>결제 관리</span><span style="display: flex; align-items: center; gap: 8px;"><span style="font-size: 13.5px; font-weight: 600; color: #8B95A1;">스탠다드 플랜</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4CBD3" stroke-width="2.2"><path d="M9 18l6-6-6-6"></path></svg></span></button>
+              <button onClick="{{ openNotifSettings }}" style="width: 100%; text-align: left; padding: 17px 18px; border-bottom: 1px solid #F2F4F6; display: flex; justify-content: space-between; align-items: center; font-size: 15px; font-weight: 600;"><span>알림 설정</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4CBD3" stroke-width="2.2"><path d="M9 18l6-6-6-6"></path></svg></button>
+              <button onClick="{{ openSupport }}" style="width: 100%; text-align: left; padding: 17px 18px; border-bottom: 1px solid #F2F4F6; display: flex; justify-content: space-between; align-items: center; font-size: 15px; font-weight: 600;"><span>고객센터</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4CBD3" stroke-width="2.2"><path d="M9 18l6-6-6-6"></path></svg></button>
+              <button onClick="{{ openSettings }}" style="width: 100%; text-align: left; padding: 17px 18px; display: flex; justify-content: space-between; align-items: center; font-size: 15px; font-weight: 600;"><span>설정</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4CBD3" stroke-width="2.2"><path d="M9 18l6-6-6-6"></path></svg></button>
             </div>
             <button onClick="{{ goLogin }}" style="width: 100%; margin-top: 14px; padding: 16px; font-size: 14.5px; font-weight: 700; color: #8B95A1;">로그아웃</button>
+          </div>
+        </sc-if>
+
+        <!-- ============ NOTIFICATIONS (알림) ============ -->
+        <sc-if value="{{ isNotifications }}" hint-placeholder-val="{{ false }}">
+          <div class="oc-screen" style="padding: 54px 18px 40px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+              <button onClick="{{ goHome }}" style="margin-left: -6px; padding: 6px;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#191F28" stroke-width="2.2"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <button onClick="{{ markAllRead }}" style="font-size: 13.5px; font-weight: 700; color: #8B95A1; padding: 6px;">모두 읽음</button>
+            </div>
+            <div style="font-size: 24px; font-weight: 800; letter-spacing: -.5px; padding: 0 2px 12px;">알림</div>
+            <sc-for list="{{ notifGroups }}" as="g" hint-placeholder-count="3">
+              <div style="font-size: 13px; font-weight: 700; color: #8B95A1; margin: 14px 2px 6px;">{{ g.label }}</div>
+              <sc-for list="{{ g.items }}" as="n" hint-placeholder-count="2">
+                <button onClick="{{ n.tap }}" style="{{ n.rowStyle }}">
+                  <div style="width: 44px; height: 44px; border-radius: 13px; background: {{ n.iconBg }}; display: flex; align-items: center; justify-content: center; flex: none;">
+                    <sc-if value="{{ n.isNew }}" hint-placeholder-val="{{ true }}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="{{ n.iconColor }}" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M19 8v6M22 11h-6"></path></svg></sc-if>
+                    <sc-if value="{{ n.isPay }}" hint-placeholder-val="{{ false }}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="{{ n.iconColor }}" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2.5"></rect><path d="M2 10h20"></path></svg></sc-if>
+                    <sc-if value="{{ n.isReview }}" hint-placeholder-val="{{ false }}"><svg width="22" height="22" viewBox="0 0 24 24" fill="{{ n.iconColor }}" stroke="{{ n.iconColor }}" stroke-width="1.5" stroke-linejoin="round"><path d="M12 3l2.6 5.6 6 .8-4.4 4.1 1.1 6L12 16.9 6.7 19.5l1.1-6L3.4 9.4l6-.8z"></path></svg></sc-if>
+                    <sc-if value="{{ n.isSettle }}" hint-placeholder-val="{{ false }}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="{{ n.iconColor }}" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M8 9l1.9 4.5L12 9l2.1 4.5L16 9M7.5 12.5h9"></path></svg></sc-if>
+                    <sc-if value="{{ n.isNotice }}" hint-placeholder-val="{{ false }}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="{{ n.iconColor }}" stroke-width="2" stroke-linejoin="round"><path d="M3 9v6h3l5 4V5L6 9H3z"></path><path d="M16 8.5a5 5 0 0 1 0 7"></path></svg></sc-if>
+                  </div>
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      <span style="font-size: 14.5px; font-weight: 700; color: #191F28;">{{ n.title }}</span>
+                      <sc-if value="{{ n.unread }}" hint-placeholder-val="{{ false }}"><span style="width: 6px; height: 6px; border-radius: 50%; background: #F03E3E;"></span></sc-if>
+                    </div>
+                    <div style="font-size: 13px; color: #6B7684; font-weight: 500; margin-top: 3px; line-height: 1.5;">{{ n.msg }}</div>
+                  </div>
+                  <span style="font-size: 12px; color: #ADB5BD; font-weight: 500; flex: none; align-self: flex-start; margin-top: 2px;">{{ n.time }}</span>
+                </button>
+              </sc-for>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <!-- ============ SETTLEMENT (정산 관리) ============ -->
+        <sc-if value="{{ isSettle }}" hint-placeholder-val="{{ false }}">
+          <div class="oc-screen" style="padding: 54px 20px 40px;">
+            <button onClick="{{ goMy }}" style="margin-bottom: 12px; margin-left: -6px; padding: 6px;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#191F28" stroke-width="2.2"><path d="M15 18l-6-6 6-6"></path></svg></button>
+            <div style="font-size: 24px; font-weight: 800; letter-spacing: -.5px;">정산 관리</div>
+            <div style="font-size: 14px; color: #8B95A1; font-weight: 600; margin-top: 5px;">클래스 수익을 확인하고 출금하세요</div>
+
+            <div style="background: linear-gradient(120deg,#EFF4FF,#E7F0FF); border-radius: 22px; padding: 22px; margin-top: 20px; position: relative; overflow: hidden;">
+              <div style="font-size: 13.5px; font-weight: 700; color: #5B87C4; position: relative; z-index: 1;">출금 가능 금액</div>
+              <div style="font-size: 30px; font-weight: 800; letter-spacing: -.8px; margin-top: 6px; color: #191F28; position: relative; z-index: 1;">1,240,000<span style="font-size: 18px; font-weight: 700;">원</span></div>
+              <div style="font-size: 13px; font-weight: 600; color: #6B7684; margin-top: 4px; position: relative; z-index: 1;">이번 달 정산 예정 135,000원</div>
+              <button onClick="{{ settleWithdraw }}" style="width: 100%; margin-top: 18px; height: 50px; border-radius: var(--cta-r,15px); background: var(--accent,#3182F6); color: #fff; font-size: 15.5px; font-weight: 700; position: relative; z-index: 1;">출금하기</button>
+              <div style="position: absolute; right: -20px; bottom: -20px; width: 120px; height: 120px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #9EC0FF, var(--accent,#3182F6)); opacity: .35;"></div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 14px;">
+              <sc-for list="{{ settleStats }}" as="st" hint-placeholder-count="3">
+                <div style="background: #F8F9FB; border-radius: 16px; padding: 15px 10px; text-align: center;"><div style="font-size: 16px; font-weight: 800; color: {{ st.color }};">{{ st.value }}</div><div style="font-size: 11.5px; color: #6B7684; font-weight: 600; margin-top: 4px;">{{ st.label }}</div></div>
+              </sc-for>
+            </div>
+
+            <button onClick="{{ settleChangeAccount }}" style="width: 100%; text-align: left; background: #fff; border: 1px solid #EDF0F3; border-radius: 18px; padding: 16px 18px; margin-top: 14px; display: flex; align-items: center; gap: 14px; box-shadow: 0 2px 10px rgba(23,31,40,.04);">
+              <div style="width: 42px; height: 42px; border-radius: 12px; background: #EFF6FF; display: flex; align-items: center; justify-content: center; flex: none;"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="var(--accent,#3182F6)" stroke-width="2"><rect x="3" y="6" width="18" height="13" rx="2.5"></rect><path d="M3 10h18M7 15h4"></path></svg></div>
+              <div style="flex: 1;"><div style="font-size: 12.5px; color: #8B95A1; font-weight: 600;">정산 계좌</div><div style="font-size: 15px; font-weight: 700; margin-top: 2px;">국민은행 123-45-6789-012</div></div>
+              <span style="font-size: 13px; font-weight: 700; color: var(--accent,#3182F6);">변경</span>
+            </button>
+
+            <div style="font-size: 17px; font-weight: 800; letter-spacing: -.4px; margin: 26px 0 12px;">정산 내역</div>
+            <div style="background: #fff; border: 1px solid #EDF0F3; border-radius: 20px; overflow: hidden;">
+              <sc-for list="{{ settleList }}" as="row" hint-placeholder-count="4">
+                <div style="{{ row.rowStyle }}">
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 14.5px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ row.title }}</div>
+                    <div style="font-size: 12.5px; color: #8B95A1; font-weight: 500; margin-top: 3px;">{{ row.date }}</div>
+                  </div>
+                  <div style="text-align: right; flex: none;">
+                    <div style="font-size: 15px; font-weight: 800; color: {{ row.amountColor }};">{{ row.amount }}</div>
+                    <div style="display: inline-block; font-size: 11px; font-weight: 700; color: {{ row.badgeColor }}; background: {{ row.badgeBg }}; padding: 3px 8px; border-radius: 6px; margin-top: 5px;">{{ row.badge }}</div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ============ NOTIFICATION SETTINGS (알림 설정) ============ -->
+        <sc-if value="{{ isNotifSettings }}" hint-placeholder-val="{{ false }}">
+          <div class="oc-screen" style="padding: 54px 20px 40px;">
+            <button onClick="{{ goMy }}" style="margin-bottom: 12px; margin-left: -6px; padding: 6px;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#191F28" stroke-width="2.2"><path d="M15 18l-6-6 6-6"></path></svg></button>
+            <div style="font-size: 24px; font-weight: 800; letter-spacing: -.5px;">알림 설정</div>
+            <div style="font-size: 14px; color: #8B95A1; font-weight: 600; margin-top: 5px;">받고 싶은 알림을 선택하세요</div>
+
+            <div style="font-size: 13px; font-weight: 800; color: #8B95A1; margin: 22px 2px 10px;">푸시 알림</div>
+            <div style="background: #fff; border: 1px solid #EDF0F3; border-radius: 20px; padding: 4px 18px;">
+              <sc-for list="{{ notifSecPush }}" as="r" hint-placeholder-count="5">
+                <div style="{{ r.rowStyle }}">
+                  <div style="flex: 1;"><div style="font-size: 15px; font-weight: 600;">{{ r.label }}</div><div style="font-size: 12.5px; color: #8B95A1; font-weight: 500; margin-top: 2px;">{{ r.desc }}</div></div>
+                  <button onClick="{{ r.toggle }}" style="{{ r.track }}"><div style="{{ r.knob }}"></div></button>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="font-size: 13px; font-weight: 800; color: #8B95A1; margin: 24px 2px 10px;">마케팅 · 기타</div>
+            <div style="background: #fff; border: 1px solid #EDF0F3; border-radius: 20px; padding: 4px 18px;">
+              <sc-for list="{{ notifSecMkt }}" as="r" hint-placeholder-count="2">
+                <div style="{{ r.rowStyle }}">
+                  <div style="flex: 1;"><div style="font-size: 15px; font-weight: 600;">{{ r.label }}</div><div style="font-size: 12.5px; color: #8B95A1; font-weight: 500; margin-top: 2px;">{{ r.desc }}</div></div>
+                  <button onClick="{{ r.toggle }}" style="{{ r.track }}"><div style="{{ r.knob }}"></div></button>
+                </div>
+              </sc-for>
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 0;">
+                <div style="flex: 1;"><div style="font-size: 15px; font-weight: 600;">방해 금지 시간</div><div style="font-size: 12.5px; color: #8B95A1; font-weight: 500; margin-top: 2px;">이 시간엔 알림을 보내지 않아요</div></div>
+                <span style="font-size: 14px; font-weight: 700; color: var(--accent,#3182F6);">{{ nightTime }}</span>
+              </div>
+            </div>
+            <div style="font-size: 12.5px; color: #ADB5BD; font-weight: 500; line-height: 1.6; margin: 16px 4px 0;">중요한 결제·정산 알림은 설정과 관계없이 발송될 수 있어요.</div>
+          </div>
+        </sc-if>
+
+        <!-- ============ SUPPORT (고객센터) ============ -->
+        <sc-if value="{{ isSupport }}" hint-placeholder-val="{{ false }}">
+          <div class="oc-screen" style="padding: 54px 20px 40px;">
+            <button onClick="{{ goMy }}" style="margin-bottom: 12px; margin-left: -6px; padding: 6px;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#191F28" stroke-width="2.2"><path d="M15 18l-6-6 6-6"></path></svg></button>
+            <div style="font-size: 24px; font-weight: 800; letter-spacing: -.5px;">고객센터</div>
+            <div style="font-size: 14px; color: #8B95A1; font-weight: 600; margin-top: 5px;">궁금한 점을 빠르게 해결해드려요</div>
+
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+              <button onClick="{{ support1to1 }}" style="flex: 1; text-align: left; background: #fff; border: 1px solid #EDF0F3; border-radius: 18px; padding: 18px; box-shadow: 0 2px 10px rgba(23,31,40,.04);">
+                <div style="width: 40px; height: 40px; border-radius: 12px; background: #EFF6FF; display: flex; align-items: center; justify-content: center; margin-bottom: 12px;"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="var(--accent,#3182F6)" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></div>
+                <div style="font-size: 15px; font-weight: 700;">1:1 문의</div>
+                <div style="font-size: 12.5px; color: #8B95A1; font-weight: 600; margin-top: 3px;">보통 1시간 내 답변</div>
+              </button>
+              <button onClick="{{ supportKakao }}" style="flex: 1; text-align: left; background: #fff; border: 1px solid #EDF0F3; border-radius: 18px; padding: 18px; box-shadow: 0 2px 10px rgba(23,31,40,.04);">
+                <div style="width: 40px; height: 40px; border-radius: 12px; background: #FEF9C3; display: flex; align-items: center; justify-content: center; margin-bottom: 12px;"><svg width="21" height="21" viewBox="0 0 24 24" fill="#191600"><path d="M12 3C6.5 3 2 6.6 2 11c0 2.8 1.9 5.3 4.7 6.7-.2.7-.7 2.7-.8 3.1 0 .2.1.4.4.2.2-.1 2.8-1.9 3.9-2.7.6.1 1.2.1 1.8.1 5.5 0 10-3.6 10-8s-4.5-8-10-8z"></path></svg></div>
+                <div style="font-size: 15px; font-weight: 700;">카카오톡 문의</div>
+                <div style="font-size: 12.5px; color: #8B95A1; font-weight: 600; margin-top: 3px;">평일 10:00~18:00</div>
+              </button>
+            </div>
+
+            <div style="font-size: 17px; font-weight: 800; letter-spacing: -.4px; margin: 26px 0 12px;">자주 묻는 질문</div>
+            <div style="background: #fff; border: 1px solid #EDF0F3; border-radius: 20px; overflow: hidden;">
+              <sc-for list="{{ faqList }}" as="f" hint-placeholder-count="5">
+                <div style="{{ f.itemStyle }}">
+                  <button onClick="{{ f.toggle }}" style="width: 100%; text-align: left; display: flex; align-items: center; gap: 10px; padding: 17px 0;">
+                    <span style="font-size: 14px; font-weight: 800; color: var(--accent,#3182F6); flex: none;">Q</span>
+                    <span style="flex: 1; font-size: 14.5px; font-weight: 600; color: #191F28;">{{ f.q }}</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4CBD3" stroke-width="2.2" style="{{ f.chevronStyle }}"><path d="M6 9l6 6 6-6"></path></svg>
+                  </button>
+                  <sc-if value="{{ f.open }}" hint-placeholder-val="{{ false }}">
+                    <div style="font-size: 13.5px; color: #4E5968; font-weight: 500; line-height: 1.65; padding: 0 0 17px 24px;">{{ f.a }}</div>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="background: #F8F9FB; border-radius: 18px; padding: 18px; margin-top: 16px;">
+              <div style="font-size: 13px; font-weight: 800; color: #8B95A1; margin-bottom: 10px;">고객센터 안내</div>
+              <div style="display: flex; justify-content: space-between; font-size: 13.5px; margin-bottom: 8px;"><span style="color: #8B95A1; font-weight: 500;">운영 시간</span><span style="font-weight: 600;">평일 10:00~18:00</span></div>
+              <div style="display: flex; justify-content: space-between; font-size: 13.5px;"><span style="color: #8B95A1; font-weight: 500;">이메일</span><span style="font-weight: 600;">help@oneclick.class</span></div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ============ SETTINGS (설정) ============ -->
+        <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+          <div class="oc-screen" style="padding: 54px 20px 40px;">
+            <button onClick="{{ goMy }}" style="margin-bottom: 12px; margin-left: -6px; padding: 6px;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#191F28" stroke-width="2.2"><path d="M15 18l-6-6 6-6"></path></svg></button>
+            <div style="font-size: 24px; font-weight: 800; letter-spacing: -.5px;">설정</div>
+
+            <div style="font-size: 13px; font-weight: 800; color: #8B95A1; margin: 22px 2px 10px;">계정</div>
+            <div style="background: #fff; border: 1px solid #EDF0F3; border-radius: 20px; overflow: hidden;">
+              <button onClick="{{ toastEditProfile }}" style="width: 100%; text-align: left; padding: 17px 18px; border-bottom: 1px solid #F2F4F6; display: flex; justify-content: space-between; align-items: center; font-size: 15px; font-weight: 600;"><span>프로필 수정</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4CBD3" stroke-width="2.2"><path d="M9 18l6-6-6-6"></path></svg></button>
+              <button onClick="{{ toastEditProfile }}" style="width: 100%; text-align: left; padding: 17px 18px; border-bottom: 1px solid #F2F4F6; display: flex; justify-content: space-between; align-items: center; font-size: 15px; font-weight: 600;"><span>비밀번호 변경</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4CBD3" stroke-width="2.2"><path d="M9 18l6-6-6-6"></path></svg></button>
+              <button onClick="{{ openPayment }}" style="width: 100%; text-align: left; padding: 17px 18px; display: flex; justify-content: space-between; align-items: center; font-size: 15px; font-weight: 600;"><span>결제 관리</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4CBD3" stroke-width="2.2"><path d="M9 18l6-6-6-6"></path></svg></button>
+            </div>
+
+            <div style="font-size: 13px; font-weight: 800; color: #8B95A1; margin: 24px 2px 10px;">화면</div>
+            <div style="background: #fff; border: 1px solid #EDF0F3; border-radius: 20px; padding: 4px 18px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 0; border-bottom: 1px solid #F2F4F6;">
+                <div style="flex: 1;"><div style="font-size: 15px; font-weight: 600;">다크 모드</div><div style="font-size: 12.5px; color: #8B95A1; font-weight: 500; margin-top: 2px;">어두운 화면으로 보기</div></div>
+                <button onClick="{{ toggleDark }}" style="{{ darkTrack }}"><div style="{{ darkKnob }}"></div></button>
+              </div>
+              <button onClick="{{ toastLang }}" style="width: 100%; text-align: left; display: flex; justify-content: space-between; align-items: center; padding: 16px 0; font-size: 15px; font-weight: 600;"><span>언어</span><span style="display: flex; align-items: center; gap: 8px;"><span style="font-size: 14px; color: #8B95A1; font-weight: 600;">한국어</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4CBD3" stroke-width="2.2"><path d="M9 18l6-6-6-6"></path></svg></span></button>
+            </div>
+
+            <div style="font-size: 13px; font-weight: 800; color: #8B95A1; margin: 24px 2px 10px;">정보</div>
+            <div style="background: #fff; border: 1px solid #EDF0F3; border-radius: 20px; overflow: hidden;">
+              <button onClick="{{ toastInfo }}" style="width: 100%; text-align: left; padding: 17px 18px; border-bottom: 1px solid #F2F4F6; display: flex; justify-content: space-between; align-items: center; font-size: 15px; font-weight: 600;"><span>공지사항</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4CBD3" stroke-width="2.2"><path d="M9 18l6-6-6-6"></path></svg></button>
+              <button onClick="{{ toastInfo }}" style="width: 100%; text-align: left; padding: 17px 18px; border-bottom: 1px solid #F2F4F6; display: flex; justify-content: space-between; align-items: center; font-size: 15px; font-weight: 600;"><span>이용약관</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4CBD3" stroke-width="2.2"><path d="M9 18l6-6-6-6"></path></svg></button>
+              <button onClick="{{ toastInfo }}" style="width: 100%; text-align: left; padding: 17px 18px; border-bottom: 1px solid #F2F4F6; display: flex; justify-content: space-between; align-items: center; font-size: 15px; font-weight: 600;"><span>개인정보 처리방침</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4CBD3" stroke-width="2.2"><path d="M9 18l6-6-6-6"></path></svg></button>
+              <div style="padding: 17px 18px; display: flex; justify-content: space-between; align-items: center; font-size: 15px; font-weight: 600;"><span>버전 정보</span><span style="font-size: 13.5px; color: #ADB5BD; font-weight: 600;">1.4.2 · 최신</span></div>
+            </div>
+
+            <button onClick="{{ goLogin }}" style="width: 100%; margin-top: 18px; padding: 16px; font-size: 14.5px; font-weight: 700; color: #8B95A1;">로그아웃</button>
+            <button onClick="{{ toastLeave }}" style="width: 100%; padding: 4px; font-size: 13px; font-weight: 600; color: #C4CBD3;">회원 탈퇴</button>
+          </div>
+        </sc-if>
+
+        <!-- ============ PAYMENT (결제 관리) ============ -->
+        <sc-if value="{{ isPayment }}" hint-placeholder-val="{{ false }}">
+          <div class="oc-screen" style="padding: 54px 20px 40px;">
+            <button onClick="{{ goMy }}" style="margin-bottom: 12px; margin-left: -6px; padding: 6px;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#191F28" stroke-width="2.2"><path d="M15 18l-6-6 6-6"></path></svg></button>
+            <div style="font-size: 24px; font-weight: 800; letter-spacing: -.5px;">결제 관리</div>
+            <div style="font-size: 14px; color: #8B95A1; font-weight: 600; margin-top: 5px;">요금제와 결제 수단을 관리하세요</div>
+
+            <div style="background: #191F28; border-radius: 22px; padding: 22px; margin-top: 20px; color: #fff;">
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <span style="font-size: 12px; font-weight: 700; color: #fff; background: rgba(255,255,255,.16); padding: 4px 10px; border-radius: 7px;">이용 중인 요금제</span>
+                <button onClick="{{ changePlan }}" style="font-size: 13px; font-weight: 700; color: #fff; background: rgba(255,255,255,.16); padding: 7px 13px; border-radius: 10px;">플랜 변경</button>
+              </div>
+              <div style="font-size: 22px; font-weight: 800; letter-spacing: -.4px; margin-top: 16px;">스탠다드 플랜</div>
+              <div style="font-size: 14px; font-weight: 600; color: #C4CBD3; margin-top: 4px;">월 19,000원 · 다음 결제일 2026.08.15</div>
+            </div>
+
+            <div style="font-size: 17px; font-weight: 800; letter-spacing: -.4px; margin: 26px 0 12px;">결제 수단</div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <sc-for list="{{ payCards }}" as="c" hint-placeholder-count="2">
+                <button onClick="{{ c.select }}" style="{{ c.cardStyle }}">
+                  <div style="width: 44px; height: 30px; border-radius: 7px; background: {{ c.brandBg }}; color: {{ c.brandColor }}; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; flex: none;">{{ c.brandInitial }}</div>
+                  <div style="flex: 1; text-align: left;">
+                    <div style="display: flex; align-items: center; gap: 7px;"><span style="font-size: 15px; font-weight: 700;">{{ c.brand }}</span><sc-if value="{{ c.isDefault }}" hint-placeholder-val="{{ true }}"><span style="font-size: 10.5px; font-weight: 700; color: var(--accent,#3182F6); background: var(--accent-soft,#EFF6FF); padding: 2px 7px; border-radius: 6px;">기본</span></sc-if></div>
+                    <div style="font-size: 13px; color: #8B95A1; font-weight: 500; margin-top: 2px;">{{ c.last4 }}</div>
+                  </div>
+                  <div style="{{ c.radioOuter }}"><sc-if value="{{ c.selected }}" hint-placeholder-val="{{ true }}"><div style="width: 10px; height: 10px; border-radius: 50%; background: var(--accent,#3182F6);"></div></sc-if></div>
+                </button>
+              </sc-for>
+              <button onClick="{{ addCard }}" style="width: 100%; border: 1.5px dashed #C4CBD3; background: #FBFCFD; border-radius: 16px; padding: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 14.5px; font-weight: 700; color: #8B95A1;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8B95A1" stroke-width="2.4"><path d="M12 5v14M5 12h14"></path></svg>결제 수단 추가</button>
+            </div>
+
+            <div style="font-size: 17px; font-weight: 800; letter-spacing: -.4px; margin: 26px 0 12px;">결제 내역</div>
+            <div style="background: #fff; border: 1px solid #EDF0F3; border-radius: 20px; overflow: hidden;">
+              <sc-for list="{{ billHistory }}" as="b" hint-placeholder-count="3">
+                <div style="{{ b.rowStyle }}">
+                  <div style="flex: 1;"><div style="font-size: 14.5px; font-weight: 700;">{{ b.desc }}</div><div style="font-size: 12.5px; color: #8B95A1; font-weight: 500; margin-top: 3px;">{{ b.date }} · {{ b.method }}</div></div>
+                  <div style="font-size: 15px; font-weight: 800;">{{ b.amount }}</div>
+                </div>
+              </sc-for>
+            </div>
           </div>
         </sc-if>
 
@@ -337,7 +650,7 @@
             <div style="font-size: 14px; color: #8B95A1; font-weight: 600; margin-top: 8px;">신청 24 / 30명 · 모집 마감 D-7</div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 22px;">
-              <button onClick="{{ openClassApplicants }}" style="text-align: left; background: #fff; border: 1px solid #EDF0F3; border-radius: 18px; padding: 18px; box-shadow: 0 2px 10px rgba(23,31,40,.04);" data-comment-anchor="b961090dfb-button">
+              <button onClick="{{ openClassApplicants }}" style="text-align: left; background: #fff; border: 1px solid #EDF0F3; border-radius: 18px; padding: 18px; box-shadow: 0 2px 10px rgba(23,31,40,.04);">
                 <div style="width: 40px; height: 40px; border-radius: 12px; background: var(--accent-soft,#EFF6FF); display: flex; align-items: center; justify-content: center; margin-bottom: 12px;"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="var(--accent,#3182F6)" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11"></path></svg></div>
                 <div style="font-size: 15px; font-weight: 700;">신청자</div>
                 <div style="font-size: 13px; color: #8B95A1; font-weight: 600; margin-top: 3px;">24명 관리</div>
@@ -1346,13 +1659,23 @@
             <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="{{ classesColor }}" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>
             <sc-if value="{{ showNavLabels }}" hint-placeholder-val="{{ true }}"><span style="font-size: 10.5px; font-weight: 600; color: {{ classesColor }};">클래스</span></sc-if>
           </button>
+          <sc-if value="{{ isTeacherRole }}" hint-placeholder-val="{{ true }}">
           <button onClick="{{ goCreate }}" style="flex: 1; display: flex; justify-content: center; margin-top: -6px;">
             <div style="width: 54px; height: 54px; border-radius: 50%; background: var(--accent,#3182F6); display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px -4px rgba(49,130,246,.55);"><svg width="26" height="26" viewBox="0 0 24 24" stroke="#fff" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></div>
           </button>
+          </sc-if>
+          <sc-if value="{{ isTeacherRole }}" hint-placeholder-val="{{ true }}">
           <button onClick="{{ goApplicants }}" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding-top: 4px;">
             <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="{{ applicantsColor }}" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11"></path></svg>
             <sc-if value="{{ showNavLabels }}" hint-placeholder-val="{{ true }}"><span style="font-size: 10.5px; font-weight: 600; color: {{ applicantsColor }};">신청자</span></sc-if>
           </button>
+          </sc-if>
+          <sc-if value="{{ isStudentRole }}" hint-placeholder-val="{{ false }}">
+          <button onClick="{{ goWishlist }}" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding-top: 4px;">
+            <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="{{ wishColor }}" stroke-width="2" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"></path></svg>
+            <sc-if value="{{ showNavLabels }}" hint-placeholder-val="{{ true }}"><span style="font-size: 10.5px; font-weight: 600; color: {{ wishColor }};">관심</span></sc-if>
+          </button>
+          </sc-if>
           <button onClick="{{ goMy }}" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding-top: 4px;">
             <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="{{ myColor }}" stroke-width="2"><circle cx="12" cy="8" r="4"></circle><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"></path></svg>
             <sc-if value="{{ showNavLabels }}" hint-placeholder-val="{{ true }}"><span style="font-size: 10.5px; font-weight: 600; color: {{ myColor }};">마이</span></sc-if>
@@ -1423,7 +1746,7 @@
     </div>
   </div></div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:430,&quot;height&quot;:900},&quot;accentColor&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#3182F6&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;브랜드&quot;,&quot;options&quot;:[&quot;#3182F6&quot;,&quot;#12B886&quot;,&quot;#7048E8&quot;,&quot;#F76707&quot;,&quot;#E64980&quot;,&quot;#191F28&quot;]},&quot;appFont&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;기본&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;브랜드&quot;,&quot;options&quot;:[&quot;기본&quot;,&quot;둥근&quot;,&quot;클래식&quot;]},&quot;ctaRadius&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:15,&quot;min&quot;:6,&quot;max&quot;:28,&quot;step&quot;:1,&quot;unit&quot;:&quot;px&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;레이아웃&quot;},&quot;showNavLabels&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;레이아웃&quot;},&quot;classDefaultTab&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;내가 연 강의&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;클래스&quot;,&quot;options&quot;:[&quot;내가 연 강의&quot;,&quot;수강 중인 강의&quot;]},&quot;classListStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;카드&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;클래스&quot;,&quot;options&quot;:[&quot;카드&quot;,&quot;컴팩트&quot;]},&quot;showFilterCount&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;클래스&quot;},&quot;qrStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;라이트&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;출석 QR&quot;,&quot;options&quot;:[&quot;다크&quot;,&quot;라이트&quot;]},&quot;confetti&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;완료 화면&quot;},&quot;initialScreen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;클래스&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;검토&quot;,&quot;options&quot;:[&quot;홈&quot;,&quot;클래스&quot;,&quot;신청자&quot;,&quot;마이&quot;,&quot;강의 만들기&quot;,&quot;클래스 상세&quot;,&quot;신청자 관리&quot;,&quot;출석&quot;,&quot;출석 QR&quot;,&quot;설문&quot;,&quot;설문 만들기&quot;,&quot;설문 응답(학생)&quot;,&quot;시험&quot;,&quot;시험 만들기&quot;,&quot;시험 응시(학생)&quot;,&quot;수료증&quot;,&quot;강의 관리&quot;,&quot;신청자 상세&quot;,&quot;수강생 페이지&quot;,&quot;완료 화면&quot;,&quot;로그인&quot;,&quot;회원가입&quot;,&quot;비회원 조회&quot;]}}">
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:430,&quot;height&quot;:900},&quot;accentColor&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#3182F6&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;브랜드&quot;,&quot;options&quot;:[&quot;#3182F6&quot;,&quot;#12B886&quot;,&quot;#7048E8&quot;,&quot;#F76707&quot;,&quot;#E64980&quot;,&quot;#191F28&quot;]},&quot;appFont&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;기본&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;브랜드&quot;,&quot;options&quot;:[&quot;기본&quot;,&quot;둥근&quot;,&quot;클래식&quot;]},&quot;ctaRadius&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:15,&quot;min&quot;:6,&quot;max&quot;:28,&quot;step&quot;:1,&quot;unit&quot;:&quot;px&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;레이아웃&quot;},&quot;showNavLabels&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;레이아웃&quot;},&quot;classDefaultTab&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;내가 연 강의&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;클래스&quot;,&quot;options&quot;:[&quot;내가 연 강의&quot;,&quot;수강 중인 강의&quot;]},&quot;classListStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;카드&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;클래스&quot;,&quot;options&quot;:[&quot;카드&quot;,&quot;컴팩트&quot;]},&quot;showFilterCount&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;클래스&quot;},&quot;qrStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;라이트&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;출석 QR&quot;,&quot;options&quot;:[&quot;다크&quot;,&quot;라이트&quot;]},&quot;confetti&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;완료 화면&quot;},&quot;initialScreen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;클래스&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;검토&quot;,&quot;options&quot;:[&quot;홈&quot;,&quot;클래스&quot;,&quot;신청자&quot;,&quot;마이&quot;,&quot;알림&quot;,&quot;정산 관리&quot;,&quot;알림 설정&quot;,&quot;고객센터&quot;,&quot;설정&quot;,&quot;결제 관리&quot;,&quot;강의 만들기&quot;,&quot;클래스 상세&quot;,&quot;신청자 관리&quot;,&quot;출석&quot;,&quot;출석 QR&quot;,&quot;설문&quot;,&quot;설문 만들기&quot;,&quot;설문 응답(학생)&quot;,&quot;시험&quot;,&quot;시험 만들기&quot;,&quot;시험 응시(학생)&quot;,&quot;수료증&quot;,&quot;강의 관리&quot;,&quot;신청자 상세&quot;,&quot;수강생 페이지&quot;,&quot;완료 화면&quot;,&quot;로그인&quot;,&quot;회원가입&quot;,&quot;비회원 조회&quot;]}}">
 class Component extends DCLogic {
   state = {
     tab: 'home',
@@ -1442,6 +1765,11 @@ class Component extends DCLogic {
     classTab: 'mine',
     classFilter: 'all',
     caFilter: 'all',
+    role: 'teacher',
+    notifPush: { apply: true, pay: true, settle: true, review: true, notice: false, event: false, benefit: true },
+    faqOpen: 0,
+    payDefault: 0,
+    darkPref: false,
     attendSession: 1,
     attendAbsent: {},
     managePublic: true,
@@ -1495,11 +1823,17 @@ class Component extends DCLogic {
     const n = parseInt(h, 16);
     return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
   }
+  _demoDraft() {
+    return { type: 'online', title: '노션으로 시작하는 업무 자동화', oneLine: '노션 하나로 팀 업무를 자동화하는 4주 클래스', detail: '노션의 데이터베이스·자동화 기능으로 반복 업무를 없애는 실전 강의입니다.', thumb: true, dateStart: '2026.08.03', recruitEnd: '2026.07.28', capacity: 30, paid: 'paid', price: '49000', extraQ: ['직업'], customQ: [], tool: 'youtube', url: 'https://youtube.com/live/abcd', location: '', addrRoad: '', addrDetail: '' };
+  }
   _applyInitial(name) {
     const m = {
       '홈': { screen: 'main', tab: 'home' }, '클래스': { screen: 'main', tab: 'classes' },
       '신청자': { screen: 'main', tab: 'applicants' }, '마이': { screen: 'main', tab: 'my' },
       '수료한 강의': { screen: 'myCerts' },
+      '알림': { screen: 'notifications' }, '정산 관리': { screen: 'settle' },
+      '알림 설정': { screen: 'notifSettings' }, '고객센터': { screen: 'support' },
+      '설정': { screen: 'settings' }, '결제 관리': { screen: 'payment' },
       '강의 만들기': { screen: 'create', step: 1 }, '클래스 상세': { screen: 'classDetail' },
       '신청자 상세': { screen: 'applicantDetail' }, '수강생 페이지': { screen: 'student' },
       '완료 화면': { screen: 'done' },
@@ -1507,7 +1841,13 @@ class Component extends DCLogic {
       '신청자 관리': { screen: 'classApplicants' }, '출석': { screen: 'attend' }, '설문': { screen: 'survey' },
       '시험': { screen: 'exam' }, '시험 상세': { screen: 'examDetail' }, '수료증': { screen: 'cert' }, '수료증 설정': { screen: 'certSetup' }, '강의 관리': { screen: 'manage' },
       '출석 QR': { screen: 'attendQr' }, '설문 만들기': { screen: 'surveyBuild' }, '시험 만들기': { screen: 'examBuild' },
-      '설문 응답(학생)': { screen: 'surveyTake' }, '시험 응시(학생)': { screen: 'examTake' }
+      '설문 응답(학생)': { screen: 'surveyTake' }, '시험 응시(학생)': { screen: 'examTake' },
+      '만들기 1 유형': { screen: 'create', step: 1, draft: this._demoDraft() },
+      '만들기 2 기본정보': { screen: 'create', step: 2, draft: this._demoDraft() },
+      '만들기 3 일정·가격': { screen: 'create', step: 3, draft: this._demoDraft() },
+      '만들기 4 신청서': { screen: 'create', step: 4, draft: this._demoDraft() },
+      '만들기 5 진행방식': { screen: 'create', step: 5, draft: this._demoDraft() },
+      '신청 미리보기': { screen: 'preview', draft: this._demoDraft() }
     };
     if (m[name]) this.setState(m[name]);
   }
@@ -2184,6 +2524,211 @@ class Component extends DCLogic {
     return () => this.setState(s => ({ addrOpen: false, addrQuery: '', draft: { ...s.draft, addrRoad: road } }));
   }
 
+  openNotifications = () => this.setState({ screen: 'notifications' });
+  openSettle = () => this.setState({ screen: 'settle' });
+  openNotifSettings = () => this.setState({ screen: 'notifSettings' });
+  openSupport = () => this.setState({ screen: 'support' });
+  openSettings = () => this.setState({ screen: 'settings' });
+  openPayment = () => this.setState({ screen: 'payment' });
+  setRoleTeacher = () => this.setState(s => ({ role: 'teacher', tab: s.tab === 'wishlist' ? 'home' : s.tab }));
+  setRoleStudent = () => this.setState(s => ({ role: 'student', tab: s.tab === 'applicants' ? 'home' : s.tab }));
+  goClassesWatch = () => this.setState({ screen: 'main', tab: 'classes', classTab: 'watch' });
+  goWishlist = () => this.setState({ screen: 'main', tab: 'wishlist' });
+  markAllRead = () => this.showToast('모든 알림을 읽음 처리했어요');
+  toggleNotif(k) { return () => this.setState(s => ({ notifPush: { ...s.notifPush, [k]: !s.notifPush[k] } })); }
+  toggleFaq(i) { return () => this.setState(s => ({ faqOpen: s.faqOpen === i ? -1 : i })); }
+  setPayDefault(i) { return () => { this.setState({ payDefault: i }); this.showToast('기본 결제 수단을 변경했어요'); }; }
+  toggleDark = () => this.setState(s => ({ darkPref: !s.darkPref }));
+
+  _toggleStyles(on) {
+    const a = this.props.accentColor || '#3182F6';
+    return {
+      track: { width: '48px', height: '28px', borderRadius: '999px', border: 'none', background: on ? a : '#D1D6DB', position: 'relative', transition: 'background .15s', padding: 0, flex: 'none' },
+      knob: { position: 'absolute', top: '3px', left: on ? '23px' : '3px', width: '22px', height: '22px', borderRadius: '50%', background: '#fff', transition: 'left .15s', boxShadow: '0 1px 3px rgba(0,0,0,.2)' }
+    };
+  }
+  _extraVals(s) {
+    const accent = this.props.accentColor || '#3182F6';
+    const accentSoft = this.hexToRgba(accent, 0.12);
+
+    // ---- Notifications ----
+    const notifRow = (unread) => ({
+      width: '100%', textAlign: 'left', display: 'flex', gap: '12px', alignItems: 'flex-start',
+      padding: '14px', borderRadius: '16px', border: 'none',
+      background: unread ? this.hexToRgba(accent, 0.06) : 'transparent'
+    });
+    const mkN = (o) => ({ ...o, rowStyle: notifRow(o.unread), tap: () => this.showToast('알림을 확인했어요') });
+    const notifGroups = [
+      { label: '오늘', items: [
+        mkN({ isNew: true, iconBg: accentSoft, iconColor: accent, title: '새로운 신청', msg: "김서연님이 '노션 업무 자동화'를 신청했어요", time: '방금', unread: true }),
+        mkN({ isPay: true, iconBg: '#E6F9F1', iconColor: '#0CA678', title: '결제 완료', msg: '이준호님이 45,000원 결제를 완료했어요', time: '12분 전', unread: true })
+      ]},
+      { label: '어제', items: [
+        mkN({ isReview: true, iconBg: '#FFF9DB', iconColor: '#F08C00', title: '새 후기', msg: "'캘리그라피 클래스'에 별점 5점 후기가 등록됐어요", time: '어제', unread: false }),
+        mkN({ isSettle: true, iconBg: '#E6F9F1', iconColor: '#0CA678', title: '정산 완료', msg: '7월 1일 정산 금액 820,000원이 입금됐어요', time: '어제', unread: false })
+      ]},
+      { label: '이전 알림', items: [
+        mkN({ isPay: true, iconBg: '#FFF4EC', iconColor: '#E8590C', title: '결제 대기', msg: '박민지님 신청이 입금 대기 중이에요', time: '3일 전', unread: false }),
+        mkN({ isNotice: true, iconBg: '#EDEBFF', iconColor: '#6741D9', title: '공지사항', msg: '원클릭 클래스에 정산 리포트 기능이 추가됐어요', time: '5일 전', unread: false })
+      ]}
+    ];
+
+    // ---- Settlement ----
+    const settleStats = [
+      { label: '이번 달 매출', value: '2,145,000', color: '#191F28' },
+      { label: '정산 완료', value: '2,010,000', color: '#0CA678' },
+      { label: '정산 예정', value: '135,000', color: '#F76707' }
+    ];
+    const settleRaw = [
+      { title: '노션으로 시작하는 업무 자동화', date: '2026.07.15 정산 예정', amount: '+135,000원', status: 'wait' },
+      { title: '주말 원데이 캘리그라피 클래스', date: '2026.07.01 정산 완료', amount: '+820,000원', status: 'done' },
+      { title: '실전 유튜브 편집 8주 과정', date: '2026.06.15 정산 완료', amount: '+640,000원', status: 'done' },
+      { title: '브랜딩 기초 클래스', date: '2026.06.01 정산 완료', amount: '+550,000원', status: 'done' }
+    ];
+    const settleList = settleRaw.map((r, i) => ({
+      ...r,
+      rowStyle: 'display: flex; align-items: center; gap: 12px; padding: 16px 18px;' + (i < settleRaw.length - 1 ? ' border-bottom: 1px solid #F2F4F6;' : ''),
+      amountColor: r.status === 'wait' ? '#F76707' : '#191F28',
+      badge: r.status === 'wait' ? '정산 예정' : '정산 완료',
+      badgeColor: r.status === 'wait' ? '#E8590C' : '#0CA678',
+      badgeBg: r.status === 'wait' ? '#FFF4EC' : '#E6F9F1'
+    }));
+
+    // ---- Notification settings ----
+    const settingRow = (last) => 'display: flex; align-items: center; justify-content: space-between; padding: 16px 0;' + (last ? '' : ' border-bottom: 1px solid #F2F4F6;');
+    const mkToggle = (key, label, desc, last) => {
+      const on = !!s.notifPush[key];
+      const t = this._toggleStyles(on);
+      return { label, desc, rowStyle: settingRow(last), toggle: this.toggleNotif(key), track: t.track, knob: t.knob };
+    };
+    const notifSecPush = [
+      mkToggle('apply', '신규 신청 알림', '새 신청자가 생기면 알려드려요', false),
+      mkToggle('pay', '결제 알림', '결제 완료·대기 상태를 알려드려요', false),
+      mkToggle('settle', '정산 알림', '정산 입금·예정을 알려드려요', false),
+      mkToggle('review', '후기 알림', '새 후기가 등록되면 알려드려요', false),
+      mkToggle('notice', '공지사항', '서비스 소식과 업데이트', true)
+    ];
+    const notifSecMkt = [
+      mkToggle('event', '이벤트 소식', '진행 중인 이벤트를 알려드려요', false),
+      mkToggle('benefit', '혜택·프로모션', '수수료 할인 등 혜택 안내', false)
+    ];
+
+    // ---- Support / FAQ ----
+    const faqRaw = [
+      { q: '정산은 언제 이루어지나요?', a: '결제 완료 후 매주 화요일에 정산됩니다. 출금 신청 시 영업일 기준 1~2일 내 입금돼요.' },
+      { q: '수강생이 결제한 금액에서 수수료가 있나요?', a: '스탠다드 플랜 기준 결제 금액의 3.5%가 결제 대행 수수료로 부과됩니다. 플랜에 따라 달라질 수 있어요.' },
+      { q: '강의를 삭제하면 신청자 정보는 어떻게 되나요?', a: '강의를 삭제해도 이미 접수된 신청자 정보와 정산 내역은 30일간 보관되며, 마이 > 정산 관리에서 확인할 수 있어요.' },
+      { q: '수료증은 어떻게 발급하나요?', a: '강의 상세 > 수료증에서 발급 조건(출석률·시험 점수)을 설정하면 조건을 충족한 수강생에게 자동으로 발급 대기됩니다.' },
+      { q: '환불 처리는 어디서 하나요?', a: '신청자 상세 화면에서 결제 상태를 환불로 변경하면 자동으로 환불이 접수돼요. 카드 결제는 취소까지 3~5일 소요됩니다.' }
+    ];
+    const faqList = faqRaw.map((f, i) => {
+      const open = s.faqOpen === i;
+      return {
+        q: f.q, a: f.a, open, toggle: this.toggleFaq(i),
+        itemStyle: 'padding: 0 18px;' + (i < faqRaw.length - 1 ? ' border-bottom: 1px solid #F2F4F6;' : ''),
+        chevronStyle: 'transition: transform .2s;' + (open ? ' transform: rotate(180deg);' : '')
+      };
+    });
+
+    // ---- Settings ----
+    const dt = this._toggleStyles(s.darkPref);
+
+    // ---- Payment ----
+    const cardRaw = [
+      { brand: '신한카드', last4: '신용 ****-4597', brandInitial: '신한', brandBg: '#EAF1FF', brandColor: '#1B64DA' },
+      { brand: '카카오뱅크', last4: '체크 ****-1234', brandInitial: 'kb', brandBg: '#FFF6D6', brandColor: '#8A6D00' }
+    ];
+    const payCards = cardRaw.map((c, i) => {
+      const selected = s.payDefault === i;
+      return {
+        ...c, isDefault: selected, selected, select: this.setPayDefault(i),
+        cardStyle: {
+          width: '100%', display: 'flex', alignItems: 'center', gap: '14px', padding: '16px',
+          borderRadius: '16px', textAlign: 'left', background: '#fff',
+          border: selected ? '2px solid ' + accent : '1.5px solid #EDF0F3',
+          boxShadow: '0 2px 10px rgba(23,31,40,.04)'
+        },
+        radioOuter: {
+          width: '22px', height: '22px', borderRadius: '50%', flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          border: selected ? '2px solid ' + accent : '2px solid #D1D6DB'
+        }
+      };
+    });
+    const billRaw = [
+      { desc: '스탠다드 플랜 정기결제', date: '2026.07.15', method: '신한 ****4597', amount: '19,000원' },
+      { desc: '스탠다드 플랜 정기결제', date: '2026.06.15', method: '신한 ****4597', amount: '19,000원' },
+      { desc: '스탠다드 플랜 정기결제', date: '2026.05.15', method: '신한 ****4597', amount: '19,000원' }
+    ];
+    const billHistory = billRaw.map((b, i) => ({
+      ...b, rowStyle: 'display: flex; align-items: center; gap: 12px; padding: 16px 18px;' + (i < billRaw.length - 1 ? ' border-bottom: 1px solid #F2F4F6;' : '')
+    }));
+
+    // ---- Role / student home ----
+    const role = s.role || 'teacher';
+    const isMain = s.screen === 'main';
+    const idleCol = '#B0B8C1';
+    const segBase = { flex: 1, padding: '11px', borderRadius: '11px', fontSize: '14px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .15s' };
+    const segOn = { ...segBase, background: '#fff', color: '#191F28', boxShadow: '0 2px 6px rgba(23,31,40,.08)' };
+    const segOff = { ...segBase, background: 'transparent', color: '#8B95A1' };
+    const studentStats = [
+      { value: '2', label: '수강 중', color: accent },
+      { value: '3', label: '이수 완료', color: '#0CA678' },
+      { value: '3', label: '받은 수료증', color: '#F08C00' }
+    ];
+    const studentInProgress = [
+      { title: 'UX 리서치 실무 4주', meta: '2주차 진행 중 · 다음 강의 내일 저녁 8시', grad: 'linear-gradient(135deg,#0CA678,#38D9A9)', pct: '62%', barColor: '#0CA678' },
+      { title: '데이터 분석 입문 with 파이썬', meta: '1주차 · 방금 수강 시작', grad: 'linear-gradient(135deg,#4C82F7,#7CA9FF)', pct: '18%', barColor: accent }
+    ];
+    const recommendClasses = [
+      { title: '브랜딩 기초 클래스', meta: '32명 수강 · 만족도 4.9', grad: 'linear-gradient(135deg,#F76707,#FFA94D)', price: '55,000원' },
+
+      { title: '실전 유튜브 편집 8주 과정', meta: '20명 수강 · 만족도 4.8', grad: 'linear-gradient(135deg,#7048E8,#9775FA)', price: '89,000원' }
+    ];
+    const wishlistItems = [
+      { title: '브랜딩 기초 클래스', meta: '온라인 · 4주 과정', grad: 'linear-gradient(135deg,#F76707,#FFA94D)', price: '55,000원' },
+      { title: '실전 유튜브 편집 8주 과정', meta: '라이브 · 8주 과정', grad: 'linear-gradient(135deg,#7048E8,#9775FA)', price: '89,000원' },
+      { title: '초보를 위한 홈카페 클래스', meta: '오프라인 · 원데이', grad: 'linear-gradient(135deg,#22B573,#5BD79A)', price: '40,000원' }
+    ].map(w => ({ ...w, unheart: () => this.showToast('관심 목록에서 제거했어요') }));
+
+    return {
+      isTeacherRole: role === 'teacher', isStudentRole: role === 'student',
+      isTeacherHome: isMain && s.tab === 'home' && role === 'teacher',
+      isStudentHome: isMain && s.tab === 'home' && role === 'student',
+      setRoleTeacher: this.setRoleTeacher, setRoleStudent: this.setRoleStudent,
+      roleTeacherStyle: role === 'teacher' ? segOn : segOff,
+      roleStudentStyle: role === 'student' ? segOn : segOff,
+      goClassesWatch: this.goClassesWatch, goWishlist: this.goWishlist,
+      isWishlist: isMain && s.tab === 'wishlist',
+      wishColor: (isMain && s.tab === 'wishlist') ? accent : idleCol,
+      studentStats, studentInProgress, recommendClasses, wishlistItems,
+      isNotifications: s.screen === 'notifications',
+      isSettle: s.screen === 'settle',
+      isNotifSettings: s.screen === 'notifSettings',
+      isSupport: s.screen === 'support',
+      isSettings: s.screen === 'settings',
+      isPayment: s.screen === 'payment',
+      openNotifications: this.openNotifications, openSettle: this.openSettle,
+      openNotifSettings: this.openNotifSettings, openSupport: this.openSupport,
+      openSettings: this.openSettings, openPayment: this.openPayment,
+      markAllRead: this.markAllRead, notifGroups,
+      settleStats, settleList,
+      settleWithdraw: () => this.showToast('출금 신청이 접수됐어요'),
+      settleChangeAccount: () => this.showToast('계좌 변경 화면으로 이동'),
+      notifSecPush, notifSecMkt, nightTime: '밤 10시 ~ 오전 8시',
+      support1to1: () => this.showToast('1:1 문의를 시작할게요'),
+      supportKakao: () => this.showToast('카카오톡 상담을 열었어요'),
+      faqList,
+      toastEditProfile: () => this.showToast('편집 화면으로 이동'),
+      toastLang: () => this.showToast('언어 설정으로 이동'),
+      toastInfo: () => this.showToast('자세히 보기로 이동'),
+      toastLeave: () => this.showToast('회원 탈퇴는 고객센터로 문의해주세요'),
+      toggleDark: this.toggleDark, darkTrack: dt.track, darkKnob: dt.knob,
+      changePlan: () => this.showToast('플랜 변경 화면으로 이동'),
+      payCards, addCard: () => this.showToast('결제 수단 추가 화면으로 이동'),
+      billHistory
+    };
+  }
+
   renderVals() {
     const self = this;
     const s = this.state;
@@ -2195,7 +2740,10 @@ class Component extends DCLogic {
     const appFonts = { '기본': "'Pretendard', sans-serif", '둥근': "'Jua', sans-serif", '클래식': "'Nanum Myeongjo', serif" };
     const appFont = appFonts[this.props.appFont] || appFonts['기본'];
     this._accent = accent; this._accentSoft = accentSoft; this._ctaR = ctaR;
-    const stageStyle = {
+    const stageStyle = this.props.bare ? {
+      display: 'inline-flex', fontFamily: appFont,
+      '--accent': accent, '--accent-soft': accentSoft, '--cta-r': ctaR, '--app-font': appFont
+    } : {
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: '32px 16px', background: 'radial-gradient(circle at 50% 0%, #EAEDF1, #D3D8DE)',
       fontFamily: appFont,
@@ -2324,6 +2872,7 @@ class Component extends DCLogic {
       isApplicants: isMain && s.tab === 'applicants',
       isMy: isMain && s.tab === 'my',
       isMyCerts: screen === 'myCerts', openMyCerts: this.openMyCerts,
+      ...this._extraVals(s),
       isCertView: screen === 'certView',
       cert: s.certSel || {}, certName: (s.auth && s.auth.name) || '이지훈',
       certMessage: s.certCfg.message,

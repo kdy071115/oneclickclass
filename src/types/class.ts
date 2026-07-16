@@ -24,6 +24,9 @@ export interface Dashboard {
   pendingAmount: number;
   classes: ClassItem[];
   applicants: Applicant[];
+  studentStats: StatItem[];
+  studentInProgress: LearningClass[];
+  recommendedClasses: MarketClass[];
 }
 export interface ClassDraft {
   type: 'online' | 'live' | 'offline' | 'hybrid';
@@ -70,4 +73,81 @@ export interface CertificateItem {
   attendance: number;
   score: number;
   color: string;
+}
+export interface StatItem {
+  label: string;
+  value: string;
+  color: string;
+}
+export interface LearningClass {
+  id: string;
+  title: string;
+  meta: string;
+  progress: number;
+  color: string;
+}
+export interface MarketClass {
+  id: string;
+  title: string;
+  meta: string;
+  price: string;
+  color: string;
+}
+export interface NotificationItem {
+  id: string;
+  group: string;
+  type: 'apply' | 'pay' | 'review' | 'settle' | 'notice';
+  title: string;
+  message: string;
+  time: string;
+  unread: boolean;
+}
+export interface SettlementRow {
+  id: string;
+  title: string;
+  date: string;
+  amount: string;
+  status: 'wait' | 'done';
+}
+export interface SettlementSummary {
+  availableAmount: number;
+  expectedAmount: number;
+  stats: StatItem[];
+  account: string;
+  rows: SettlementRow[];
+}
+export interface NotificationSetting {
+  key: string;
+  label: string;
+  description: string;
+  enabled: boolean;
+  group: 'push' | 'marketing';
+}
+export interface FaqItem {
+  id: string;
+  question: string;
+  answer: string;
+}
+export interface PaymentMethod {
+  id: string;
+  brand: string;
+  last4: string;
+  brandInitial: string;
+  brandBg: string;
+  brandColor: string;
+  isDefault: boolean;
+}
+export interface BillingHistory {
+  id: string;
+  description: string;
+  date: string;
+  method: string;
+  amount: string;
+}
+export interface PaymentSummary {
+  plan: string;
+  price: string;
+  nextBillingDate: string;
+  methods: PaymentMethod[];
+  history: BillingHistory[];
 }

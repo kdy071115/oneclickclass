@@ -2,6 +2,15 @@ import { createBrowserRouter } from 'react-router-dom';
 import { AppLayout } from '../layouts/AppLayout';
 import { MobileLayout } from '../layouts/MobileLayout';
 import {
+  NotificationsPage,
+  NotificationSettingsPage,
+  PaymentPage,
+  SettingsPage,
+  SettlementPage,
+  SupportPage,
+  WishlistPage,
+} from '../pages/AccountPages';
+import {
   AttendPickerPage,
   CertificateSetupPage,
   ExamResultPage,
@@ -45,7 +54,14 @@ export const router = createBrowserRouter([
       { path: '/', element: <HomePage /> },
       { path: '/classes', element: <ClassesPage /> },
       { path: '/applicants', element: <ApplicantsPage /> },
+      { path: '/wishlist', element: <WishlistPage /> },
       { path: '/my', element: <MyPage /> },
+      { path: '/notifications', element: <NotificationsPage /> },
+      { path: '/settlement', element: <SettlementPage /> },
+      { path: '/notification-settings', element: <NotificationSettingsPage /> },
+      { path: '/support', element: <SupportPage /> },
+      { path: '/settings', element: <SettingsPage /> },
+      { path: '/payment', element: <PaymentPage /> },
     ],
   },
   {

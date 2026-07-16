@@ -200,6 +200,18 @@ a {
   background: #f2f4f6;
   display: grid;
   place-items: center;
+  position: relative;
+}
+.icon-btn.has-unread::after {
+  content: "";
+  position: absolute;
+  top: 8px;
+  right: 9px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f03e3e;
+  border: 1.5px solid #f2f4f6;
 }
 .hero {
   width: 100%;
@@ -240,6 +252,18 @@ a {
   height: 125px;
   border-radius: 50%;
   background: radial-gradient(circle at 40% 35%, #7ca9ff, var(--blue));
+}
+.student-hero {
+  background: linear-gradient(120deg, #eafbf3, #ddf6ea);
+}
+.student-hero span {
+  background: transparent;
+  color: #0ca678;
+  padding: 0;
+}
+.student-hero i {
+  background: radial-gradient(circle at 40% 35%, #7de0b4, #0ca678);
+  opacity: 0.32;
 }
 .stats {
   display: grid;
@@ -381,6 +405,69 @@ a {
   height: 100%;
   border-radius: inherit;
 }
+.student-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 26px;
+}
+.student-class-card {
+  width: 100%;
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 14px;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  box-shadow: 0 2px 10px #17202c0a;
+}
+.student-class-card > i {
+  width: 58px;
+  height: 58px;
+  border-radius: 14px;
+  flex: none;
+}
+.student-class-card span {
+  flex: 1;
+  min-width: 0;
+}
+.student-class-card b,
+.student-class-card small {
+  display: block;
+}
+.student-class-card b {
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.student-class-card small {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+  font-weight: 600;
+}
+.student-class-card em {
+  display: block;
+  height: 5px;
+  background: var(--line);
+  border-radius: 3px;
+  margin-top: 10px;
+  overflow: hidden;
+}
+.student-class-card em strong {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+}
+.student-class-card.market strong {
+  display: block;
+  color: var(--blue);
+  font-size: 14px;
+  margin-top: 6px;
+}
 .badge {
   display: inline-block;
   padding: 3px 8px;
@@ -473,6 +560,9 @@ a {
   color: #191f28;
   box-shadow: 0 2px 6px #17202c14;
 }
+.role-segments {
+  margin: 16px 0 18px;
+}
 .segments b {
   color: var(--blue);
 }
@@ -540,6 +630,32 @@ a {
 .menu-box button span {
   flex: 1;
   font-weight: 600;
+}
+.menu-row {
+  width: 100%;
+  min-height: 54px;
+  padding: 17px 18px;
+  border-bottom: 1px solid #f2f4f6;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  font-size: 15px;
+  font-weight: 700;
+}
+.menu-row:last-child {
+  border-bottom: 0;
+}
+.menu-row span {
+  flex: 1;
+}
+.menu-row em {
+  font-style: normal;
+  color: #8b95a1;
+  font-size: 13px;
+}
+.menu-row em.green {
+  color: #0ca678;
 }
 .outline-btn {
   display: flex;
@@ -880,6 +996,9 @@ a {
 /* Source-design screens */
 .phone nav.five-nav {
   grid-template-columns: repeat(5, 1fr);
+}
+.phone nav.five-nav.student-nav {
+  grid-template-columns: repeat(4, 1fr);
 }
 .nav-create {
   align-self: start;
