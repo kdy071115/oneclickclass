@@ -28,9 +28,6 @@ export interface Dashboard {
   pendingAmount: number;
   classes: ClassItem[];
   applicants: Applicant[];
-  studentStats: StatItem[];
-  studentInProgress: LearningClass[];
-  recommendedClasses: MarketClass[];
 }
 export interface ClassDraft {
   type: 'online' | 'live' | 'offline' | 'hybrid';
@@ -81,20 +78,6 @@ export interface CertificateItem {
 export interface StatItem {
   label: string;
   value: string;
-  color: string;
-}
-export interface LearningClass {
-  id: string;
-  title: string;
-  meta: string;
-  progress: number;
-  color: string;
-}
-export interface MarketClass {
-  id: string;
-  title: string;
-  meta: string;
-  price: string;
   color: string;
 }
 export interface NotificationItem {

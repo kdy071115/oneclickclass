@@ -1,4 +1,4 @@
-import type { Applicant, BillingHistory, CertificateItem, ClassDetail, ClassItem, Dashboard, ExamQuestion, FaqItem, LearningClass, MarketClass, NotificationItem, NotificationSetting, PaymentMethod, PaymentSummary, SettlementRow, SettlementSummary, SurveyQuestion } from '../types/class';
+import type { Applicant, BillingHistory, CertificateItem, ClassDetail, ClassItem, Dashboard, ExamQuestion, FaqItem, NotificationItem, NotificationSetting, PaymentMethod, PaymentSummary, SettlementRow, SettlementSummary, SurveyQuestion } from '../types/class';
 export const classes: ClassItem[] = [
   {id:'notion',title:'노션으로 시작하는 업무 자동화',status:'모집중',type:'온라인',date:'8월 5일 · 화',enrolled:24,capacity:30,color:'#4c82f7'},
   {id:'calligraphy',title:'주말 원데이 캘리그라피 클래스',status:'모집중',type:'오프라인',date:'8월 9일 · 토',enrolled:6,capacity:15,color:'#22b573'},
@@ -10,24 +10,7 @@ export const applicants: Applicant[] = [
   {id:'2',name:'이준호',classTitle:'캘리그라피 클래스',appliedAt:'12분 전',payment:'결제완료',amount:45000,phone:'010-4782-1135',email:'junho@example.com',answers:[{label:'신청 동기',value:'취미로 글씨를 배워 지인에게 카드를 만들어 주고 싶어요.'}]},
   {id:'3',name:'박민지',classTitle:'노션 업무 자동화',appliedAt:'1시간 전',payment:'결제완료',amount:45000,phone:'010-8891-2047',email:'minji@example.com',answers:[{label:'신청 동기',value:'회사에서 반복하는 업무 템플릿을 체계적으로 만들고, 팀원들이 같은 방식으로 협업할 수 있는 워크스페이스를 구축하고 싶어요. 자동화 기능까지 적용해 매일 발생하는 단순 작업 시간을 줄이는 것이 목표예요.'}]},
 ];
-export const studentStats = [
-  { value: '2', label: '수강 중', color: '#3182f6' },
-  { value: '3', label: '이수 완료', color: '#0ca678' },
-  { value: '3', label: '받은 수료증', color: '#f08c00' },
-];
-export const studentInProgress: LearningClass[] = [
-  { id: 'ux', title: 'UX 리서치 실무 4주', meta: '2주차 진행 중 · 다음 강의 내일 저녁 8시', progress: 62, color: '#0ca678' },
-  { id: 'python', title: '데이터 분석 입문 with 파이썬', meta: '1주차 · 방금 수강 시작', progress: 18, color: '#4c82f7' },
-];
-export const recommendedClasses: MarketClass[] = [
-  { id: 'branding', title: '브랜딩 기초 클래스', meta: '32명 수강 · 만족도 4.9', price: '55,000원', color: '#f76707' },
-  { id: 'youtube', title: '실전 유튜브 편집 8주 과정', meta: '20명 수강 · 만족도 4.8', price: '89,000원', color: '#7048e8' },
-];
-export const wishlistItems: MarketClass[] = [
-  ...recommendedClasses,
-  { id: 'homecafe', title: '초보를 위한 홈카페 클래스', meta: '오프라인 · 원데이', price: '40,000원', color: '#22b573' },
-];
-export const dashboard: Dashboard = {newApplicants:3,todayClasses:2,pendingPayments:3,pendingAmount:135000,classes:classes.slice(0,2),applicants,studentStats,studentInProgress,recommendedClasses};
+export const dashboard: Dashboard = {newApplicants:3,todayClasses:2,pendingPayments:3,pendingAmount:135000,classes:classes.slice(0,2),applicants};
 export const classDetail:ClassDetail={...classes[0],summary:'반복 업무를 자동화하는 실전 4주 과정',description:'데이터베이스 설계부터 반복 업무 자동화, 팀 협업 템플릿까지 4주 동안 직접 만들며 배웁니다.',instructor:'이지훈',price:45000,recruitEndDate:'7월 29일',sessions:4,location:'ZOOM 온라인',rating:4.9};
 export const surveyQuestions:SurveyQuestion[]=[{id:'s1',text:'강의 전반에 만족하시나요?',type:'choice',options:['매우 만족','만족','보통','아쉬워요']},{id:'s2',text:'강사의 설명은 이해하기 쉬웠나요?',type:'rating'},{id:'s3',text:'가장 좋았던 점을 알려주세요',type:'text'}];
 export const examQuestions:ExamQuestion[]=[{id:'e1',text:'노션 데이터베이스의 핵심 구성 요소는?',choices:['페이지와 속성','폴더와 파일','셀과 시트','슬라이드와 도형'],answer:0},{id:'e2',text:'반복 업무를 자동화할 때 가장 먼저 할 일은?',choices:['도구 구매','반복 과정 정의','팀원 채용','디자인 변경'],answer:1},{id:'e3',text:'자동화 결과를 점검하는 가장 좋은 방법은?',choices:['한 번에 배포','작은 범위로 테스트','설명서 생략','권한 전체 공개'],answer:1}];

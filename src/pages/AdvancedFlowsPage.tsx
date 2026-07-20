@@ -346,7 +346,7 @@ export function StudentFlowPage() {
 }
 export function PublishDonePage() {
   const [toast, setToast] = useState('');
-  const link = 'https://oneclick.class/c/9Xk2p';
+  const link = 'https://oneclick.class/s/notion-auto';
   const confetti = [
     ['8%', '#3182f6', '2.4s', '0s'],
     ['24%', '#12b886', '2.7s', '.3s'],
@@ -396,7 +396,7 @@ export function PublishDonePage() {
       </p>
       <div className="published-link">
         <Link2 />
-        <span>oneclick.class/c/9Xk2p</span>
+        <span>oneclick.class/s/notion-auto</span>
         <button onClick={copy}>복사</button>
       </div>
       <div className="share-actions">
@@ -421,7 +421,7 @@ export function PublishDonePage() {
           공유하기
         </button>
       </div>
-      <Link className="secondary" to="/classes/notion/enroll">
+      <Link className="secondary" to="/s/notion-auto">
         신청 페이지 보기
       </Link>
       <Link className="done-home" to="/">

@@ -9,7 +9,6 @@ import {
   SettingsPage,
   SettlementPage,
   SupportPage,
-  WishlistPage,
 } from '../pages/AccountPages';
 import {
   AttendPickerPage,
@@ -29,7 +28,7 @@ import { HomePage } from '../pages/HomePage';
 import { LoginPage } from '../pages/LoginPage';
 import { MyPage } from '../pages/MyPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
-import { PreviewPage, StudentClassPage } from '../pages/PreviewPage';
+import { LearnerRoomPage, PreviewPage, PublicEnrollmentPage } from '../pages/PreviewPage';
 import { QrPage } from '../pages/QrPage';
 import { GuestPage, SignupPage } from '../pages/SignupPage';
 import {
@@ -64,11 +63,9 @@ export const router = createBrowserRouter([
       { path: '/classes/:id/certificates/setup', element: <CertificateSetupPage /> },
       { path: '/applicants', element: <ApplicantsPage /> },
       { path: '/applicants/:id', element: <ApplicantDetailPage /> },
-      { path: '/wishlist', element: <WishlistPage /> },
       { path: '/my', element: <MyPage /> },
       { path: '/my/certificates', element: <CertificatesPage /> },
       { path: '/my/certificates/:id', element: <CertificateViewPage /> },
-      { path: '/learn/classes/:id', element: <StudentClassPage /> },
       { path: '/notifications', element: <NotificationsPage /> },
       { path: '/settlement', element: <Navigate to="/settlements" replace /> },
       { path: '/settlements', element: <RoleGuard allowed={['teacher']}><SettlementPage /></RoleGuard> },
@@ -82,7 +79,8 @@ export const router = createBrowserRouter([
     element: <MobileLayout />,
     children: [
       { path: '/classes/:id/preview', element: <PreviewPage /> },
-      { path: '/classes/:id/enroll', element: <StudentClassPage /> },
+      { path: '/s/:shareToken', element: <PublicEnrollmentPage /> },
+      { path: '/learn/:id', element: <LearnerRoomPage /> },
       { path: '/attendance/select', element: <AttendPickerPage /> },
       { path: '/learn/survey/take', element: <SurveyTakePage /> },
       { path: '/learn/survey/done', element: <SurveyDonePage /> },

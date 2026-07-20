@@ -83,9 +83,6 @@ export function LoginPage() {
             </button>
           ))}
         </div>
-        <Link className="guest-link" to="/guest">
-          비회원으로 신청 조회하기
-        </Link>
       </section>
     </main>
   );

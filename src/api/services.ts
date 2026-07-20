@@ -1,8 +1,8 @@
 import { apiClient } from './client';
 import type { AuthSession, LoginRequest, SignupRequest } from '../types/auth';
 import type { ApplicantUpdate, AttendanceRow, PageQuery, PageResponse, QrSession } from '../types/api';
-import { applicants, certificates, classDetail, classes, dashboard, examQuestions, faqs, notifications, notificationSettings, paymentSummary, settlementSummary, surveyQuestions, wishlistItems } from '../constants/mockData';
-import type { Applicant, CertificateItem, ClassDetail, ClassDraft, ClassItem, Dashboard, ExamQuestion, FaqItem, MarketClass, NotificationItem, NotificationSetting, PaymentSummary, SettlementSummary, SurveyQuestion } from '../types/class';
+import { applicants, certificates, classDetail, classes, dashboard, examQuestions, faqs, notifications, notificationSettings, paymentSummary, settlementSummary, surveyQuestions } from '../constants/mockData';
+import type { Applicant, CertificateItem, ClassDetail, ClassDraft, ClassItem, Dashboard, ExamQuestion, FaqItem, NotificationItem, NotificationSetting, PaymentSummary, SettlementSummary, SurveyQuestion } from '../types/class';
 const mock = import.meta.env.VITE_USE_MOCK !== 'false';
 const delay = <T,>(data:T) => new Promise<T>((resolve)=>setTimeout(()=>resolve(data),350));
 const pageItems = <T,>(items: T[], query: PageQuery = {}): PageResponse<T> => {
@@ -64,7 +64,6 @@ export const detailService={
   certificates:():Promise<CertificateItem[]>=>mock?delay(certificates):apiClient.get<CertificateItem[]>('/certificates').then(r=>r.data),
 };
 export const userService = {
-  wishlist: (): Promise<MarketClass[]> => mock ? delay(wishlistItems) : apiClient.get<MarketClass[]>('/me/wishlist').then(r=>r.data),
   notifications: (): Promise<NotificationItem[]> => mock ? delay(notifications) : apiClient.get<NotificationItem[]>('/me/notifications').then(r=>r.data),
   markNotificationsRead: (): Promise<void> => mock ? delay(undefined) : apiClient.post<void>('/me/notifications/read').then(r=>r.data),
   settlement: (): Promise<SettlementSummary> => mock ? delay(settlementSummary) : apiClient.get<SettlementSummary>('/me/settlement').then(r=>r.data),
@@ -127,3 +126,91 @@ export const notificationService = {
 };
 
 export const dashboardService = { get: classService.dashboard };
+
+export type OneClickShare = {
+  shareToken: string;
+  courseActiveSeq: string;
+  courseMasterSeq?: string;
+  title: string;
+  summary: string;
+  description: string;
+  price: number;
+  capacity: number;
+  enrolled: number;
+  applyStatus: 'OPEN' | 'CLOSED';
+  paymentType: 'FREE' | 'PAID';
+  instructorName: string;
+  scheduleText: string;
+  locationText: string;
+};
+
+export type OneClickEnrollment = {
+  memberSeq: string;
+  courseApplySeq: string;
+  courseActiveSeq: string;
+  learnerName: string;
+  applyStatusCd: 'APPLY_STATUS::001' | 'APPLY_STATUS::002' | 'APPLY_STATUS::004';
+  progress: number;
+  lastPosition: string;
+};
+
+const oneclickEnrollmentKey = (courseActiveSeq:string) => `oneclick.enrollment.${courseActiveSeq}`;
+
+const mockShare = (shareToken:string): OneClickShare => {
+  const draft = classes[0];
+  return {
+    shareToken,
+    courseActiveSeq: shareToken === '7KpX92Lm' ? '104' : 'notion',
+    courseMasterSeq: 'notion-master',
+    title: draft.title,
+    summary: '반복 업무를 자동화하는 실전 4주 과정',
+    description: '데이터베이스 설계부터 반복 업무 자동화, 팀 협업 템플릿까지 직접 만들며 배웁니다.',
+    price: 45000,
+    capacity: draft.capacity,
+    enrolled: draft.enrolled,
+    applyStatus: 'OPEN',
+    paymentType: 'PAID',
+    instructorName: '이지훈',
+    scheduleText: '자유 수강',
+    locationText: '온라인 강의실',
+  };
+};
+
+export const oneclickService = {
+  share: (shareToken:string): Promise<OneClickShare> =>
+    mock ? delay(mockShare(shareToken)) : apiClient.get<OneClickShare>(`/oneclick/shares/${shareToken}`).then(r=>r.data),
+  apply: (shareToken:string, input:{name:string; phone:string; email?:string}): Promise<OneClickEnrollment> => {
+    if (!mock) return apiClient.post<OneClickEnrollment>(`/oneclick/shares/${shareToken}/apply`, input).then(r=>r.data);
+    const share = mockShare(shareToken);
+    const enrollment = {
+      memberSeq: crypto.randomUUID(),
+      courseApplySeq: crypto.randomUUID(),
+      courseActiveSeq: share.courseActiveSeq,
+      learnerName: input.name,
+      applyStatusCd: 'APPLY_STATUS::002' as const,
+      progress: 62,
+      lastPosition: '3강 14분 27초',
+    };
+    localStorage.setItem(oneclickEnrollmentKey(share.courseActiveSeq), JSON.stringify(enrollment));
+    return delay(enrollment);
+  },
+  enrollment: (courseActiveSeq:string): Promise<OneClickEnrollment | null> => {
+    if (!mock) return apiClient.get<OneClickEnrollment>(`/oneclick/learn/${courseActiveSeq}`).then(r=>r.data).catch(()=>null);
+    const value = localStorage.getItem(oneclickEnrollmentKey(courseActiveSeq));
+    return delay(value ? JSON.parse(value) as OneClickEnrollment : null);
+  },
+  continueWithPhone: (courseActiveSeq:string, phone:string): Promise<OneClickEnrollment> => {
+    if (!mock) return apiClient.post<OneClickEnrollment>(`/oneclick/learn/${courseActiveSeq}/continue`, { phone }).then(r=>r.data);
+    const enrollment = {
+      memberSeq: crypto.randomUUID(),
+      courseApplySeq: crypto.randomUUID(),
+      courseActiveSeq,
+      learnerName: '수강생',
+      applyStatusCd: 'APPLY_STATUS::002' as const,
+      progress: 62,
+      lastPosition: '3강 14분 27초',
+    };
+    localStorage.setItem(oneclickEnrollmentKey(courseActiveSeq), JSON.stringify(enrollment));
+    return delay(enrollment);
+  },
+};

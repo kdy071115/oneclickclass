@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 
-export type UserRole = 'teacher' | 'student';
+export type UserRole = 'teacher';
 
 const key = 'oneclick.role';
 const event = 'oneclick-role';
 
 function readRole(): UserRole {
-  return localStorage.getItem(key) === 'student' ? 'student' : 'teacher';
+  return 'teacher';
 }
 
 export function useRole() {

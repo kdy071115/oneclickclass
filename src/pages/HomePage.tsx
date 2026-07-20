@@ -7,13 +7,11 @@ import { ApplicantRow } from '../components/feature/ApplicantRow';
 import { ClassCard } from '../components/feature/ClassCard';
 import { Badge } from '../components/ui';
 import { useAsync } from '../hooks/useAsync';
-import { useRole } from '../hooks/useRole';
 import { won } from '../utils/format';
 import { getStatusTone } from '../utils/status';
 
 export function HomePage() {
   const nav = useNavigate();
-  const { role, setRole } = useRole();
   const load = useCallback(() => classService.dashboard(), []);
   const { data, loading, error, retry } = useAsync(load);
 
@@ -30,33 +28,24 @@ export function HomePage() {
     );
   }
 
-  const teacher = role === 'teacher';
-  const tintCards = teacher
-    ? [
+  const tintCards = [
         ['이번 달 매출', '전월 대비 +18%', won(2145000), '#e7f0ff', '/settlements'],
         ['신규 신청', '오늘 접수', `${data.newApplicants}건`, '#ffeedd', '/applicants'],
         ['진행중 클래스', '수강생 52명', `${data.todayClasses}개`, '#eceafe', '/classes'],
-      ]
-    : [
-        ['수강 중', '이번 주 강의 3개', '2개', '#e1f7ec', '/classes'],
-        ['이수 완료', '누적 12개', '3개', '#e7f0ff', '/classes'],
-        ['받은 수료증', '최근 3월', '3개', '#eceafe', '/my/certificates'],
       ];
 
   return (
     <>
       <div className="oc-web-page">
         <div className="oc-web-head">
-          <h1>{teacher ? '대시보드' : '홈'}</h1>
-          <p>{teacher ? '오늘 강의 2개, 신규 신청 3건이 있어요' : '이어서 들을 강의를 확인하세요'}</p>
+          <h1>대시보드</h1>
+          <p>오늘 강의 2개, 신규 신청 3건이 있어요</p>
         </div>
 
         <section className="oc-grid-2 dashboard-overview">
           <div className="dashboard-primary">
             <div className="oc-hero-title">지훈님, 안녕하세요</div>
-            <div className="oc-hero-sub">
-              {teacher ? '클래스 운영 현황을 한눈에 확인하세요' : '오늘 학습할 내용을 이어서 볼 수 있어요'}
-            </div>
+            <div className="oc-hero-sub">클래스 운영 현황을 한눈에 확인하세요</div>
             <div className="oc-tint-grid">
               {tintCards.map(([label, sub, value, tint, to]) => (
                 <Link className="oc-tint-card" style={{ background: tint }} to={to} key={label}>
@@ -75,24 +64,24 @@ export function HomePage() {
                   <TrendingUp size={20} />
                 </span>
                 <span>
-                  <b>{teacher ? won(2145000) : '68%'}</b>
-                  <small>{teacher ? '이번 달 매출' : '평균 진도율'}</small>
+                  <b>{won(2145000)}</b>
+                  <small>이번 달 매출</small>
                 </span>
-                <em>{teacher ? '+18%' : '+12%'}</em>
+                <em>+18%</em>
               </div>
               <div className="oc-summary-row">
                 <span>
                   <Wallet size={20} />
                 </span>
                 <span>
-                  <b>{teacher ? won(1820000) : '5개'}</b>
-                  <small>{teacher ? '지난 달 매출' : '남은 강의'}</small>
+                  <b>{won(1820000)}</b>
+                  <small>지난 달 매출</small>
                 </span>
               </div>
             </div>
-            <button className="oc-promo" onClick={() => nav(teacher ? '/settlements' : '/classes')}>
-              <small>{teacher ? 'PRO' : '추천'}</small>
-              <b>{teacher ? '프로 플랜으로 정산 수수료를 낮춰보세요' : '관심 분야에 새 클래스가 열렸어요'}</b>
+            <button className="oc-promo" onClick={() => nav('/settlements')}>
+              <small>PRO</small>
+              <b>프로 플랜으로 정산 수수료를 낮춰보세요</b>
             </button>
           </div>
         </section>
@@ -101,16 +90,16 @@ export function HomePage() {
           <div className="oc-panel">
             <div className="oc-panel-title">
               <div>
-                <h2>{teacher ? '매출 추세' : '학습 시간'}</h2>
-                <p className="oc-hero-sub">{teacher ? '최근 6개월 매출 흐름' : '이번 주 집중 학습 시간'}</p>
+                <h2>매출 추세</h2>
+                <p className="oc-hero-sub">최근 6개월 매출 흐름</p>
               </div>
               <button>주간</button>
             </div>
             <div className="oc-chart">
               <div className="oc-chart-big">
-                <b>{teacher ? '214만원' : '14시간'}</b>
-                <small>{teacher ? '이번 달 매출' : '이번 주 학습'}</small>
-                <em>{teacher ? '+18% 전월 대비' : '+15% 지난주 대비'}</em>
+                <b>214만원</b>
+                <small>이번 달 매출</small>
+                <em>+18% 전월 대비</em>
               </div>
               <div className="oc-bars">
                 {['1월', '2월', '3월', '4월', '5월', '6월'].map((label, index) => (
@@ -124,31 +113,29 @@ export function HomePage() {
           </div>
           <div className="oc-panel">
             <div className="oc-panel-title">
-              <h2>{teacher ? '이번 달 목표' : '학습 목표'}</h2>
+              <h2>이번 달 목표</h2>
             </div>
             <div
               className="oc-donut"
               style={{
-                background: `conic-gradient(${teacher ? '#3182f6' : '#0ca678'} ${
-                  teacher ? 80 : 68
-                }%, #edf0f3 0)`,
+                background: 'conic-gradient(#3182f6 80%, #edf0f3 0)',
               }}
             >
               <div>
-                <b style={{ color: teacher ? '#3182f6' : '#0ca678' }}>{teacher ? '80%' : '68%'}</b>
+                <b style={{ color: '#3182f6' }}>80%</b>
                 <small>달성</small>
               </div>
             </div>
             <div className="oc-list">
               <div className="oc-schedule-row">
-                <b>{teacher ? '달성' : '완료'}</b>
+                <b>달성</b>
                 <span className="grow" />
-                <strong>{teacher ? won(2145000) : '8개'}</strong>
+                <strong>{won(2145000)}</strong>
               </div>
               <div className="oc-schedule-row">
-                <b>{teacher ? '남은 금액' : '남은 강의'}</b>
+                <b>남은 금액</b>
                 <span className="grow" />
-                <strong>{teacher ? won(535000) : '4개'}</strong>
+                <strong>{won(535000)}</strong>
               </div>
             </div>
           </div>
@@ -171,7 +158,7 @@ export function HomePage() {
         <section className="oc-grid-2">
           <div className="oc-panel">
             <div className="oc-panel-title">
-              <h2>{teacher ? '오늘 일정' : '다가오는 강의'}</h2>
+              <h2>오늘 일정</h2>
               <Link to="/classes">전체보기</Link>
             </div>
             <div className="oc-list">
@@ -224,16 +211,7 @@ export function HomePage() {
             <Bell size={20} />
           </button>
         </header>
-        <div className="segments role-segments">
-          <button className={teacher ? 'active' : ''} onClick={() => setRole('teacher')}>
-            강의자 홈
-          </button>
-          <button className={!teacher ? 'active' : ''} onClick={() => setRole('student')}>
-            수강생 홈
-          </button>
-        </div>
-        {teacher ? (
-          <>
+        <>
             <button className="hero" onClick={() => nav('/attendance/select')}>
               <strong>
                 지훈님, 오늘
@@ -294,48 +272,7 @@ export function HomePage() {
                 <ApplicantRow item={a} index={i} key={a.id} />
               ))}
             </div>
-          </>
-        ) : (
-          <>
-            <button className="hero student-hero" onClick={() => nav('/classes')}>
-              <strong>
-                지훈님, 오늘
-                <br />
-                이어서 들을 강의가 있어요
-              </strong>
-              <span>
-                이어서 학습하기 <ChevronRight size={15} />
-              </span>
-              <i />
-            </button>
-            <div className="stats">
-              {data.studentStats.map((s) => (
-                <div key={s.label}>
-                  <b style={{ color: s.color }}>{s.value}</b>
-                  <small>{s.label}</small>
-                </div>
-              ))}
-            </div>
-            <div className="section-title">
-              <h3>수강 중인 강의</h3>
-              <Link to="/classes">전체보기</Link>
-            </div>
-            <div className="student-stack">
-              {data.studentInProgress.map((c) => (
-                <button className="student-class-card" onClick={() => nav(`/learn/classes/${c.id}`)} key={c.id}>
-                  <i style={{ background: `linear-gradient(135deg,${c.color},color-mix(in srgb, ${c.color}, white 35%))` }} />
-                  <span>
-                    <b>{c.title}</b>
-                    <small>{c.meta}</small>
-                    <em>
-                      <strong style={{ width: `${c.progress}%`, background: c.color }} />
-                    </em>
-                  </span>
-                </button>
-              ))}
-            </div>
-          </>
-        )}
+        </>
       </div>
     </>
   );

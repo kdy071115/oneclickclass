@@ -17,6 +17,7 @@ import {
   Star,
   Users,
 } from 'lucide-react';
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { PageHeader } from '../components/common/PageHeader';
 import { getClassThumbnail } from '../utils/classThumbnail';
@@ -45,6 +46,13 @@ const curriculum = [
 export function ClassDetailPage() {
   const { id = 'notion' } = useParams();
   const thumbnail = getClassThumbnail(id);
+  const [toast, setToast] = useState('');
+  const sharePath = '/s/notion-auto';
+  const copyShare = () => {
+    void navigator.clipboard?.writeText(`${location.origin}${sharePath}`).catch(() => undefined);
+    setToast('신청 링크를 복사했어요');
+    window.setTimeout(() => setToast(''), 2000);
+  };
 
   return (
     <>
@@ -79,7 +87,7 @@ export function ClassDetailPage() {
                 {thumbnail ? <img className="oc-detail-thumbnail" src={thumbnail} alt="클래스 썸네일" /> : <div className="oc-operation-thumbnail"><Image size={30} /><span>대표 썸네일</span></div>}
               </div>
               <div className="oc-detail-actions">
-                <button type="button"><Link2 size={17} /> 공유하기</button>
+                <button type="button" onClick={copyShare}><Link2 size={17} /> 공유하기</button>
                 <Link to={`/classes/${id}/manage`}>강의 수정</Link>
                 <Link className="primary-link" to={`/classes/${id}/applicants`}>
                   신청자 관리 <span>→</span>
@@ -170,13 +178,13 @@ export function ClassDetailPage() {
               </div>
               <p>링크를 복사해 수강생에게 공유해보세요.</p>
               <div>
-                <span>oneclick.class/c/notion-auto</span>
-                <button><Copy size={18} />복사</button>
+                <span>oneclick.class/s/notion-auto</span>
+                <button onClick={copyShare}><Copy size={18} />복사</button>
               </div>
               <div className="oc-share-buttons">
-                <button type="button"><Link2 size={16} /> 링크 공유</button>
+                <Link to={sharePath}><Link2 size={16} /> 신청 페이지</Link>
                 <button type="button"><QrCode size={16} /> QR 코드</button>
-                <button type="button"><Share2 size={16} /> SNS 공유</button>
+                <button type="button" onClick={copyShare}><Share2 size={16} /> SNS 공유</button>
               </div>
             </section>
             <section className="oc-panel">
@@ -191,6 +199,7 @@ export function ClassDetailPage() {
           </aside>
         </div>
       </div>
+      {toast && <div className="done-toast" aria-live="polite">{toast}</div>}
 
       <div className="page subpage class-dashboard original-detail">
         <PageHeader title="" backTo="/classes" />

@@ -1,5 +1,7 @@
-import { ArrowLeft, CalendarDays, CheckCircle2, Clock3, Play, UserRound } from 'lucide-react';
+import { FormEvent, useEffect, useState } from 'react';
+import { ArrowLeft, CalendarDays, CheckCircle2, Clock3, LockKeyhole, Play, ShieldCheck, UserRound } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { oneclickService, type OneClickEnrollment, type OneClickShare } from '../api/services';
 import { initialClassDraft } from '../constants/classDraft';
 import { loadClassDraft } from '../utils/classDraft';
 
@@ -9,6 +11,152 @@ export function PreviewPage() {
 
 export function StudentClassPage() {
   return <ClassPublicPage />;
+}
+
+export function PublicEnrollmentPage() {
+  const nav = useNavigate();
+  const { shareToken = 'notion-auto' } = useParams();
+  const draft = loadClassDraft(initialClassDraft);
+  const [form, setForm] = useState({ name: '', phone: '', email: '' });
+  const [share, setShare] = useState<OneClickShare>();
+  const [existing, setExisting] = useState<OneClickEnrollment | null>(null);
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    oneclickService.share(shareToken).then((nextShare) => {
+      if (!alive) return;
+      setShare(nextShare);
+      void oneclickService.enrollment(nextShare.courseActiveSeq).then((enrollment) => {
+        if (alive) setExisting(enrollment);
+      });
+    }).catch(() => alive && setError('신청 링크를 확인하지 못했어요.'));
+    return () => { alive = false; };
+  }, [shareToken]);
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!share) return setError('신청 링크를 확인하는 중이에요.');
+    if (!form.name.trim()) return setError('이름을 입력해 주세요.');
+    if (form.phone.replace(/\D/g, '').length < 10) return setError('휴대전화 번호를 확인해 주세요.');
+    setSubmitting(true);
+    setError('');
+    try {
+      const enrollment = await oneclickService.apply(shareToken, { name: form.name.trim(), phone: form.phone.trim(), email: form.email.trim() || undefined });
+      nav(`/learn/${enrollment.courseActiveSeq}`, { replace: true });
+    } catch {
+      setError('신청을 처리하지 못했어요. 잠시 후 다시 시도해 주세요.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  const title = share?.title || draft.title || '노션으로 시작하는 업무 자동화';
+  const summary = share?.summary || draft.summary || '반복 업무를 자동화하는 실전 4주 과정';
+  return (
+    <div className="page entry-page">
+      <section className="entry-hero">
+        <small>간편 신청 링크</small>
+        <h1>{title}</h1>
+        <p>{summary}</p>
+        {share && <div className="entry-meta"><span>{share.paymentType === 'PAID' ? `${share.price.toLocaleString()}원` : '무료'}</span><span>{share.enrolled} / {share.capacity}명 신청</span></div>}
+      </section>
+      {existing ? (
+        <section className="entry-continue">
+          <ShieldCheck />
+          <b>{existing.learnerName}님, 이어서 볼까요?</b>
+          <small>이전 위치: {existing.lastPosition}</small>
+          <button className="primary" onClick={() => nav(`/learn/${existing.courseActiveSeq}`)}>바로 이어보기</button>
+        </section>
+      ) : (
+        <form className="entry-form" onSubmit={submit}>
+          <h2>간편 신청</h2>
+          <p>회원가입 절차 없이 신청 정보를 확인하고 바로 수강권을 만들어요.</p>
+          <label>이름<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="이름을 입력하세요" /></label>
+          <label>휴대전화 번호<input inputMode="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="010-0000-0000" /></label>
+          <label>이메일 <small>선택</small><input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="example@email.com" /></label>
+          <div className="entry-note"><LockKeyhole /> 입력한 정보는 LX2 수강권과 이어보기 확인에만 사용돼요.</div>
+          {error && <p className="form-error">{error}</p>}
+          <button className="primary" disabled={submitting}>{submitting ? '신청 처리 중...' : '신청하고 바로 입장'}</button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+export function LearnerRoomPage() {
+  const nav = useNavigate();
+  const { id = 'notion' } = useParams();
+  const [phone, setPhone] = useState('');
+  const [sent, setSent] = useState(false);
+  const [enrollment, setEnrollment] = useState<OneClickEnrollment | null>();
+  const draft = loadClassDraft(initialClassDraft);
+  useEffect(() => {
+    let alive = true;
+    oneclickService.enrollment(id).then((next) => {
+      if (alive) setEnrollment(next);
+    });
+    return () => { alive = false; };
+  }, [id]);
+  const continueLearning = async () => {
+    if (!sent) return setSent(true);
+    const next = await oneclickService.continueWithPhone(id, phone);
+    setEnrollment(next);
+  };
+  if (enrollment === undefined) {
+    return <div className="page entry-page"><section className="entry-hero verify"><small>수강권 확인</small><h1>신청 정보를 확인하고 있어요.</h1></section></div>;
+  }
+  if (!enrollment) {
+    return (
+      <div className="page entry-page">
+        <section className="entry-hero verify">
+          <small>신청 정보로 이어보기</small>
+          <h1>신청 정보를 확인하면 바로 이어서 볼 수 있어요.</h1>
+          <p>로그인 대신 신청할 때 입력한 휴대전화 번호를 확인해요.</p>
+        </section>
+        <section className="entry-form">
+          <label>휴대전화 번호<input inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="010-0000-0000" /></label>
+          {sent && <label>인증번호<input inputMode="numeric" placeholder="데모 인증번호 123456" /></label>}
+          <button className="primary" onClick={() => void continueLearning()}>{sent ? '확인하고 이어보기' : '인증번호 받기'}</button>
+          <button className="secondary" onClick={() => nav(`/s/notion-auto`)}>처음 신청하기</button>
+        </section>
+      </div>
+    );
+  }
+  return (
+    <div className="page learn-room">
+      <header>
+        <span>원클릭 클래스</span>
+        <b>{enrollment.learnerName}님</b>
+      </header>
+      <section className="learn-video">
+        <Play fill="currentColor" />
+        <small>2강 이어서 재생</small>
+      </section>
+      <section className="learn-summary">
+        <h1>{draft.title || '노션으로 시작하는 업무 자동화'}</h1>
+        <p>이전 위치: {enrollment.lastPosition}</p>
+        <div className="student-progress-head"><span>전체 진도</span><b>{enrollment.progress}%</b></div>
+        <div className="oc-progress"><i style={{ width: `${enrollment.progress}%` }} /></div>
+      </section>
+      <section className="learn-lessons">
+        <h2>커리큘럼</h2>
+        {[
+          ['1', '노션 데이터베이스 설계', '45분', true],
+          ['2', '반복 업무 자동화', '52분', false],
+          ['3', '팀 협업 템플릿', '48분', false],
+        ].map(([n, title, time, done]) => (
+          <button className={`student-lesson ${done ? 'done' : ''}`} key={String(n)}>
+            <span>{done ? <CheckCircle2 /> : n}</span>
+            <b>{title}<small><Clock3 size={14} />{time}</small></b>
+            <Play size={18} />
+          </button>
+        ))}
+      </section>
+      <section className="learn-card">
+        <CalendarDays />
+        <span>다음 강의 알림은 신청 정보 기준으로 안내돼요.</span>
+      </section>
+    </div>
+  );
 }
 
 function ClassPublicPage({ preview = false }: { preview?: boolean }) {
