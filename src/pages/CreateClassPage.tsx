@@ -18,7 +18,7 @@ import { StatusBar } from '../components/common/StatusBar';
 import { FileDropzone, Stepper } from '../components/ui';
 import { classService } from '../api/services';
 import { addressSuggestions, initialClassDraft } from '../constants/classDraft';
-import { clearClassDraft, loadClassDraft, saveClassDraft } from '../utils/classDraft';
+import { clearClassDraft, loadClassDraft, loadClassPreview, saveClassDraft, saveClassPreview } from '../utils/classDraft';
 import { getClassThumbnail, saveClassThumbnail } from '../utils/classThumbnail';
 
 const types = [
@@ -54,9 +54,10 @@ export function CreateClassPage() {
   const nav = useNavigate();
   const [params] = useSearchParams();
   const editId = params.get('edit');
-  const [step, setStep] = useState(() => (params.has('edit') ? 2 : 1));
+  const [step, setStep] = useState(() => params.has('edit') ? Math.min(labels.length, Math.max(1, Number(params.get('step')) || 2)) : 1);
+  const [maxStep, setMaxStep] = useState(() => (params.has('edit') ? labels.length : 1));
   const [draft, setDraft] = useState(() => {
-    const savedDraft = loadClassDraft(initialClassDraft);
+    const savedDraft = editId ? loadClassPreview(editId, initialClassDraft) : loadClassDraft(initialClassDraft);
     const savedThumbnail = editId ? getClassThumbnail(editId) : '';
     return savedThumbnail ? { ...savedDraft, thumbnail: savedThumbnail } : savedDraft;
   });
@@ -84,7 +85,11 @@ export function CreateClassPage() {
       return setError('진행 장소를 입력해 주세요.');
     if (step === 3 && !draft.startDate) return setError('강의 일정을 선택해 주세요.');
     setError('');
-    if (step < 5) setStep(step + 1);
+    if (step < 5) {
+      const nextStep = step + 1;
+      setMaxStep((current) => Math.max(current, nextStep));
+      setStep(nextStep);
+    }
     else {
       setSubmitting(true);
       try {
@@ -92,6 +97,7 @@ export function CreateClassPage() {
           ? await classService.update(editId, draft)
           : await classService.create(draft);
         if (draft.thumbnail) saveClassThumbnail(created.id, draft.thumbnail);
+        saveClassPreview(created.id, draft);
         clearClassDraft();
         nav(editId ? `/classes/${created.id}` : `/classes/${created.id}/preview?draft=1`);
       } catch {
@@ -128,8 +134,9 @@ export function CreateClassPage() {
         {labels.map((item, index) => (
           <button
             type="button"
-            className={step === index + 1 ? 'active' : ''}
+            className={`${step === index + 1 ? 'active' : ''} ${index + 1 < maxStep ? 'complete' : ''}`}
             onClick={() => setStep(index + 1)}
+            disabled={index + 1 > maxStep}
             key={item[0]}
           >
             <span>{index + 1}</span>
@@ -145,7 +152,7 @@ export function CreateClassPage() {
         <div className="oc-create-box">
           {step === 1 && (
             <div className="oc-form-grid">
-              <Field label="강의 제목" value={draft.title} onChange={(v) => setDraft({ ...draft, title: v })} placeholder="예) 노션으로 시작하는 업무 자동화" />
+              <Field label="강의 제목" value={draft.title} onChange={(v) => { setDraft({ ...draft, title: v }); setError(''); }} placeholder="예) 노션으로 시작하는 업무 자동화" />
               <Field label="한 줄 소개" value={draft.summary} onChange={(v) => setDraft({ ...draft, summary: v })} placeholder="예) 반복 업무를 자동화하는 4주 과정" />
               <label className="create-field wide">상세 소개 <small>(나중에 수정 가능)</small><textarea value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="강의에서 배우는 내용을 자유롭게 적어주세요" /></label>
               <div className="create-field wide">썸네일 <small>(선택)</small>{draft.thumbnail && <img className="oc-thumbnail-preview" src={draft.thumbnail} alt="선택한 썸네일 미리보기" />}<FileDropzone onFile={setThumbnail} /></div>
@@ -157,6 +164,7 @@ export function CreateClassPage() {
                 {types.map(([value, Icon, label, desc]) => (
                   <button
                     type="button"
+                    aria-label={label}
                     className={draft.type === value ? 'active' : ''}
                     onClick={() => setDraft({ ...draft, type: value })}
                     key={value}
@@ -170,7 +178,7 @@ export function CreateClassPage() {
               </div>
               <div className="delivery-fields wide">
                 {draft.type !== 'offline' && <><label className="create-field wide">진행 도구<div className="question-chips tools">{['YouTube', 'Zoom', 'Meet', '기타 URL'].map((x) => <button type="button" className={tool === x ? 'active' : ''} onClick={() => setTool(x)} key={x}>{x}</button>)}</div></label><Field label="참여 링크" value={draft.url} onChange={(v) => setDraft({ ...draft, url: v })} placeholder="나중에 입력해도 돼요" /></>}
-                {(draft.type === 'offline' || draft.type === 'hybrid') && <><label className="create-field">도로명 주소<button className="date-field" type="button" onClick={() => setAddressOpen(true)}><span>{draft.address || '도로명 주소를 검색하세요'}</span><Search /></button></label><Field label="상세 주소" value={draft.detailedAddress} onChange={(v) => setDraft({ ...draft, detailedAddress: v })} placeholder="예) 3층 302호" /></>}
+                {(draft.type === 'offline' || draft.type === 'hybrid') && <><label className="create-field">도로명 주소<button className="date-field" type="button" aria-label="도로명 주소 검색" onClick={() => setAddressOpen(true)}><span>{draft.address || '도로명 주소를 검색하세요'}</span><Search /></button></label><Field label="상세 주소" value={draft.detailedAddress} onChange={(v) => setDraft({ ...draft, detailedAddress: v })} placeholder="예) 3층 302호" /></>}
               </div>
             </div>
           )}
@@ -179,7 +187,7 @@ export function CreateClassPage() {
               <DateField label="강의 일정" value={draft.startDate} onClick={() => setCalendar('startDate')} />
               <DateField label="모집 마감일" value={draft.recruitEndDate} onClick={() => setCalendar('recruitEndDate')} onClear={() => setDraft({ ...draft, recruitEndDate: '' })} />
               <label className="create-field">모집 정원<div className="capacity"><button type="button" onClick={() => setDraft({ ...draft, capacity: Math.max(1, draft.capacity - 5) })}><Minus /></button><input aria-label="모집 정원" inputMode="numeric" value={draft.capacity} onChange={(e) => setDraft({ ...draft, capacity: Math.max(1, Number(e.target.value.replace(/\D/g, '')) || 1) })} /><small>명</small><button type="button" onClick={() => setDraft({ ...draft, capacity: draft.capacity + 5 })}><Plus /></button></div></label>
-              <label className="create-field">참가비<div className="fee-tabs"><button type="button" className={draft.payment === 'free' ? 'active' : ''} onClick={() => setDraft({ ...draft, payment: 'free' })}>무료</button><button type="button" className={draft.payment === 'paid' ? 'active' : ''} onClick={() => setDraft({ ...draft, payment: 'paid' })}>유료</button></div></label>
+              <label className="create-field">참가비<div className="fee-tabs"><button type="button" aria-label="무료" className={draft.payment === 'free' ? 'active' : ''} onClick={() => setDraft({ ...draft, payment: 'free' })}>무료</button><button type="button" aria-label="유료" className={draft.payment === 'paid' ? 'active' : ''} onClick={() => setDraft({ ...draft, payment: 'paid' })}>유료</button></div></label>
               {draft.payment === 'paid' && <div className="price-input wide"><input inputMode="numeric" value={draft.price || ''} onChange={(e) => setDraft({ ...draft, price: Number(e.target.value) })} placeholder="0" /><b>원</b></div>}
             </div>
           )}
@@ -211,7 +219,7 @@ export function CreateClassPage() {
           {savedAt && <small>임시저장 {savedAt}</small>}
           <button type="button" onClick={() => (step > 1 ? setStep(step - 1) : nav('/classes'))}>이전</button>
           <button className="oc-create-submit" type="submit" disabled={submitting}>
-            {submitting ? '저장 중' : step < 5 ? '다음 단계' : '신청 페이지 확인'}
+            {submitting ? '저장 중' : step < 5 ? '다음 단계' : '미리보기로 확인하기'}
             <ChevronRight size={18} />
           </button>
         </div>
@@ -224,7 +232,7 @@ export function CreateClassPage() {
           <header>
             <button
               type="button"
-              onClick={() => (step > 1 ? setStep(step - 1) : nav(-1))}
+              onClick={() => (step > 1 ? setStep(step - 1) : nav('/classes'))}
               aria-label="뒤로"
             >
               <ArrowLeft />
@@ -289,6 +297,7 @@ export function CreateClassPage() {
                 {types.map(([value, Icon, label, desc]) => (
                   <button
                     type="button"
+                    aria-label={label}
                     className={draft.type === value ? 'active' : ''}
                     onClick={() => setDraft({ ...draft, type: value })}
                     key={value}
@@ -337,6 +346,7 @@ export function CreateClassPage() {
                     <button
                       className="date-field"
                       type="button"
+                      aria-label="도로명 주소 검색"
                       onClick={() => setAddressOpen(true)}
                     >
                       <span>{draft.address || '도로명 주소를 검색하세요'}</span>
@@ -403,6 +413,7 @@ export function CreateClassPage() {
                 <div className="fee-tabs">
                   <button
                     type="button"
+                    aria-label="무료"
                     className={draft.payment === 'free' ? 'active' : ''}
                     onClick={() => setDraft({ ...draft, payment: 'free' })}
                   >
@@ -410,6 +421,7 @@ export function CreateClassPage() {
                   </button>
                   <button
                     type="button"
+                    aria-label="유료"
                     className={draft.payment === 'paid' ? 'active' : ''}
                     onClick={() => setDraft({ ...draft, payment: 'paid' })}
                   >
@@ -509,12 +521,12 @@ export function CreateClassPage() {
           {error && <p className="form-error">{error}</p>}
         </div>
         <button className="primary create-cta" type="submit" disabled={submitting}>
-          {submitting ? '저장 중' : step < 5 ? '다음' : '신청 페이지 확인'}
+          {submitting ? '저장 중' : step < 5 ? '다음' : '미리보기로 확인하기'}
         </button>
       </form>
     </main>}
-    {calendar && <CalendarSheet title={calendar === 'startDate' ? '강의 일정을 골라주세요' : '모집 마감일을 골라주세요'} onClose={() => setCalendar(undefined)} onPick={(date) => { setDraft({ ...draft, [calendar]: date }); setCalendar(undefined); }} />}
-    {addressOpen && <div className="sheet-overlay" onClick={() => setAddressOpen(false)}><section className="address-sheet" onClick={(e) => e.stopPropagation()}><i /><header><b>주소 검색</b><button type="button" onClick={() => setAddressOpen(false)}>닫기</button></header><label><Search /><input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="도로명, 건물명 또는 지번 검색" /></label>{query && addressSuggestions.map((x) => <button type="button" className="address-result" onClick={() => { setDraft({ ...draft, address: x }); setAddressOpen(false); }} key={x}><b>{x}</b><small>서울특별시 상세 주소</small></button>)}</section></div>}
+    {calendar && <CalendarSheet title={calendar === 'startDate' ? '강의 일정을 골라주세요' : '모집 마감일을 골라주세요'} onClose={() => setCalendar(undefined)} onPick={(date) => { setDraft({ ...draft, [calendar]: date }); setError(''); setCalendar(undefined); }} />}
+    {addressOpen && <div className="sheet-overlay" onClick={() => setAddressOpen(false)}><section className="address-sheet" onClick={(e) => e.stopPropagation()}><i /><header><b>주소 검색</b><button type="button" onClick={() => setAddressOpen(false)}>닫기</button></header><label><Search /><input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="도로명, 건물명 또는 지번 검색" /></label>{query && addressSuggestions.map((x) => <button type="button" className="address-result" onClick={() => { setDraft({ ...draft, address: x }); setError(''); setAddressOpen(false); }} key={x}><b>{x}</b><small>서울특별시 상세 주소</small></button>)}</section></div>}
     </>
   );
 }

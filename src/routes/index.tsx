@@ -1,7 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppLayout } from '../layouts/AppLayout';
 import { AuthLayout } from '../layouts/AuthLayout';
-import { MobileLayout } from '../layouts/MobileLayout';
 import {
   NotificationsPage,
   NotificationSettingsPage,
@@ -24,11 +23,17 @@ import { ClassDetailPage } from '../pages/ClassDetailPage';
 import { ClassOperationsPage } from '../pages/ClassOperationsPage';
 import { ClassesPage } from '../pages/ClassesPage';
 import { CreateClassPage } from '../pages/CreateClassPage';
+import { CurriculumPage } from '../pages/CurriculumPage';
 import { HomePage } from '../pages/HomePage';
 import { LoginPage } from '../pages/LoginPage';
 import { MyPage } from '../pages/MyPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
-import { LearnerRoomPage, PreviewPage, PublicEnrollmentPage } from '../pages/PreviewPage';
+import {
+  EnrollmentCompletePage,
+  LearnerRoomPage,
+  PreviewPage,
+  PublicEnrollmentPage,
+} from '../pages/PreviewPage';
 import { QrPage } from '../pages/QrPage';
 import { GuestPage, SignupPage } from '../pages/SignupPage';
 import {
@@ -50,12 +55,17 @@ const operations = [
 ].map((path) => ({ path: `/classes/:id/${path}`, element: <ClassOperationsPage /> }));
 export const router = createBrowserRouter([
   {
-    element: <ProtectedRoute><AppLayout /></ProtectedRoute>,
+    element: (
+      <ProtectedRoute>
+        <AppLayout />
+      </ProtectedRoute>
+    ),
     children: [
       { path: '/', element: <Navigate to="/dashboard" replace /> },
       { path: '/dashboard', element: <HomePage /> },
       { path: '/classes', element: <ClassesPage /> },
       { path: '/classes/:id', element: <ClassDetailPage /> },
+      { path: '/classes/:id/curriculum', element: <CurriculumPage /> },
       { path: '/classes/:id/preview', element: <PreviewPage /> },
       { path: '/classes/published', element: <PublishDonePage /> },
       ...operations,
@@ -70,26 +80,38 @@ export const router = createBrowserRouter([
       { path: '/my/certificates/:id', element: <CertificateViewPage /> },
       { path: '/notifications', element: <NotificationsPage /> },
       { path: '/settlement', element: <Navigate to="/settlements" replace /> },
-      { path: '/settlements', element: <RoleGuard allowed={['teacher']}><SettlementPage /></RoleGuard> },
+      {
+        path: '/settlements',
+        element: (
+          <RoleGuard allowed={['teacher']}>
+            <SettlementPage />
+          </RoleGuard>
+        ),
+      },
       { path: '/notification-settings', element: <NotificationSettingsPage /> },
       { path: '/support', element: <SupportPage /> },
       { path: '/settings', element: <SettingsPage /> },
       { path: '/payment', element: <PaymentPage /> },
+      { path: '/attendance/select', element: <AttendPickerPage /> },
     ],
   },
   { path: '/s/:shareToken', element: <PublicEnrollmentPage /> },
+  { path: '/s/:shareToken/complete', element: <EnrollmentCompletePage /> },
   { path: '/learn/:id', element: <LearnerRoomPage /> },
+  { path: '/learn/survey/take', element: <SurveyTakePage /> },
+  { path: '/learn/survey/done', element: <SurveyDonePage /> },
+  { path: '/learn/exam/take', element: <ExamTakePage /> },
+  { path: '/learn/exam/result', element: <ExamResultStudentPage /> },
   {
-    element: <MobileLayout />,
-    children: [
-      { path: '/attendance/select', element: <AttendPickerPage /> },
-      { path: '/learn/survey/take', element: <SurveyTakePage /> },
-      { path: '/learn/survey/done', element: <SurveyDonePage /> },
-      { path: '/learn/exam/take', element: <ExamTakePage /> },
-      { path: '/learn/exam/result', element: <ExamResultStudentPage /> },
-    ],
+    path: '/classes/new',
+    element: (
+      <ProtectedRoute>
+        <RoleGuard allowed={['teacher']}>
+          <CreateClassPage />
+        </RoleGuard>
+      </ProtectedRoute>
+    ),
   },
-  { path: '/classes/new', element: <ProtectedRoute><RoleGuard allowed={['teacher']}><CreateClassPage /></RoleGuard></ProtectedRoute> },
   {
     element: <AuthLayout />,
     children: [

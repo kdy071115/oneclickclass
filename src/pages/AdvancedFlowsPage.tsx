@@ -12,8 +12,9 @@ import {
   Trophy,
   Users,
 } from 'lucide-react';
+import QRCode from 'qrcode';
 import { useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/common/PageHeader';
 
 const people = [
@@ -347,9 +348,12 @@ export function StudentFlowPage() {
   );
 }
 export function PublishDonePage() {
+  const [params] = useSearchParams();
   const [toast, setToast] = useState('');
-  const [copied, setCopied] = useState(false);
-  const link = 'https://oneclick.class/s/notion-auto';
+  const [qrUrl, setQrUrl] = useState('');
+  const sharePath = `/s/${params.get('shareToken') || 'notion-auto'}`;
+  const link = `${window.location.origin}${sharePath}`;
+  const displayLink = link.replace(/^https?:\/\//, '');
   const confetti = [
     ['8%', '#3182f6', '2.4s', '0s'],
     ['24%', '#12b886', '2.7s', '.3s'],
@@ -364,9 +368,12 @@ export function PublishDonePage() {
     window.setTimeout(() => setToast(''), 2000);
   };
   const copy = () => {
-    setCopied(true);
     notify('신청 링크를 복사했어요');
     void navigator.clipboard?.writeText(link).catch(() => undefined);
+  };
+  const prepareQr = async () => {
+    setQrUrl(await QRCode.toDataURL(link, { width: 220, margin: 1 }));
+    notify('신청 페이지 QR 코드를 만들었어요');
   };
   const share = async () => {
     try {
@@ -402,7 +409,7 @@ export function PublishDonePage() {
           </p>
           <div className="published-link">
             <Link2 />
-            <span>oneclick.class/s/notion-auto</span>
+            <span>{displayLink}</span>
             <button onClick={copy}>복사</button>
           </div>
           <button className="publish-copy-main" onClick={copy}>
@@ -431,17 +438,16 @@ export function PublishDonePage() {
               공유하기
             </button>
           </div>
-          <Link className="secondary" to="/s/notion-auto">
-            실제 신청 페이지 열기
+          <Link className="secondary" to={sharePath}>
+            신청 페이지 열기
           </Link>
-          {copied && (
-            <div className="publish-next-inline">
-              <b>다음으로 할 일</b>
-              <Link to="/applicants"><Users /> 신청자 현황 보기</Link>
-              <Link to="/classes"><CircleCheck /> 강의 관리로 이동</Link>
-              <button onClick={copy}><QrCode /> QR 링크 준비</button>
-            </div>
-          )}
+          <div className="publish-next-inline">
+            <b>다음으로 할 일</b>
+            {qrUrl && <span className="publish-qr-preview"><img src={qrUrl} alt="신청 페이지 QR 코드" /><small>스캔하면 신청 페이지가 열려요</small></span>}
+            <Link to="/applicants"><Users /> 신청자 현황 보기</Link>
+            <Link to="/classes"><CircleCheck /> 강의 관리로 이동</Link>
+            <button onClick={() => void prepareQr()}><QrCode /> 신청 QR 만들기</button>
+          </div>
         </section>
         {toast && <div className="done-toast" aria-live="polite">{toast}</div>}
       </div>
@@ -469,7 +475,7 @@ export function PublishDonePage() {
         </p>
         <div className="published-link">
           <Link2 />
-          <span>oneclick.class/s/notion-auto</span>
+          <span>{displayLink}</span>
           <button onClick={copy}>복사</button>
         </div>
         <div className="share-actions">
@@ -493,9 +499,16 @@ export function PublishDonePage() {
             </i>
             공유하기
           </button>
+          <button onClick={() => void prepareQr()}>
+            <i>
+              <QrCode />
+            </i>
+            신청 QR
+          </button>
         </div>
-        <Link className="secondary" to="/s/notion-auto">
-          실제 신청 페이지 열기
+        {qrUrl && <span className="publish-qr-preview"><img src={qrUrl} alt="신청 페이지 QR 코드" /><small>스캔하면 신청 페이지가 열려요</small></span>}
+        <Link className="secondary" to={sharePath}>
+          신청 페이지 열기
         </Link>
         <Link className="done-home" to="/">
           홈으로 가기

@@ -54,6 +54,39 @@ export interface ClassDetail extends ClassItem {
   sessions: number;
   location: string;
   rating: number;
+  reviewCount: number;
+  completionRate: number;
+  shareToken: string;
+  applicantTrend: number[];
+  curriculum: {
+    id: string;
+    title: string;
+    description: string;
+    durationText: string;
+    published: boolean;
+  }[];
+  recentActivities: {
+    id: string;
+    type: 'applicant' | 'completion' | 'review';
+    label: string;
+    occurredAt: string;
+  }[];
+}
+export type LessonContentType = 'video' | 'live' | 'document' | 'assignment';
+export interface CurriculumLesson {
+  id: string;
+  title: string;
+  description: string;
+  contentType: LessonContentType;
+  contentUrl: string;
+  durationMinutes: number;
+  preview: boolean;
+  published: boolean;
+}
+export interface CurriculumSection {
+  id: string;
+  title: string;
+  lessons: CurriculumLesson[];
 }
 export interface SurveyQuestion {
   id: string;

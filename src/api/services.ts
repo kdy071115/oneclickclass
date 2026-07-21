@@ -1,15 +1,119 @@
 import { apiClient } from './client';
 import type { AuthSession, LoginRequest, SignupRequest } from '../types/auth';
-import type { ApplicantUpdate, AttendanceRow, PageQuery, PageResponse, QrSession } from '../types/api';
-import { applicants, certificates, classDetail, classes, dashboard, examQuestions, faqs, notifications, notificationSettings, paymentSummary, settlementSummary, surveyQuestions } from '../constants/mockData';
-import type { Applicant, CertificateItem, ClassDetail, ClassDraft, ClassItem, Dashboard, ExamQuestion, FaqItem, NotificationItem, NotificationSetting, PaymentSummary, SettlementSummary, SurveyQuestion } from '../types/class';
+import type {
+  ApplicantUpdate,
+  AttendanceRow,
+  ClassSettingsUpdate,
+  PageQuery,
+  PageResponse,
+  QrSession,
+  SurveyOverviewItem,
+} from '../types/api';
+import {
+  applicants,
+  certificates,
+  classDetail,
+  classes,
+  dashboard,
+  examQuestions,
+  faqs,
+  notifications,
+  notificationSettings,
+  paymentSummary,
+  settlementSummary,
+  surveyQuestions,
+} from '../constants/mockData';
+import type {
+  Applicant,
+  CertificateItem,
+  ClassDetail,
+  ClassDraft,
+  ClassItem,
+  CurriculumLesson,
+  CurriculumSection,
+  Dashboard,
+  ExamQuestion,
+  FaqItem,
+  NotificationItem,
+  NotificationSetting,
+  PaymentSummary,
+  SettlementSummary,
+  SurveyQuestion,
+} from '../types/class';
+import { initialClassDraft } from '../constants/classDraft';
+import { loadClassPreview } from '../utils/classDraft';
 const mock = import.meta.env.VITE_USE_MOCK !== 'false';
-const delay = <T,>(data:T) => new Promise<T>((resolve)=>setTimeout(()=>resolve(data),350));
-const pageItems = <T,>(items: T[], query: PageQuery = {}): PageResponse<T> => {
+const delay = <T>(data: T) => new Promise<T>((resolve) => setTimeout(() => resolve(data), 350));
+const MOCK_CLASSES_KEY = 'oneclick.mock.classes';
+const curriculumKey = (classId: string) => `oneclick.curriculum.${classId}`;
+const classTypeLabel: Record<ClassDraft['type'], string> = {
+  online: '온라인',
+  live: '라이브',
+  offline: '오프라인',
+  hybrid: '혼합형',
+};
+const savedMockClasses = (): ClassItem[] => {
+  try {
+    const saved =
+      localStorage.getItem(MOCK_CLASSES_KEY) || sessionStorage.getItem(MOCK_CLASSES_KEY) || '[]';
+    if (saved !== '[]' && !localStorage.getItem(MOCK_CLASSES_KEY))
+      localStorage.setItem(MOCK_CLASSES_KEY, saved);
+    return JSON.parse(saved) as ClassItem[];
+  } catch {
+    return [];
+  }
+};
+const mockClasses = () => [
+  ...savedMockClasses(),
+  ...classes.filter((item) => !savedMockClasses().some((saved) => saved.id === item.id)),
+];
+const saveMockClasses = (items: ClassItem[]) =>
+  localStorage.setItem(
+    MOCK_CLASSES_KEY,
+    JSON.stringify(items.map((item) => ({ ...item, thumbnail: undefined }))),
+  );
+const defaultCurriculum = (classId: string): CurriculumSection[] =>
+  classId === classDetail.id
+    ? [
+        {
+          id: 'section-1',
+          title: '전체 과정',
+          lessons: classDetail.curriculum.map((item) => ({
+            id: item.id,
+            title: item.title,
+            description: item.description,
+            contentType: 'video',
+            contentUrl: '',
+            durationMinutes: Number.parseInt(item.durationText, 10) || 0,
+            preview: false,
+            published: item.published,
+          })),
+        },
+      ]
+    : [];
+const mockCurriculum = (classId: string): CurriculumSection[] => {
+  try {
+    const saved = localStorage.getItem(curriculumKey(classId));
+    return saved ? (JSON.parse(saved) as CurriculumSection[]) : defaultCurriculum(classId);
+  } catch {
+    return defaultCurriculum(classId);
+  }
+};
+const saveMockCurriculum = (classId: string, sections: CurriculumSection[]) => {
+  localStorage.setItem(curriculumKey(classId), JSON.stringify(sections));
+  return sections;
+};
+const pageItems = <T>(items: T[], query: PageQuery = {}): PageResponse<T> => {
   const page = Math.max(1, query.page ?? 1);
   const size = Math.max(1, query.size ?? 20);
   const start = (page - 1) * size;
-  return { items: items.slice(start, start + size), page, size, total: items.length, totalPages: Math.ceil(items.length / size) };
+  return {
+    items: items.slice(start, start + size),
+    page,
+    size,
+    total: items.length,
+    totalPages: Math.ceil(items.length / size),
+  };
 };
 export const authService = {
   async login(input: LoginRequest) {
@@ -29,7 +133,9 @@ export const authService = {
     });
   },
   async refresh(refreshToken: string) {
-    return (await apiClient.post<Pick<AuthSession, 'accessToken'>>('/auth/refresh', { refreshToken })).data;
+    return (
+      await apiClient.post<Pick<AuthSession, 'accessToken'>>('/auth/refresh', { refreshToken })
+    ).data;
   },
   async logout(refreshToken?: string) {
     if (mock) return delay(undefined);
@@ -37,79 +143,428 @@ export const authService = {
   },
 };
 export const classService = {
-  dashboard: ():Promise<Dashboard> => mock ? delay(dashboard) : apiClient.get<Dashboard>('/dashboard').then(r=>r.data),
-  list: ():Promise<ClassItem[]> => mock ? delay(classes) : apiClient.get<ClassItem[]>('/classes').then(r=>r.data),
-  listPage: (query: PageQuery = {}): Promise<PageResponse<ClassItem>> => mock ? delay(pageItems(classes, query)) : apiClient.get<PageResponse<ClassItem>>('/classes', { params: query }).then(r=>r.data),
-  get: (id:string):Promise<ClassItem> => mock ? delay(classes.find(c=>c.id===id) ?? classes[0]) : apiClient.get<ClassItem>(`/classes/${id}`).then(r=>r.data),
-  create: (draft:ClassDraft):Promise<ClassItem> => mock ? delay({...classes[0],id:crypto.randomUUID(),title:draft.title,capacity:draft.capacity,enrolled:0,thumbnail:draft.thumbnail}) : apiClient.post<ClassItem>('/classes',draft).then(r=>r.data),
-  update: (id:string, draft:Partial<ClassDraft>):Promise<ClassItem> => mock ? delay({...classes[0],...draft,id}) : apiClient.patch<ClassItem>(`/classes/${id}`,draft).then(r=>r.data),
-  remove: (id:string):Promise<void> => mock ? delay(undefined) : apiClient.delete<void>(`/classes/${id}`).then(r=>r.data),
-  uploadImage: (file:File):Promise<{url:string}> => {
-    if (mock) return delay({url:URL.createObjectURL(file)});
-    const form = new FormData(); form.append('file',file);
-    return apiClient.post<{url:string}>('/classes/images',form,{headers:{'Content-Type':'multipart/form-data'}}).then(r=>r.data);
+  dashboard: (): Promise<Dashboard> =>
+    mock
+      ? delay({ ...dashboard, classes: mockClasses() })
+      : apiClient.get<Dashboard>('/dashboard').then((r) => r.data),
+  list: (): Promise<ClassItem[]> =>
+    mock ? delay(mockClasses()) : apiClient.get<ClassItem[]>('/classes').then((r) => r.data),
+  listPage: (query: PageQuery = {}): Promise<PageResponse<ClassItem>> =>
+    mock
+      ? delay(pageItems(mockClasses(), query))
+      : apiClient.get<PageResponse<ClassItem>>('/classes', { params: query }).then((r) => r.data),
+  get: (id: string): Promise<ClassItem> =>
+    mock
+      ? delay(mockClasses().find((c) => c.id === id) ?? classes[0])
+      : apiClient.get<ClassItem>(`/classes/${id}`).then((r) => r.data),
+  create: (draft: ClassDraft): Promise<ClassItem> => {
+    if (!mock) return apiClient.post<ClassItem>('/classes', draft).then((r) => r.data);
+    const item = {
+      ...classes[0],
+      id: crypto.randomUUID(),
+      title: draft.title,
+      type: classTypeLabel[draft.type],
+      date: draft.startDate || '일정 미정',
+      capacity: draft.capacity,
+      enrolled: 0,
+      thumbnail: draft.thumbnail,
+    };
+    saveMockClasses([item, ...savedMockClasses()]);
+    return delay(item);
+  },
+  update: (id: string, draft: Partial<ClassDraft>): Promise<ClassItem> => {
+    if (!mock) return apiClient.patch<ClassItem>(`/classes/${id}`, draft).then((r) => r.data);
+    const current = mockClasses().find((c) => c.id === id) ?? classes[0];
+    const item = {
+      ...current,
+      ...draft,
+      id,
+      type: draft.type ? classTypeLabel[draft.type] : current.type,
+      date: draft.startDate || current.date,
+    } as ClassItem;
+    saveMockClasses([item, ...savedMockClasses().filter((saved) => saved.id !== id)]);
+    return delay(item);
+  },
+  updateSettings: (id: string, update: ClassSettingsUpdate): Promise<void> =>
+    mock
+      ? delay(undefined)
+      : apiClient.patch<void>(`/classes/${id}/settings`, update).then((r) => r.data),
+  publish: (id: string): Promise<{ shareToken: string }> =>
+    mock
+      ? delay({ shareToken: id })
+      : apiClient.post<{ shareToken: string }>(`/classes/${id}/publish`).then((r) => r.data),
+  remove: (id: string): Promise<void> => {
+    if (!mock) return apiClient.delete<void>(`/classes/${id}`).then((r) => r.data);
+    saveMockClasses(savedMockClasses().filter((item) => item.id !== id));
+    return delay(undefined);
+  },
+  uploadImage: (file: File): Promise<{ url: string }> => {
+    if (mock) return delay({ url: URL.createObjectURL(file) });
+    const form = new FormData();
+    form.append('file', file);
+    return apiClient
+      .post<{ url: string }>('/classes/images', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((r) => r.data);
   },
 };
 export const applicantService = {
-  list: ():Promise<Applicant[]> => mock ? delay(applicants) : apiClient.get<Applicant[]>('/applicants').then(r=>r.data),
-  listPage: (query:PageQuery = {}):Promise<PageResponse<Applicant>> => mock ? delay(pageItems(applicants,query)) : apiClient.get<PageResponse<Applicant>>('/applicants',{params:query}).then(r=>r.data),
-  get: (id:string):Promise<Applicant> => mock ? delay(applicants.find(a=>a.id===id) ?? applicants[0]) : apiClient.get<Applicant>(`/applicants/${id}`).then(r=>r.data),
-  updatePayment: (id:string, update:ApplicantUpdate):Promise<Applicant> => mock ? delay({...applicants.find(a=>a.id===id) ?? applicants[0],payment:update.payment}) : apiClient.patch<Applicant>(`/applicants/${id}/payment`,update).then(r=>r.data),
-  sendMessage: (id:string, message:string):Promise<void> => mock ? delay(undefined) : apiClient.post<void>(`/applicants/${id}/messages`,{message}).then(r=>r.data),
+  list: (): Promise<Applicant[]> =>
+    mock ? delay(applicants) : apiClient.get<Applicant[]>('/applicants').then((r) => r.data),
+  listPage: (query: PageQuery = {}): Promise<PageResponse<Applicant>> =>
+    mock
+      ? delay(pageItems(applicants, query))
+      : apiClient
+          .get<PageResponse<Applicant>>('/applicants', { params: query })
+          .then((r) => r.data),
+  listByClass: (classId: string): Promise<Applicant[]> =>
+    mock
+      ? delay(applicants)
+      : apiClient.get<Applicant[]>(`/classes/${classId}/applicants`).then((r) => r.data),
+  get: (id: string): Promise<Applicant> =>
+    mock
+      ? delay(applicants.find((a) => a.id === id) ?? applicants[0])
+      : apiClient.get<Applicant>(`/applicants/${id}`).then((r) => r.data),
+  updatePayment: (id: string, update: ApplicantUpdate): Promise<Applicant> =>
+    mock
+      ? delay({
+          ...(applicants.find((a) => a.id === id) ?? applicants[0]),
+          payment: update.payment,
+        })
+      : apiClient.patch<Applicant>(`/applicants/${id}/payment`, update).then((r) => r.data),
+  sendMessage: (id: string, message: string): Promise<void> =>
+    mock
+      ? delay(undefined)
+      : apiClient.post<void>(`/applicants/${id}/messages`, { message }).then((r) => r.data),
 };
-export const detailService={
-  getClass:(id:string):Promise<ClassDetail>=>mock?delay({...classDetail,id}):apiClient.get<ClassDetail>(`/classes/${id}/detail`).then(r=>r.data),
-  surveyQuestions:():Promise<SurveyQuestion[]>=>mock?delay(surveyQuestions):apiClient.get<SurveyQuestion[]>('/surveys/current/questions').then(r=>r.data),
-  examQuestions:():Promise<ExamQuestion[]>=>mock?delay(examQuestions):apiClient.get<ExamQuestion[]>('/exams/current/questions').then(r=>r.data),
-  certificates:():Promise<CertificateItem[]>=>mock?delay(certificates):apiClient.get<CertificateItem[]>('/certificates').then(r=>r.data),
+export const detailService = {
+  getClass: (id: string): Promise<ClassDetail> => {
+    if (!mock) return apiClient.get<ClassDetail>(`/classes/${id}/detail`).then((r) => r.data);
+    const item = mockClasses().find((current) => current.id === id);
+    const draft = loadClassPreview(id, initialClassDraft);
+    const hasReview = Boolean(localStorage.getItem(`oneclick.review.${id}`));
+    const savedCurriculum = mockCurriculum(id);
+    return delay({
+      ...classDetail,
+      ...item,
+      id,
+      title: item?.title ?? classDetail.title,
+      summary: draft.summary || classDetail.summary,
+      description: draft.description || classDetail.description,
+      price: draft.payment === 'paid' ? draft.price : 0,
+      recruitEndDate: draft.recruitEndDate || classDetail.recruitEndDate,
+      location:
+        draft.type === 'offline' || draft.type === 'hybrid'
+          ? [draft.address, draft.detailedAddress].filter(Boolean).join(' ')
+          : draft.url || classDetail.location,
+      shareToken: id === 'notion' ? 'notion-auto' : id,
+      reviewCount: (id === 'notion' ? 2 : 0) + (hasReview ? 1 : 0),
+      curriculum: savedCurriculum.flatMap((section) =>
+        section.lessons.map((lesson) => ({
+          id: lesson.id,
+          title: lesson.title,
+          description: lesson.description,
+          durationText: `${lesson.durationMinutes}분`,
+          published: lesson.published,
+        })),
+      ),
+      sessions: savedCurriculum.reduce((total, section) => total + section.lessons.length, 0),
+      recentActivities: item?.enrolled
+        ? [
+            {
+              id: 'a1',
+              type: 'applicant' as const,
+              label: `신청자 ${item.enrolled}명`,
+              occurredAt: '최근 집계',
+            },
+          ]
+        : [],
+    });
+  },
+  surveyQuestions: (): Promise<SurveyQuestion[]> =>
+    mock
+      ? delay(surveyQuestions)
+      : apiClient.get<SurveyQuestion[]>('/surveys/current/questions').then((r) => r.data),
+  examQuestions: (): Promise<ExamQuestion[]> =>
+    mock
+      ? delay(examQuestions)
+      : apiClient.get<ExamQuestion[]>('/exams/current/questions').then((r) => r.data),
+  certificates: (): Promise<CertificateItem[]> =>
+    mock
+      ? delay(certificates)
+      : apiClient.get<CertificateItem[]>('/certificates').then((r) => r.data),
+};
+export const curriculumService = {
+  list: (classId: string): Promise<CurriculumSection[]> =>
+    mock
+      ? delay(mockCurriculum(classId))
+      : apiClient
+          .get<CurriculumSection[]>(`/classes/${classId}/curriculum`)
+          .then((response) => response.data),
+  createSection: (classId: string, title: string): Promise<CurriculumSection[]> => {
+    if (!mock)
+      return apiClient
+        .post<CurriculumSection[]>(`/classes/${classId}/curriculum/sections`, { title })
+        .then((response) => response.data);
+    const sections = [...mockCurriculum(classId), { id: crypto.randomUUID(), title, lessons: [] }];
+    return delay(saveMockCurriculum(classId, sections));
+  },
+  updateSection: (
+    classId: string,
+    sectionId: string,
+    title: string,
+  ): Promise<CurriculumSection[]> => {
+    if (!mock)
+      return apiClient
+        .patch<CurriculumSection[]>(`/classes/${classId}/curriculum/sections/${sectionId}`, {
+          title,
+        })
+        .then((response) => response.data);
+    const sections = mockCurriculum(classId).map((section) =>
+      section.id === sectionId ? { ...section, title } : section,
+    );
+    return delay(saveMockCurriculum(classId, sections));
+  },
+  deleteSection: (classId: string, sectionId: string): Promise<CurriculumSection[]> => {
+    if (!mock)
+      return apiClient
+        .delete<CurriculumSection[]>(`/classes/${classId}/curriculum/sections/${sectionId}`)
+        .then((response) => response.data);
+    const sections = mockCurriculum(classId).filter((section) => section.id !== sectionId);
+    return delay(saveMockCurriculum(classId, sections));
+  },
+  createLesson: (
+    classId: string,
+    sectionId: string,
+    lesson: Omit<CurriculumLesson, 'id'>,
+  ): Promise<CurriculumSection[]> => {
+    if (!mock)
+      return apiClient
+        .post<CurriculumSection[]>(`/classes/${classId}/curriculum/lessons`, {
+          sectionId,
+          ...lesson,
+        })
+        .then((response) => response.data);
+    const sections = mockCurriculum(classId).map((section) =>
+      section.id === sectionId
+        ? { ...section, lessons: [...section.lessons, { ...lesson, id: crypto.randomUUID() }] }
+        : section,
+    );
+    return delay(saveMockCurriculum(classId, sections));
+  },
+  updateLesson: (
+    classId: string,
+    lessonId: string,
+    lesson: Omit<CurriculumLesson, 'id'>,
+  ): Promise<CurriculumSection[]> => {
+    if (!mock)
+      return apiClient
+        .patch<CurriculumSection[]>(`/classes/${classId}/curriculum/lessons/${lessonId}`, lesson)
+        .then((response) => response.data);
+    const sections = mockCurriculum(classId).map((section) => ({
+      ...section,
+      lessons: section.lessons.map((item) =>
+        item.id === lessonId ? { ...lesson, id: lessonId } : item,
+      ),
+    }));
+    return delay(saveMockCurriculum(classId, sections));
+  },
+  deleteLesson: (classId: string, lessonId: string): Promise<CurriculumSection[]> => {
+    if (!mock)
+      return apiClient
+        .delete<CurriculumSection[]>(`/classes/${classId}/curriculum/lessons/${lessonId}`)
+        .then((response) => response.data);
+    const sections = mockCurriculum(classId).map((section) => ({
+      ...section,
+      lessons: section.lessons.filter((lesson) => lesson.id !== lessonId),
+    }));
+    return delay(saveMockCurriculum(classId, sections));
+  },
+  reorder: (classId: string, sections: CurriculumSection[]): Promise<CurriculumSection[]> =>
+    mock
+      ? delay(saveMockCurriculum(classId, sections))
+      : apiClient
+          .put<CurriculumSection[]>(`/classes/${classId}/curriculum/order`, { sections })
+          .then((response) => response.data),
 };
 export const userService = {
-  notifications: (): Promise<NotificationItem[]> => mock ? delay(notifications) : apiClient.get<NotificationItem[]>('/me/notifications').then(r=>r.data),
-  markNotificationsRead: (): Promise<void> => mock ? delay(undefined) : apiClient.post<void>('/me/notifications/read').then(r=>r.data),
-  settlement: (): Promise<SettlementSummary> => mock ? delay(settlementSummary) : apiClient.get<SettlementSummary>('/me/settlement').then(r=>r.data),
-  notificationSettings: (): Promise<NotificationSetting[]> => mock ? delay(notificationSettings) : apiClient.get<NotificationSetting[]>('/me/notification-settings').then(r=>r.data),
-  updateNotificationSetting: (key:string, enabled:boolean): Promise<NotificationSetting> => mock ? delay({...(notificationSettings.find(s=>s.key===key) ?? notificationSettings[0]), enabled}) : apiClient.patch<NotificationSetting>(`/me/notification-settings/${key}`, { enabled }).then(r=>r.data),
-  faqs: (): Promise<FaqItem[]> => mock ? delay(faqs) : apiClient.get<FaqItem[]>('/support/faqs').then(r=>r.data),
-  payment: (): Promise<PaymentSummary> => mock ? delay(paymentSummary) : apiClient.get<PaymentSummary>('/me/payment').then(r=>r.data),
-  setDefaultPaymentMethod: (id:string): Promise<PaymentSummary> => mock ? delay({...paymentSummary, methods: paymentSummary.methods.map(m=>({...m, isDefault:m.id===id}))}) : apiClient.patch<PaymentSummary>('/me/payment/default-method', { id }).then(r=>r.data),
+  notifications: (): Promise<NotificationItem[]> =>
+    mock
+      ? delay(notifications)
+      : apiClient.get<NotificationItem[]>('/me/notifications').then((r) => r.data),
+  markNotificationsRead: (): Promise<void> =>
+    mock ? delay(undefined) : apiClient.post<void>('/me/notifications/read').then((r) => r.data),
+  settlement: (): Promise<SettlementSummary> =>
+    mock
+      ? delay(settlementSummary)
+      : apiClient.get<SettlementSummary>('/me/settlement').then((r) => r.data),
+  notificationSettings: (): Promise<NotificationSetting[]> =>
+    mock
+      ? delay(notificationSettings)
+      : apiClient.get<NotificationSetting[]>('/me/notification-settings').then((r) => r.data),
+  updateNotificationSetting: (key: string, enabled: boolean): Promise<NotificationSetting> =>
+    mock
+      ? delay({
+          ...(notificationSettings.find((s) => s.key === key) ?? notificationSettings[0]),
+          enabled,
+        })
+      : apiClient
+          .patch<NotificationSetting>(`/me/notification-settings/${key}`, { enabled })
+          .then((r) => r.data),
+  faqs: (): Promise<FaqItem[]> =>
+    mock ? delay(faqs) : apiClient.get<FaqItem[]>('/support/faqs').then((r) => r.data),
+  payment: (): Promise<PaymentSummary> =>
+    mock ? delay(paymentSummary) : apiClient.get<PaymentSummary>('/me/payment').then((r) => r.data),
+  setDefaultPaymentMethod: (id: string): Promise<PaymentSummary> =>
+    mock
+      ? delay({
+          ...paymentSummary,
+          methods: paymentSummary.methods.map((m) => ({ ...m, isDefault: m.id === id })),
+        })
+      : apiClient.patch<PaymentSummary>('/me/payment/default-method', { id }).then((r) => r.data),
 };
 
-const attendanceRows: AttendanceRow[] = applicants.map((item, index) => ({ id: item.id, name: item.name, checkedAt: index === 3 ? undefined : `10:0${index}`, status: index === 3 ? '결석' : index === 2 ? '지각' : '출석' }));
+const attendanceRows: AttendanceRow[] = applicants.map((item, index) => ({
+  id: item.id,
+  name: item.name,
+  checkedAt: index === 3 ? undefined : `10:0${index}`,
+  status: index === 3 ? '결석' : index === 2 ? '지각' : '출석',
+}));
 
 export const attendanceService = {
-  issueQr: (classId:string):Promise<QrSession> => mock ? delay({token:crypto.randomUUID(),expiresAt:new Date(Date.now()+300000).toISOString()}) : apiClient.post<QrSession>(`/classes/${classId}/attendance/qr`).then(r=>r.data),
-  refreshQr: (classId:string):Promise<QrSession> => mock ? delay({token:crypto.randomUUID(),expiresAt:new Date(Date.now()+300000).toISOString()}) : apiClient.post<QrSession>(`/classes/${classId}/attendance/qr/refresh`).then(r=>r.data),
-  checkins: (classId:string):Promise<AttendanceRow[]> => mock ? delay(attendanceRows) : apiClient.get<AttendanceRow[]>(`/classes/${classId}/attendance/checkins`).then(r=>r.data),
-  subscribe: (classId:string, onCheckin:(row:AttendanceRow)=>void) => {
+  issueQr: (classId: string): Promise<QrSession> =>
+    mock
+      ? delay({
+          token: crypto.randomUUID(),
+          expiresAt: new Date(Date.now() + 300000).toISOString(),
+        })
+      : apiClient.post<QrSession>(`/classes/${classId}/attendance/qr`).then((r) => r.data),
+  refreshQr: (classId: string): Promise<QrSession> =>
+    mock
+      ? delay({
+          token: crypto.randomUUID(),
+          expiresAt: new Date(Date.now() + 300000).toISOString(),
+        })
+      : apiClient.post<QrSession>(`/classes/${classId}/attendance/qr/refresh`).then((r) => r.data),
+  checkins: (classId: string): Promise<AttendanceRow[]> =>
+    mock
+      ? delay(attendanceRows)
+      : apiClient
+          .get<AttendanceRow[]>(`/classes/${classId}/attendance/checkins`)
+          .then((r) => r.data),
+  subscribe: (classId: string, onCheckin: (row: AttendanceRow) => void) => {
     if (mock) return () => undefined;
-    const source = new EventSource(`${import.meta.env.VITE_API_BASE_URL ?? ''}/classes/${classId}/attendance/stream`);
+    const source = new EventSource(
+      `${import.meta.env.VITE_API_BASE_URL ?? ''}/classes/${classId}/attendance/stream`,
+    );
     source.onmessage = (event) => onCheckin(JSON.parse(event.data) as AttendanceRow);
     return () => source.close();
   },
 };
 
 export const surveyService = {
-  create: (classId:string, payload:unknown) => mock ? delay({id:crypto.randomUUID(),classId,payload}) : apiClient.post(`/classes/${classId}/surveys`,payload).then(r=>r.data),
-  responses: (surveyId:string) => mock ? delay([]) : apiClient.get(`/surveys/${surveyId}/responses`).then(r=>r.data),
-  summary: (surveyId:string) => mock ? delay({surveyId,responses:0}) : apiClient.get(`/surveys/${surveyId}/summary`).then(r=>r.data),
+  list: (classId: string): Promise<SurveyOverviewItem[]> =>
+    mock
+      ? delay([
+          {
+            id: 's1',
+            type: '설문',
+            title: '중간 만족도 설문',
+            meta: '5문항 · 익명',
+            status: '진행중',
+            response: 65,
+          },
+          {
+            id: 'e1',
+            type: '시험',
+            title: '3주차 퀴즈',
+            meta: '10문항 · 70점 이상 통과',
+            status: '마감',
+            response: 90,
+          },
+          {
+            id: 'e2',
+            type: '시험',
+            title: '최종 시험',
+            meta: '20문항 · 60분',
+            status: '예정',
+            response: 0,
+          },
+          {
+            id: 's2',
+            type: '설문',
+            title: '수료 후기 설문',
+            meta: '3문항 · 공개',
+            status: '진행중',
+            response: 40,
+          },
+        ] as SurveyOverviewItem[])
+      : apiClient.get<SurveyOverviewItem[]>(`/classes/${classId}/surveys`).then((r) => r.data),
+  create: (classId: string, payload: unknown) =>
+    mock
+      ? delay({ id: crypto.randomUUID(), classId, payload })
+      : apiClient.post(`/classes/${classId}/surveys`, payload).then((r) => r.data),
+  responses: (surveyId: string) =>
+    mock ? delay([]) : apiClient.get(`/surveys/${surveyId}/responses`).then((r) => r.data),
+  summary: (surveyId: string) =>
+    mock
+      ? delay({ surveyId, responses: 0 })
+      : apiClient.get(`/surveys/${surveyId}/summary`).then((r) => r.data),
 };
 
 export const examService = {
-  create: (classId:string, payload:unknown) => mock ? delay({id:crypto.randomUUID(),classId,payload}) : apiClient.post(`/classes/${classId}/exams`,payload).then(r=>r.data),
-  responses: (examId:string) => mock ? delay([]) : apiClient.get(`/exams/${examId}/responses`).then(r=>r.data),
-  summary: (examId:string) => mock ? delay({examId,responses:0}) : apiClient.get(`/exams/${examId}/summary`).then(r=>r.data),
+  create: (classId: string, payload: unknown) =>
+    mock
+      ? delay({ id: crypto.randomUUID(), classId, payload })
+      : apiClient.post(`/classes/${classId}/exams`, payload).then((r) => r.data),
+  responses: (examId: string) =>
+    mock ? delay([]) : apiClient.get(`/exams/${examId}/responses`).then((r) => r.data),
+  summary: (examId: string) =>
+    mock
+      ? delay({ examId, responses: 0 })
+      : apiClient.get(`/exams/${examId}/summary`).then((r) => r.data),
 };
 
 export const certificateService = {
-  recipients: (classId:string):Promise<Applicant[]> => mock ? delay(applicants.slice(1)) : apiClient.get<Applicant[]>(`/classes/${classId}/certificates/recipients`).then(r=>r.data),
-  issue: (classId:string, applicantIds:string[]):Promise<void> => mock ? delay(undefined) : apiClient.post<void>(`/classes/${classId}/certificates`,{applicantIds}).then(r=>r.data),
-  download: (certificateId:string):Promise<Blob> => apiClient.get(`/certificates/${certificateId}/pdf`,{responseType:'blob'}).then(r=>r.data),
+  recipients: (classId: string): Promise<Applicant[]> =>
+    mock
+      ? delay(applicants.slice(1))
+      : apiClient
+          .get<Applicant[]>(`/classes/${classId}/certificates/recipients`)
+          .then((r) => r.data),
+  issue: (classId: string, applicantIds: string[]): Promise<void> =>
+    mock
+      ? delay(undefined)
+      : apiClient
+          .post<void>(`/classes/${classId}/certificates`, { applicantIds })
+          .then((r) => r.data),
+  download: (certificateId: string): Promise<Blob> =>
+    apiClient
+      .get(`/certificates/${certificateId}/pdf`, { responseType: 'blob' })
+      .then((r) => r.data),
 };
 
 export const settlementService = {
-  summary: ():Promise<SettlementSummary> => userService.settlement(),
-  updateAccount: (account:string):Promise<SettlementSummary> => mock ? delay({...settlementSummary,account}) : apiClient.put<SettlementSummary>('/settlements/account',{account}).then(r=>r.data),
-  exportCsv: ():Promise<Blob> => mock ? delay(new Blob([['클래스,정산일,정산액',...settlementSummary.rows.map(row=>`${row.title},${row.date},${row.amount}`)].join('\n')],{type:'text/csv;charset=utf-8'})) : apiClient.get('/settlements/export',{responseType:'blob'}).then(r=>r.data),
+  summary: (): Promise<SettlementSummary> => userService.settlement(),
+  updateAccount: (account: string): Promise<SettlementSummary> =>
+    mock
+      ? delay({ ...settlementSummary, account })
+      : apiClient.put<SettlementSummary>('/settlements/account', { account }).then((r) => r.data),
+  exportCsv: (): Promise<Blob> =>
+    mock
+      ? delay(
+          new Blob(
+            [
+              [
+                '클래스,정산일,정산액',
+                ...settlementSummary.rows.map((row) => `${row.title},${row.date},${row.amount}`),
+              ].join('\n'),
+            ],
+            { type: 'text/csv;charset=utf-8' },
+          ),
+        )
+      : apiClient.get('/settlements/export', { responseType: 'blob' }).then((r) => r.data),
 };
 
 export const notificationService = {
@@ -117,9 +572,11 @@ export const notificationService = {
   markAllRead: userService.markNotificationsRead,
   settings: userService.notificationSettings,
   updateSetting: userService.updateNotificationSetting,
-  subscribe: (onNotification:(item:NotificationItem)=>void) => {
+  subscribe: (onNotification: (item: NotificationItem) => void) => {
     if (mock) return () => undefined;
-    const source = new EventSource(`${import.meta.env.VITE_API_BASE_URL ?? ''}/notifications/stream`);
+    const source = new EventSource(
+      `${import.meta.env.VITE_API_BASE_URL ?? ''}/notifications/stream`,
+    );
     source.onmessage = (event) => onNotification(JSON.parse(event.data) as NotificationItem);
     return () => source.close();
   },
@@ -127,290 +584,10 @@ export const notificationService = {
 
 export const dashboardService = { get: classService.dashboard };
 
-export type OneClickShare = {
-  shareToken: string;
-  courseActiveSeq: string;
-  courseMasterSeq?: string;
-  title: string;
-  summary: string;
-  description: string;
-  price: number;
-  capacity: number;
-  enrolled: number;
-  applyStatus: 'OPEN' | 'CLOSED';
-  paymentType: 'FREE' | 'PAID';
-  instructorName: string;
-  scheduleText: string;
-  locationText: string;
-};
-
-export type OneClickEnrollment = {
-  memberSeq: string;
-  courseApplySeq: string;
-  courseActiveSeq: string;
-  learnerName: string;
-  applyStatusCd: 'APPLY_STATUS::001' | 'APPLY_STATUS::002' | 'APPLY_STATUS::004';
-  progress: number;
-  lastPosition: string;
-};
-
-export type OneClickLesson = {
-  lessonId: string;
-  title: string;
-  description?: string;
-  durationText: string;
-  progress: number;
-  locked: boolean;
-  completed: boolean;
-  playable: boolean;
-  currentSeconds?: number;
-};
-
-export type OneClickToolSummary = {
-  noticeCount: number;
-  resourceCount: number;
-  examCount: number;
-  surveyCount: number;
-};
-
-export type OneClickLearnRoom = OneClickEnrollment & {
-  courseTitle: string;
-  courseSummary: string;
-  lessons: OneClickLesson[];
-  tools: OneClickToolSummary;
-};
-
-const oneclickEnrollmentKey = (courseActiveSeq:string) => `oneclick.enrollment.${courseActiveSeq}`;
-
-const asRecord = (value: unknown): Record<string, unknown> => (value && typeof value === 'object' ? value as Record<string, unknown> : {});
-const pickRecord = (source: Record<string, unknown>, keys: string[]) => {
-  for (const key of keys) {
-    const value = source[key];
-    if (value && typeof value === 'object') return value as Record<string, unknown>;
-  }
-  return {};
-};
-const pickString = (source: Record<string, unknown>, keys: string[], fallback = '') => {
-  for (const key of keys) {
-    const value = source[key];
-    if (typeof value === 'string' && value.trim()) return value;
-    if (typeof value === 'number') return String(value);
-  }
-  return fallback;
-};
-const pickNumber = (source: Record<string, unknown>, keys: string[], fallback = 0) => {
-  for (const key of keys) {
-    const value = source[key];
-    if (typeof value === 'number' && Number.isFinite(value)) return value;
-    if (typeof value === 'string' && value.trim() && Number.isFinite(Number(value))) return Number(value);
-  }
-  return fallback;
-};
-const pickBoolean = (source: Record<string, unknown>, keys: string[], fallback = false) => {
-  for (const key of keys) {
-    const value = source[key];
-    if (typeof value === 'boolean') return value;
-    if (value === 'Y') return true;
-    if (value === 'N') return false;
-  }
-  return fallback;
-};
-const firstArray = (source: Record<string, unknown>, keys: string[]) => {
-  for (const key of keys) {
-    const value = source[key];
-    if (Array.isArray(value)) return value;
-    const record = asRecord(value);
-    if (Array.isArray(record.items)) return record.items;
-    if (Array.isArray(record.list)) return record.list;
-    if (Array.isArray(record.resultList)) return record.resultList;
-  }
-  return [];
-};
-const normalizeApplyStatus = (value: string): OneClickShare['applyStatus'] => (
-  value === 'CLOSED' || value === 'N' || value.includes('CLOSE') ? 'CLOSED' : 'OPEN'
-);
-const normalizePaymentType = (price: number, value: string): OneClickShare['paymentType'] => (
-  price > 0 || value === 'PAID' || value.includes('PAY') ? 'PAID' : 'FREE'
-);
-
-const normalizeShare = (raw: unknown, shareToken: string): OneClickShare => {
-  const root = asRecord(raw);
-  const courseActive = pickRecord(root, ['courseActive', 'active', 'courseActiveVO']);
-  const courseMaster = pickRecord(root, ['courseMaster', 'master']);
-  const instructor = pickRecord(root, ['instructor', 'teacher', 'professor', 'member']);
-  const merged = { ...root, ...courseMaster, ...courseActive };
-  const title = pickString(merged, ['title', 'courseActiveTitle', 'courseMasterTitle', 'courseTitle'], mockShare(shareToken).title);
-  const price = pickNumber(merged, ['price', 'educationCost', 'tuition', 'coursePrice'], mockShare(shareToken).price);
-  return {
-    shareToken: pickString(root, ['shareToken', 'token'], shareToken),
-    courseActiveSeq: pickString(merged, ['courseActiveSeq', 'course_active_seq', 'activeSeq'], mockShare(shareToken).courseActiveSeq),
-    courseMasterSeq: pickString(merged, ['courseMasterSeq', 'course_master_seq', 'masterSeq'], mockShare(shareToken).courseMasterSeq),
-    title,
-    summary: pickString(merged, ['summary', 'courseActiveSummary', 'courseSummary', 'subtitle'], mockShare(shareToken).summary),
-    description: pickString(merged, ['description', 'courseActiveDescription', 'intro', 'contents'], mockShare(shareToken).description),
-    price,
-    capacity: pickNumber(merged, ['capacity', 'courseMemberCnt', 'limitCnt', 'recruitCnt'], mockShare(shareToken).capacity),
-    enrolled: pickNumber(merged, ['enrolled', 'applyCnt', 'takeCnt', 'memberCnt'], mockShare(shareToken).enrolled),
-    applyStatus: normalizeApplyStatus(pickString(merged, ['applyStatus', 'applyYn', 'recruitStatusCd'], 'OPEN')),
-    paymentType: normalizePaymentType(price, pickString(merged, ['paymentType', 'paymentTypeCd', 'priceTypeCd'], '')),
-    instructorName: pickString(instructor, ['instructorName', 'memberFullName', 'profName', 'name'], mockShare(shareToken).instructorName),
-    scheduleText: pickString(merged, ['scheduleText', 'studyPeriodText', 'coursePeriodText', 'schedule'], mockShare(shareToken).scheduleText),
-    locationText: pickString(merged, ['locationText', 'educationPlace', 'place', 'classroom'], mockShare(shareToken).locationText),
-  };
-};
-
-const normalizeEnrollment = (raw: unknown, fallbackCourseActiveSeq: string, fallbackName = '수강생'): OneClickEnrollment => {
-  const root = asRecord(raw);
-  const apply = pickRecord(root, ['apply', 'courseApply', 'courseApplyVO', 'enrollment']);
-  const member = pickRecord(root, ['member', 'user', 'learner']);
-  const merged = { ...root, ...apply };
-  return {
-    memberSeq: pickString({ ...merged, ...member }, ['memberSeq', 'userId', 'memberId'], ''),
-    courseApplySeq: pickString(merged, ['courseApplySeq', 'enrollmentId', 'applySeq'], ''),
-    courseActiveSeq: pickString(merged, ['courseActiveSeq', 'course_active_seq', 'activeSeq'], fallbackCourseActiveSeq),
-    learnerName: pickString({ ...member, ...merged }, ['learnerName', 'memberFullName', 'name', 'memberName'], fallbackName),
-    applyStatusCd: pickString(merged, ['applyStatusCd', 'applyStatus', 'status'], 'APPLY_STATUS::002') as OneClickEnrollment['applyStatusCd'],
-    progress: Math.min(100, Math.max(0, pickNumber(merged, ['progress', 'progressRate', 'totalProgress', 'appMyRateScore'], 0))),
-    lastPosition: pickString(merged, ['lastPosition', 'lastStudyPosition', 'resumeText'], '1강 0분 0초'),
-  };
-};
-
-const fallbackLessons = (): OneClickLesson[] => [
-  ['1', '업무 구조 잡기', '흩어진 업무를 수강생 상황에 맞게 정리합니다.', '42분', 100],
-  ['2', '자동화 흐름 만들기', '반복 입력, 알림, 상태 변경을 자동화합니다.', '52분', 62],
-  ['3', '팀 협업 템플릿 완성', '함께 쓰기 좋은 권한과 보드 구조를 만듭니다.', '48분', 0],
-].map(([step, title, description, durationText, progress], index) => ({
-  lessonId: String(step),
-  title: String(title),
-  description: String(description),
-  durationText: String(durationText),
-  progress: Number(progress),
-  locked: index >= 2,
-  completed: Number(progress) >= 100,
-  playable: index < 2,
-}));
-
-const normalizeLessons = (raw: unknown): OneClickLesson[] => {
-  const root = asRecord(raw);
-  const list = firstArray(root, ['lessons', 'curriculum', 'elementList', 'listElement', 'list']);
-  if (!list.length) return fallbackLessons();
-  return list.map((item, index) => {
-    const record = asRecord(item);
-    const progress = Math.min(100, Math.max(0, pickNumber(record, ['progress', 'progressRate', 'rate', 'completeRate'], index === 0 ? 100 : 0)));
-    const locked = pickBoolean(record, ['locked', 'lockYn'], false) || pickString(record, ['useYn', 'playableYn'], 'Y') === 'N';
-    return {
-      lessonId: pickString(record, ['lessonId', 'activeElementSeq', 'organizationSeq', 'itemSeq', 'seq'], String(index + 1)),
-      title: pickString(record, ['title', 'elementTitle', 'organizationTitle', 'itemTitle', 'name'], `${index + 1}강`),
-      description: pickString(record, ['description', 'summary', 'contents'], ''),
-      durationText: pickString(record, ['durationText', 'studyTimeText', 'learningTimeText'], `${pickNumber(record, ['durationMinutes', 'studyTime', 'learningTime'], 0)}분`),
-      progress,
-      locked,
-      completed: pickBoolean(record, ['completed', 'completeYn'], progress >= 100),
-      playable: !locked,
-      currentSeconds: pickNumber(record, ['currentSeconds', 'lastSeconds'], 0),
-    };
-  });
-};
-
-const normalizeTools = (raw: unknown): OneClickToolSummary => {
-  const root = asRecord(raw);
-  return {
-    noticeCount: pickNumber(root, ['noticeCount', 'noticeCnt'], firstArray(root, ['noticeList', 'listNotice']).length),
-    resourceCount: pickNumber(root, ['resourceCount', 'resourceCnt'], firstArray(root, ['resourceList', 'listResource']).length),
-    examCount: pickNumber(root, ['examCount', 'examCnt'], firstArray(root, ['examList', 'listExamPaper']).length),
-    surveyCount: pickNumber(root, ['surveyCount', 'surveyCnt'], firstArray(root, ['surveyList', 'listSurveyPaper']).length),
-  };
-};
-
-const normalizeLearnRoom = (raw: unknown, fallbackCourseActiveSeq: string): OneClickLearnRoom => {
-  const root = asRecord(raw);
-  const enrollment = normalizeEnrollment(raw, fallbackCourseActiveSeq);
-  const share = normalizeShare(raw, fallbackCourseActiveSeq);
-  return {
-    ...enrollment,
-    progress: enrollment.progress || pickNumber(root, ['appMyRateScore', 'totalProgress'], 0),
-    courseTitle: pickString(root, ['courseTitle', 'courseActiveTitle'], share.title),
-    courseSummary: pickString(root, ['courseSummary', 'summary'], share.summary),
-    lessons: normalizeLessons(raw),
-    tools: normalizeTools(raw),
-  };
-};
-
-const mockShare = (shareToken:string): OneClickShare => {
-  const draft = classes[0];
-  return {
-    shareToken,
-    courseActiveSeq: shareToken === '7KpX92Lm' ? '104' : 'notion',
-    courseMasterSeq: 'notion-master',
-    title: draft.title,
-    summary: '반복 업무를 자동화하는 실전 4주 과정',
-    description: '데이터베이스 설계부터 반복 업무 자동화, 팀 협업 템플릿까지 직접 만들며 배웁니다.',
-    price: 45000,
-    capacity: draft.capacity,
-    enrolled: draft.enrolled,
-    applyStatus: 'OPEN',
-    paymentType: 'PAID',
-    instructorName: '이지훈',
-    scheduleText: '자유 수강',
-    locationText: '온라인 강의실',
-  };
-};
-
-export const oneclickService = {
-  share: (shareToken:string): Promise<OneClickShare> =>
-    mock ? delay(mockShare(shareToken)) : apiClient.get<unknown>(`/oneclick/shares/${shareToken}`).then(r=>normalizeShare(r.data, shareToken)),
-  apply: (shareToken:string, input:{name:string; phone:string; email?:string}): Promise<OneClickEnrollment> => {
-    if (!mock) return apiClient.post<unknown>(`/oneclick/shares/${shareToken}/apply`, input).then(r=>normalizeEnrollment(r.data, '', input.name));
-    const share = mockShare(shareToken);
-    const enrollment = {
-      memberSeq: crypto.randomUUID(),
-      courseApplySeq: crypto.randomUUID(),
-      courseActiveSeq: share.courseActiveSeq,
-      learnerName: input.name,
-      applyStatusCd: 'APPLY_STATUS::002' as const,
-      progress: 62,
-      lastPosition: '3강 14분 27초',
-    };
-    localStorage.setItem(oneclickEnrollmentKey(share.courseActiveSeq), JSON.stringify(enrollment));
-    return delay(enrollment);
-  },
-  enrollment: (courseActiveSeq:string): Promise<OneClickEnrollment | null> => {
-    if (!mock) return apiClient.get<unknown>(`/oneclick/learn/${courseActiveSeq}`).then(r=>normalizeEnrollment(r.data, courseActiveSeq)).catch(()=>null);
-    const value = localStorage.getItem(oneclickEnrollmentKey(courseActiveSeq));
-    if (!value) return delay(null);
-    const enrollment = JSON.parse(value) as OneClickEnrollment;
-    return delay({ ...enrollment, courseActiveSeq: enrollment.courseActiveSeq || courseActiveSeq });
-  },
-  learnRoom: (courseActiveSeq:string): Promise<OneClickLearnRoom | null> => {
-    if (!mock) return apiClient.get<unknown>(`/oneclick/learn/${courseActiveSeq}/room`).then(r=>normalizeLearnRoom(r.data, courseActiveSeq)).catch(()=>null);
-    const value = localStorage.getItem(oneclickEnrollmentKey(courseActiveSeq));
-    if (!value) return delay(null);
-    const enrollment = JSON.parse(value) as OneClickEnrollment;
-    return delay({
-      ...enrollment,
-      courseActiveSeq: enrollment.courseActiveSeq || courseActiveSeq,
-      courseTitle: mockShare(courseActiveSeq).title,
-      courseSummary: mockShare(courseActiveSeq).summary,
-      lessons: fallbackLessons(),
-      tools: { noticeCount: 1, resourceCount: 3, examCount: 1, surveyCount: 1 },
-    });
-  },
-  continueWithPhone: (courseActiveSeq:string, phone:string): Promise<OneClickEnrollment> => {
-    if (!mock) return apiClient.post<unknown>(`/oneclick/learn/${courseActiveSeq}/continue`, { phone }).then(r=>normalizeEnrollment(r.data, courseActiveSeq));
-    const enrollment = {
-      memberSeq: crypto.randomUUID(),
-      courseApplySeq: crypto.randomUUID(),
-      courseActiveSeq,
-      learnerName: '수강생',
-      applyStatusCd: 'APPLY_STATUS::002' as const,
-      progress: 62,
-      lastPosition: '3강 14분 27초',
-    };
-    localStorage.setItem(oneclickEnrollmentKey(courseActiveSeq), JSON.stringify(enrollment));
-    return delay(enrollment);
-  },
-  heartbeat: (courseActiveSeq:string, input:{courseApplySeq:string; lessonId:string; currentSeconds:number; playing:boolean}): Promise<void> => {
-    if (mock) return delay(undefined);
-    return apiClient.post<void>(`/oneclick/learn/${courseActiveSeq}/heartbeat`, input).then(r=>r.data);
-  },
-};
+export { oneclickService } from './oneclick';
+export type {
+  OneClickEnrollment,
+  OneClickLearnRoom,
+  OneClickLesson,
+  OneClickShare,
+} from './oneclick';
