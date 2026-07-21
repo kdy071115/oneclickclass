@@ -39,8 +39,20 @@ export function HomePage() {
       <div className="oc-web-page">
         <div className="oc-web-head">
           <h1>대시보드</h1>
-          <p>오늘 강의 2개, 신규 신청 3건이 있어요</p>
+          <p>강의를 만들고 신청 링크를 공유하세요</p>
         </div>
+
+        <section className="oc-onboarding-panel">
+          <div>
+            <small>처음 시작하기</small>
+            <h2>첫 강의를 만들면 신청 링크까지 바로 준비돼요</h2>
+            <p>제목, 진행 방식, 일정만 정하면 수강생이 신청할 수 있는 페이지를 만들 수 있어요.</p>
+          </div>
+          <div className="oc-onboarding-actions">
+            <Link className="oc-create" to="/classes/new"><Plus size={18} /> 강의 만들기</Link>
+            <Link to="/s/notion-auto">신청 페이지 샘플 보기</Link>
+          </div>
+        </section>
 
         <section className="oc-grid-2 dashboard-overview">
           <div className="dashboard-primary">
@@ -212,14 +224,14 @@ export function HomePage() {
           </button>
         </header>
         <>
-            <button className="hero" onClick={() => nav('/attendance/select')}>
+            <button className="hero" onClick={() => nav('/classes/new')}>
               <strong>
-                지훈님, 오늘
+                지훈님, 첫 강의를
                 <br />
-                강의 2개가 있어요 🎓
+                만들어볼까요?
               </strong>
               <span>
-                오늘 일정 보기 <ChevronRight size={15} />
+                신청 링크까지 만들기 <ChevronRight size={15} />
               </span>
               <i />
             </button>

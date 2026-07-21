@@ -71,7 +71,7 @@ export function LoginPage() {
           <i />
           <button onClick={() => setError('비밀번호 재설정 링크를 보냈어요.')}>비밀번호 찾기</button>
           <i />
-          <Link to="/signup">회원가입</Link>
+          <Link to="/signup" state={location.state}>회원가입</Link>
         </div>
         <div className="sns-divider">
           <span>SNS 계정으로 로그인</span>

@@ -6,9 +6,11 @@ import {
   Link2,
   Minus,
   Plus,
+  QrCode,
   Share2,
   Star,
   Trophy,
+  Users,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
@@ -346,6 +348,7 @@ export function StudentFlowPage() {
 }
 export function PublishDonePage() {
   const [toast, setToast] = useState('');
+  const [copied, setCopied] = useState(false);
   const link = 'https://oneclick.class/s/notion-auto';
   const confetti = [
     ['8%', '#3182f6', '2.4s', '0s'],
@@ -361,6 +364,7 @@ export function PublishDonePage() {
     window.setTimeout(() => setToast(''), 2000);
   };
   const copy = () => {
+    setCopied(true);
     notify('신청 링크를 복사했어요');
     void navigator.clipboard?.writeText(link).catch(() => undefined);
   };
@@ -373,65 +377,135 @@ export function PublishDonePage() {
     }
   };
   return (
-    <div className="page publish-done exact-done">
-      {confetti.map(([left, background, animationDuration, animationDelay]) => (
-        <i
-          className="confetti"
-          style={{ left, background, animationDuration, animationDelay }}
-          key={left}
-        />
-      ))}
-      <div className="done-check">
-        <Check strokeWidth={2.6} />
-      </div>
-      <h1>
-        클래스가
-        <br />
-        공개됐어요! 🎉
-      </h1>
-      <p>
-        이제 링크만 공유하면
-        <br />
-        바로 신청받을 수 있어요
-      </p>
-      <div className="published-link">
-        <Link2 />
-        <span>oneclick.class/s/notion-auto</span>
-        <button onClick={copy}>복사</button>
-      </div>
-      <div className="share-actions">
-        <button onClick={share}>
-          <i className="kakao-icon">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 3C6.5 3 2 6.6 2 11c0 2.8 1.9 5.3 4.7 6.7-.2.7-.7 2.7-.8 3.1 0 .2.1.4.4.2.2-.1 2.8-1.9 3.9-2.7.6.1 1.2.1 1.8.1 5.5 0 10-3.6 10-8s-4.5-8-10-8z" />
-            </svg>
-          </i>
-          카카오톡
-        </button>
-        <button onClick={copy}>
-          <i>
+    <>
+      <div className="oc-web-page publish-done-web">
+        <section className="oc-publish-card exact-done">
+          {confetti.map(([left, background, animationDuration, animationDelay]) => (
+            <i
+              className="confetti"
+              style={{ left, background, animationDuration, animationDelay }}
+              key={left}
+            />
+          ))}
+          <div className="done-check">
+            <Check strokeWidth={2.6} />
+          </div>
+          <h1>
+            클래스가
+            <br />
+            공개됐어요!
+          </h1>
+          <p>
+            이제 링크만 공유하면
+            <br />
+            바로 신청받을 수 있어요
+          </p>
+          <div className="published-link">
             <Link2 />
-          </i>
-          링크 복사
-        </button>
-        <button onClick={share}>
-          <i>
-            <Share2 />
-          </i>
-          공유하기
-        </button>
+            <span>oneclick.class/s/notion-auto</span>
+            <button onClick={copy}>복사</button>
+          </div>
+          <button className="publish-copy-main" onClick={copy}>
+            <Link2 />
+            링크 복사하기
+          </button>
+          <div className="share-actions">
+            <button onClick={share}>
+              <i className="kakao-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 3C6.5 3 2 6.6 2 11c0 2.8 1.9 5.3 4.7 6.7-.2.7-.7 2.7-.8 3.1 0 .2.1.4.4.2.2-.1 2.8-1.9 3.9-2.7.6.1 1.2.1 1.8.1 5.5 0 10-3.6 10-8s-4.5-8-10-8z" />
+                </svg>
+              </i>
+              카카오톡
+            </button>
+            <button onClick={copy}>
+              <i>
+                <Link2 />
+              </i>
+              링크 복사
+            </button>
+            <button onClick={share}>
+              <i>
+                <Share2 />
+              </i>
+              공유하기
+            </button>
+          </div>
+          <Link className="secondary" to="/s/notion-auto">
+            실제 신청 페이지 열기
+          </Link>
+          {copied && (
+            <div className="publish-next-inline">
+              <b>다음으로 할 일</b>
+              <Link to="/applicants"><Users /> 신청자 현황 보기</Link>
+              <Link to="/classes"><CircleCheck /> 강의 관리로 이동</Link>
+              <button onClick={copy}><QrCode /> QR 링크 준비</button>
+            </div>
+          )}
+        </section>
+        {toast && <div className="done-toast" aria-live="polite">{toast}</div>}
       </div>
-      <Link className="secondary" to="/s/notion-auto">
-        신청 페이지 보기
-      </Link>
-      <Link className="done-home" to="/">
-        홈으로 가기
-      </Link>
-      {toast && (
-        <div className="done-toast" aria-live="polite">
-          {toast}
+
+      <div className="page publish-done exact-done app-only">
+        {confetti.map(([left, background, animationDuration, animationDelay]) => (
+          <i
+            className="confetti"
+            style={{ left, background, animationDuration, animationDelay }}
+            key={left}
+          />
+        ))}
+        <div className="done-check">
+          <Check strokeWidth={2.6} />
         </div>
-      )}
-    </div>
+        <h1>
+          클래스가
+          <br />
+          공개됐어요!
+        </h1>
+        <p>
+          이제 링크만 공유하면
+          <br />
+          바로 신청받을 수 있어요
+        </p>
+        <div className="published-link">
+          <Link2 />
+          <span>oneclick.class/s/notion-auto</span>
+          <button onClick={copy}>복사</button>
+        </div>
+        <div className="share-actions">
+          <button onClick={share}>
+            <i className="kakao-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3C6.5 3 2 6.6 2 11c0 2.8 1.9 5.3 4.7 6.7-.2.7-.7 2.7-.8 3.1 0 .2.1.4.4.2.2-.1 2.8-1.9 3.9-2.7.6.1 1.2.1 1.8.1 5.5 0 10-3.6 10-8s-4.5-8-10-8z" />
+              </svg>
+            </i>
+            카카오톡
+          </button>
+          <button onClick={copy}>
+            <i>
+              <Link2 />
+            </i>
+            링크 복사
+          </button>
+          <button onClick={share}>
+            <i>
+              <Share2 />
+            </i>
+            공유하기
+          </button>
+        </div>
+        <Link className="secondary" to="/s/notion-auto">
+          실제 신청 페이지 열기
+        </Link>
+        <Link className="done-home" to="/">
+          홈으로 가기
+        </Link>
+        {toast && (
+          <div className="done-toast" aria-live="polite">
+            {toast}
+          </div>
+        )}
+      </div>
+    </>
   );
 }

@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { authService } from '../api/services';
 import { setSession } from '../auth/session';
 import { PageHeader } from '../components/common/PageHeader';
@@ -10,6 +10,7 @@ const termLabels = ['(필수) 서비스 이용약관', '(필수) 개인정보 �
 
 export function SignupPage() {
   const nav = useNavigate();
+  const location = useLocation();
   const { setRole } = useRole();
   const [terms, setTerms] = useState([false, false, false]);
   const [openTerm, setOpenTerm] = useState('');
@@ -33,7 +34,8 @@ export function SignupPage() {
       const session = await authService.signup({ email: fields.email, username: fields.id, password: fields.password, name: fields.name, role: 'teacher' });
       setSession(session);
       setRole(session.user.role);
-      nav('/dashboard', { replace: true });
+      const target = (location.state as { from?: string } | null)?.from ?? '/classes/new';
+      nav(target, { replace: true });
     } catch {
       setError('회원가입에 실패했어요. 잠시 후 다시 시도해 주세요.');
     } finally {
@@ -45,7 +47,7 @@ export function SignupPage() {
     <main className="standalone framed">
       <form className="page signup" onSubmit={submit}>
         <StatusBar />
-        <PageHeader title="회원가입" subtitle="1분이면 가입 완료돼요" />
+        <PageHeader title="강의를 저장할 계정" subtitle="만든 강의와 신청자를 안전하게 관리해요" />
         {[
           ['email', '이메일', 'example@email.com'],
           ['id', '아이디', '사용할 아이디'],

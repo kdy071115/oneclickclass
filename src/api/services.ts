@@ -154,7 +154,187 @@ export type OneClickEnrollment = {
   lastPosition: string;
 };
 
+export type OneClickLesson = {
+  lessonId: string;
+  title: string;
+  description?: string;
+  durationText: string;
+  progress: number;
+  locked: boolean;
+  completed: boolean;
+  playable: boolean;
+  currentSeconds?: number;
+};
+
+export type OneClickToolSummary = {
+  noticeCount: number;
+  resourceCount: number;
+  examCount: number;
+  surveyCount: number;
+};
+
+export type OneClickLearnRoom = OneClickEnrollment & {
+  courseTitle: string;
+  courseSummary: string;
+  lessons: OneClickLesson[];
+  tools: OneClickToolSummary;
+};
+
 const oneclickEnrollmentKey = (courseActiveSeq:string) => `oneclick.enrollment.${courseActiveSeq}`;
+
+const asRecord = (value: unknown): Record<string, unknown> => (value && typeof value === 'object' ? value as Record<string, unknown> : {});
+const pickRecord = (source: Record<string, unknown>, keys: string[]) => {
+  for (const key of keys) {
+    const value = source[key];
+    if (value && typeof value === 'object') return value as Record<string, unknown>;
+  }
+  return {};
+};
+const pickString = (source: Record<string, unknown>, keys: string[], fallback = '') => {
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === 'string' && value.trim()) return value;
+    if (typeof value === 'number') return String(value);
+  }
+  return fallback;
+};
+const pickNumber = (source: Record<string, unknown>, keys: string[], fallback = 0) => {
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string' && value.trim() && Number.isFinite(Number(value))) return Number(value);
+  }
+  return fallback;
+};
+const pickBoolean = (source: Record<string, unknown>, keys: string[], fallback = false) => {
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === 'boolean') return value;
+    if (value === 'Y') return true;
+    if (value === 'N') return false;
+  }
+  return fallback;
+};
+const firstArray = (source: Record<string, unknown>, keys: string[]) => {
+  for (const key of keys) {
+    const value = source[key];
+    if (Array.isArray(value)) return value;
+    const record = asRecord(value);
+    if (Array.isArray(record.items)) return record.items;
+    if (Array.isArray(record.list)) return record.list;
+    if (Array.isArray(record.resultList)) return record.resultList;
+  }
+  return [];
+};
+const normalizeApplyStatus = (value: string): OneClickShare['applyStatus'] => (
+  value === 'CLOSED' || value === 'N' || value.includes('CLOSE') ? 'CLOSED' : 'OPEN'
+);
+const normalizePaymentType = (price: number, value: string): OneClickShare['paymentType'] => (
+  price > 0 || value === 'PAID' || value.includes('PAY') ? 'PAID' : 'FREE'
+);
+
+const normalizeShare = (raw: unknown, shareToken: string): OneClickShare => {
+  const root = asRecord(raw);
+  const courseActive = pickRecord(root, ['courseActive', 'active', 'courseActiveVO']);
+  const courseMaster = pickRecord(root, ['courseMaster', 'master']);
+  const instructor = pickRecord(root, ['instructor', 'teacher', 'professor', 'member']);
+  const merged = { ...root, ...courseMaster, ...courseActive };
+  const title = pickString(merged, ['title', 'courseActiveTitle', 'courseMasterTitle', 'courseTitle'], mockShare(shareToken).title);
+  const price = pickNumber(merged, ['price', 'educationCost', 'tuition', 'coursePrice'], mockShare(shareToken).price);
+  return {
+    shareToken: pickString(root, ['shareToken', 'token'], shareToken),
+    courseActiveSeq: pickString(merged, ['courseActiveSeq', 'course_active_seq', 'activeSeq'], mockShare(shareToken).courseActiveSeq),
+    courseMasterSeq: pickString(merged, ['courseMasterSeq', 'course_master_seq', 'masterSeq'], mockShare(shareToken).courseMasterSeq),
+    title,
+    summary: pickString(merged, ['summary', 'courseActiveSummary', 'courseSummary', 'subtitle'], mockShare(shareToken).summary),
+    description: pickString(merged, ['description', 'courseActiveDescription', 'intro', 'contents'], mockShare(shareToken).description),
+    price,
+    capacity: pickNumber(merged, ['capacity', 'courseMemberCnt', 'limitCnt', 'recruitCnt'], mockShare(shareToken).capacity),
+    enrolled: pickNumber(merged, ['enrolled', 'applyCnt', 'takeCnt', 'memberCnt'], mockShare(shareToken).enrolled),
+    applyStatus: normalizeApplyStatus(pickString(merged, ['applyStatus', 'applyYn', 'recruitStatusCd'], 'OPEN')),
+    paymentType: normalizePaymentType(price, pickString(merged, ['paymentType', 'paymentTypeCd', 'priceTypeCd'], '')),
+    instructorName: pickString(instructor, ['instructorName', 'memberFullName', 'profName', 'name'], mockShare(shareToken).instructorName),
+    scheduleText: pickString(merged, ['scheduleText', 'studyPeriodText', 'coursePeriodText', 'schedule'], mockShare(shareToken).scheduleText),
+    locationText: pickString(merged, ['locationText', 'educationPlace', 'place', 'classroom'], mockShare(shareToken).locationText),
+  };
+};
+
+const normalizeEnrollment = (raw: unknown, fallbackCourseActiveSeq: string, fallbackName = '수강생'): OneClickEnrollment => {
+  const root = asRecord(raw);
+  const apply = pickRecord(root, ['apply', 'courseApply', 'courseApplyVO', 'enrollment']);
+  const member = pickRecord(root, ['member', 'user', 'learner']);
+  const merged = { ...root, ...apply };
+  return {
+    memberSeq: pickString({ ...merged, ...member }, ['memberSeq', 'userId', 'memberId'], ''),
+    courseApplySeq: pickString(merged, ['courseApplySeq', 'enrollmentId', 'applySeq'], ''),
+    courseActiveSeq: pickString(merged, ['courseActiveSeq', 'course_active_seq', 'activeSeq'], fallbackCourseActiveSeq),
+    learnerName: pickString({ ...member, ...merged }, ['learnerName', 'memberFullName', 'name', 'memberName'], fallbackName),
+    applyStatusCd: pickString(merged, ['applyStatusCd', 'applyStatus', 'status'], 'APPLY_STATUS::002') as OneClickEnrollment['applyStatusCd'],
+    progress: Math.min(100, Math.max(0, pickNumber(merged, ['progress', 'progressRate', 'totalProgress', 'appMyRateScore'], 0))),
+    lastPosition: pickString(merged, ['lastPosition', 'lastStudyPosition', 'resumeText'], '1강 0분 0초'),
+  };
+};
+
+const fallbackLessons = (): OneClickLesson[] => [
+  ['1', '업무 구조 잡기', '흩어진 업무를 수강생 상황에 맞게 정리합니다.', '42분', 100],
+  ['2', '자동화 흐름 만들기', '반복 입력, 알림, 상태 변경을 자동화합니다.', '52분', 62],
+  ['3', '팀 협업 템플릿 완성', '함께 쓰기 좋은 권한과 보드 구조를 만듭니다.', '48분', 0],
+].map(([step, title, description, durationText, progress], index) => ({
+  lessonId: String(step),
+  title: String(title),
+  description: String(description),
+  durationText: String(durationText),
+  progress: Number(progress),
+  locked: index >= 2,
+  completed: Number(progress) >= 100,
+  playable: index < 2,
+}));
+
+const normalizeLessons = (raw: unknown): OneClickLesson[] => {
+  const root = asRecord(raw);
+  const list = firstArray(root, ['lessons', 'curriculum', 'elementList', 'listElement', 'list']);
+  if (!list.length) return fallbackLessons();
+  return list.map((item, index) => {
+    const record = asRecord(item);
+    const progress = Math.min(100, Math.max(0, pickNumber(record, ['progress', 'progressRate', 'rate', 'completeRate'], index === 0 ? 100 : 0)));
+    const locked = pickBoolean(record, ['locked', 'lockYn'], false) || pickString(record, ['useYn', 'playableYn'], 'Y') === 'N';
+    return {
+      lessonId: pickString(record, ['lessonId', 'activeElementSeq', 'organizationSeq', 'itemSeq', 'seq'], String(index + 1)),
+      title: pickString(record, ['title', 'elementTitle', 'organizationTitle', 'itemTitle', 'name'], `${index + 1}강`),
+      description: pickString(record, ['description', 'summary', 'contents'], ''),
+      durationText: pickString(record, ['durationText', 'studyTimeText', 'learningTimeText'], `${pickNumber(record, ['durationMinutes', 'studyTime', 'learningTime'], 0)}분`),
+      progress,
+      locked,
+      completed: pickBoolean(record, ['completed', 'completeYn'], progress >= 100),
+      playable: !locked,
+      currentSeconds: pickNumber(record, ['currentSeconds', 'lastSeconds'], 0),
+    };
+  });
+};
+
+const normalizeTools = (raw: unknown): OneClickToolSummary => {
+  const root = asRecord(raw);
+  return {
+    noticeCount: pickNumber(root, ['noticeCount', 'noticeCnt'], firstArray(root, ['noticeList', 'listNotice']).length),
+    resourceCount: pickNumber(root, ['resourceCount', 'resourceCnt'], firstArray(root, ['resourceList', 'listResource']).length),
+    examCount: pickNumber(root, ['examCount', 'examCnt'], firstArray(root, ['examList', 'listExamPaper']).length),
+    surveyCount: pickNumber(root, ['surveyCount', 'surveyCnt'], firstArray(root, ['surveyList', 'listSurveyPaper']).length),
+  };
+};
+
+const normalizeLearnRoom = (raw: unknown, fallbackCourseActiveSeq: string): OneClickLearnRoom => {
+  const root = asRecord(raw);
+  const enrollment = normalizeEnrollment(raw, fallbackCourseActiveSeq);
+  const share = normalizeShare(raw, fallbackCourseActiveSeq);
+  return {
+    ...enrollment,
+    progress: enrollment.progress || pickNumber(root, ['appMyRateScore', 'totalProgress'], 0),
+    courseTitle: pickString(root, ['courseTitle', 'courseActiveTitle'], share.title),
+    courseSummary: pickString(root, ['courseSummary', 'summary'], share.summary),
+    lessons: normalizeLessons(raw),
+    tools: normalizeTools(raw),
+  };
+};
 
 const mockShare = (shareToken:string): OneClickShare => {
   const draft = classes[0];
@@ -178,9 +358,9 @@ const mockShare = (shareToken:string): OneClickShare => {
 
 export const oneclickService = {
   share: (shareToken:string): Promise<OneClickShare> =>
-    mock ? delay(mockShare(shareToken)) : apiClient.get<OneClickShare>(`/oneclick/shares/${shareToken}`).then(r=>r.data),
+    mock ? delay(mockShare(shareToken)) : apiClient.get<unknown>(`/oneclick/shares/${shareToken}`).then(r=>normalizeShare(r.data, shareToken)),
   apply: (shareToken:string, input:{name:string; phone:string; email?:string}): Promise<OneClickEnrollment> => {
-    if (!mock) return apiClient.post<OneClickEnrollment>(`/oneclick/shares/${shareToken}/apply`, input).then(r=>r.data);
+    if (!mock) return apiClient.post<unknown>(`/oneclick/shares/${shareToken}/apply`, input).then(r=>normalizeEnrollment(r.data, '', input.name));
     const share = mockShare(shareToken);
     const enrollment = {
       memberSeq: crypto.randomUUID(),
@@ -195,12 +375,28 @@ export const oneclickService = {
     return delay(enrollment);
   },
   enrollment: (courseActiveSeq:string): Promise<OneClickEnrollment | null> => {
-    if (!mock) return apiClient.get<OneClickEnrollment>(`/oneclick/learn/${courseActiveSeq}`).then(r=>r.data).catch(()=>null);
+    if (!mock) return apiClient.get<unknown>(`/oneclick/learn/${courseActiveSeq}`).then(r=>normalizeEnrollment(r.data, courseActiveSeq)).catch(()=>null);
     const value = localStorage.getItem(oneclickEnrollmentKey(courseActiveSeq));
-    return delay(value ? JSON.parse(value) as OneClickEnrollment : null);
+    if (!value) return delay(null);
+    const enrollment = JSON.parse(value) as OneClickEnrollment;
+    return delay({ ...enrollment, courseActiveSeq: enrollment.courseActiveSeq || courseActiveSeq });
+  },
+  learnRoom: (courseActiveSeq:string): Promise<OneClickLearnRoom | null> => {
+    if (!mock) return apiClient.get<unknown>(`/oneclick/learn/${courseActiveSeq}/room`).then(r=>normalizeLearnRoom(r.data, courseActiveSeq)).catch(()=>null);
+    const value = localStorage.getItem(oneclickEnrollmentKey(courseActiveSeq));
+    if (!value) return delay(null);
+    const enrollment = JSON.parse(value) as OneClickEnrollment;
+    return delay({
+      ...enrollment,
+      courseActiveSeq: enrollment.courseActiveSeq || courseActiveSeq,
+      courseTitle: mockShare(courseActiveSeq).title,
+      courseSummary: mockShare(courseActiveSeq).summary,
+      lessons: fallbackLessons(),
+      tools: { noticeCount: 1, resourceCount: 3, examCount: 1, surveyCount: 1 },
+    });
   },
   continueWithPhone: (courseActiveSeq:string, phone:string): Promise<OneClickEnrollment> => {
-    if (!mock) return apiClient.post<OneClickEnrollment>(`/oneclick/learn/${courseActiveSeq}/continue`, { phone }).then(r=>r.data);
+    if (!mock) return apiClient.post<unknown>(`/oneclick/learn/${courseActiveSeq}/continue`, { phone }).then(r=>normalizeEnrollment(r.data, courseActiveSeq));
     const enrollment = {
       memberSeq: crypto.randomUUID(),
       courseApplySeq: crypto.randomUUID(),
@@ -212,5 +408,9 @@ export const oneclickService = {
     };
     localStorage.setItem(oneclickEnrollmentKey(courseActiveSeq), JSON.stringify(enrollment));
     return delay(enrollment);
+  },
+  heartbeat: (courseActiveSeq:string, input:{courseApplySeq:string; lessonId:string; currentSeconds:number; playing:boolean}): Promise<void> => {
+    if (mock) return delay(undefined);
+    return apiClient.post<void>(`/oneclick/learn/${courseActiveSeq}/heartbeat`, input).then(r=>r.data);
   },
 };

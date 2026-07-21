@@ -28,13 +28,27 @@ const types = [
   ['hybrid', Layers3, '혼합형', '온라인 + 오프라인'],
 ] as const;
 const labels = [
-  ['어떤 형태의\n강의인가요?', '강의 진행 방식을 골라주세요'],
-  ['어떤 강의인지\n알려주세요', '제목과 소개는 나중에 바꿀 수 있어요'],
+  ['어떤 강의인지\n알려주세요', '제목과 소개만 있어도 시작할 수 있어요'],
+  ['어떻게\n진행하나요?', '장소나 참여 링크를 함께 정해요'],
   ['일정과 가격을\n정해주세요', '모집 인원과 참가비를 설정해요'],
-  ['신청서를\n준비했어요', '기본 정보는 자동으로 받아요'],
-  ['마지막이에요!\n어디서 진행하나요?', '신청자에게 안내될 정보예요'],
+  ['신청자에게\n무엇을 받을까요?', '기본 정보는 자동으로 받아요'],
+  ['공개 준비가\n끝났어요', '신청 페이지를 확인하고 공유하세요'],
 ] as const;
 const extraQuestions = ['성별', '연령대', '소속·직업', '신청 동기', '사전 질문', '기타 문의'];
+
+function useIsDesktop() {
+  const [isDesktop, setIsDesktop] = useState(() =>
+    typeof window === 'undefined' ? true : window.matchMedia('(min-width: 900px)').matches,
+  );
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 900px)');
+    const update = () => setIsDesktop(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+  return isDesktop;
+}
 
 export function CreateClassPage() {
   const nav = useNavigate();
@@ -64,13 +78,11 @@ export function CreateClassPage() {
   }, [draft]);
   async function next(e: FormEvent) {
     e.preventDefault();
-    const needsUrl = draft.type !== 'offline';
     const needsAddress = draft.type === 'offline' || draft.type === 'hybrid';
-    if (step === 2 && !draft.title.trim()) return setError('강의 제목을 입력해 주세요.');
-    if (step === 3 && !draft.startDate) return setError('강의 일정을 선택해 주세요.');
-    if (step === 5 && needsUrl && !draft.url.trim()) return setError('참여 링크를 입력해 주세요.');
-    if (step === 5 && needsAddress && !draft.address.trim())
+    if (step === 1 && !draft.title.trim()) return setError('강의 제목을 입력해 주세요.');
+    if (step === 2 && needsAddress && !draft.address.trim())
       return setError('진행 장소를 입력해 주세요.');
+    if (step === 3 && !draft.startDate) return setError('강의 일정을 선택해 주세요.');
     setError('');
     if (step < 5) setStep(step + 1);
     else {
@@ -105,9 +117,10 @@ export function CreateClassPage() {
     setThumbnail(file);
   }
   const title = labels[step - 1];
+  const isDesktop = useIsDesktop();
   return (
     <>
-    <form className="oc-create-web oc-web-page" onSubmit={next}>
+    {isDesktop && <form className="oc-create-web oc-web-page" onSubmit={next}>
       <div className="oc-create-steps">
         <button type="button" onClick={() => nav('/classes')} aria-label="클래스로 돌아가기">
           <ArrowLeft size={18} />
@@ -131,28 +144,34 @@ export function CreateClassPage() {
         </div>
         <div className="oc-create-box">
           {step === 1 && (
-            <div className="oc-type-grid">
-              {types.map(([value, Icon, label, desc]) => (
-                <button
-                  type="button"
-                  className={draft.type === value ? 'active' : ''}
-                  onClick={() => setDraft({ ...draft, type: value })}
-                  key={value}
-                >
-                  <i><Icon /></i>
-                  <b>{label}</b>
-                  <small>{desc}</small>
-                  {draft.type === value && <Check size={18} />}
-                </button>
-              ))}
+            <div className="oc-form-grid">
+              <Field label="강의 제목" value={draft.title} onChange={(v) => setDraft({ ...draft, title: v })} placeholder="예) 노션으로 시작하는 업무 자동화" />
+              <Field label="한 줄 소개" value={draft.summary} onChange={(v) => setDraft({ ...draft, summary: v })} placeholder="예) 반복 업무를 자동화하는 4주 과정" />
+              <label className="create-field wide">상세 소개 <small>(나중에 수정 가능)</small><textarea value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="강의에서 배우는 내용을 자유롭게 적어주세요" /></label>
+              <div className="create-field wide">썸네일 <small>(선택)</small>{draft.thumbnail && <img className="oc-thumbnail-preview" src={draft.thumbnail} alt="선택한 썸네일 미리보기" />}<FileDropzone onFile={setThumbnail} /></div>
             </div>
           )}
           {step === 2 && (
             <div className="oc-form-grid">
-              <Field label="강의 제목" value={draft.title} onChange={(v) => setDraft({ ...draft, title: v })} placeholder="예) 노션으로 시작하는 업무 자동화" />
-              <Field label="한 줄 소개" value={draft.summary} onChange={(v) => setDraft({ ...draft, summary: v })} placeholder="예) 반복 업무를 자동화하는 4주 과정" />
-              <label className="create-field wide">상세 소개<textarea value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="강의에서 배우는 내용을 자유롭게 적어주세요" /></label>
-              <div className="create-field wide">썸네일{draft.thumbnail && <img className="oc-thumbnail-preview" src={draft.thumbnail} alt="선택한 썸네일 미리보기" />}<FileDropzone onFile={setThumbnail} /></div>
+              <div className="oc-type-grid wide">
+                {types.map(([value, Icon, label, desc]) => (
+                  <button
+                    type="button"
+                    className={draft.type === value ? 'active' : ''}
+                    onClick={() => setDraft({ ...draft, type: value })}
+                    key={value}
+                  >
+                    <i><Icon /></i>
+                    <b>{label}</b>
+                    <small>{desc}</small>
+                    {draft.type === value && <Check size={18} />}
+                  </button>
+                ))}
+              </div>
+              <div className="delivery-fields wide">
+                {draft.type !== 'offline' && <><label className="create-field wide">진행 도구<div className="question-chips tools">{['YouTube', 'Zoom', 'Meet', '기타 URL'].map((x) => <button type="button" className={tool === x ? 'active' : ''} onClick={() => setTool(x)} key={x}>{x}</button>)}</div></label><Field label="참여 링크" value={draft.url} onChange={(v) => setDraft({ ...draft, url: v })} placeholder="나중에 입력해도 돼요" /></>}
+                {(draft.type === 'offline' || draft.type === 'hybrid') && <><label className="create-field">도로명 주소<button className="date-field" type="button" onClick={() => setAddressOpen(true)}><span>{draft.address || '도로명 주소를 검색하세요'}</span><Search /></button></label><Field label="상세 주소" value={draft.detailedAddress} onChange={(v) => setDraft({ ...draft, detailedAddress: v })} placeholder="예) 3층 302호" /></>}
+              </div>
             </div>
           )}
           {step === 3 && (
@@ -174,9 +193,16 @@ export function CreateClassPage() {
             </>
           )}
           {step === 5 && (
-            <div className="oc-form-grid">
-              {draft.type !== 'offline' && <><label className="create-field wide">진행 도구<div className="question-chips tools">{['YouTube', 'Zoom', 'Meet', '기타 URL'].map((x) => <button type="button" className={tool === x ? 'active' : ''} onClick={() => setTool(x)} key={x}>{x}</button>)}</div></label><Field label="참여 링크" value={draft.url} onChange={(v) => setDraft({ ...draft, url: v })} placeholder="https://" /></>}
-              {(draft.type === 'offline' || draft.type === 'hybrid') && <><label className="create-field">도로명 주소<button className="date-field" type="button" onClick={() => setAddressOpen(true)}><span>{draft.address || '도로명 주소를 검색하세요'}</span><Search /></button></label><Field label="상세 주소" value={draft.detailedAddress} onChange={(v) => setDraft({ ...draft, detailedAddress: v })} placeholder="예) 3층 302호" /></>}
+            <div className="publish-ready">
+              <Check />
+              <h2>신청 페이지가 준비됐어요</h2>
+              <p>미리보기에서 화면을 확인한 뒤 바로 공개하고 링크를 복사할 수 있어요.</p>
+              <dl>
+                <div><dt>강의</dt><dd>{draft.title || '제목 미입력'}</dd></div>
+                <div><dt>진행</dt><dd>{types.find(([value]) => value === draft.type)?.[2]}</dd></div>
+                <div><dt>일정</dt><dd>{draft.startDate || '일정 미정'}</dd></div>
+                <div><dt>가격</dt><dd>{draft.payment === 'paid' ? `${draft.price.toLocaleString()}원` : '무료'}</dd></div>
+              </dl>
             </div>
           )}
           {error && <p className="form-error">{error}</p>}
@@ -185,13 +211,13 @@ export function CreateClassPage() {
           {savedAt && <small>임시저장 {savedAt}</small>}
           <button type="button" onClick={() => (step > 1 ? setStep(step - 1) : nav('/classes'))}>이전</button>
           <button className="oc-create-submit" type="submit" disabled={submitting}>
-            {submitting ? '저장 중' : step < 5 ? '다음 단계' : '미리보기'}
+            {submitting ? '저장 중' : step < 5 ? '다음 단계' : '신청 페이지 확인'}
             <ChevronRight size={18} />
           </button>
         </div>
       </section>
-    </form>
-    <main className="standalone framed create-mobile">
+    </form>}
+    {!isDesktop && <main className="standalone framed create-mobile">
       <form className="page create exact-create" onSubmit={next}>
         <StatusBar />
         <div className="create-scroll">
@@ -219,27 +245,6 @@ export function CreateClassPage() {
           </h1>
           <p className="create-subtitle">{title[1]}</p>
           {step === 1 && (
-            <div className="type-list">
-              {types.map(([value, Icon, label, desc]) => (
-                <button
-                  type="button"
-                  className={draft.type === value ? 'active' : ''}
-                  onClick={() => setDraft({ ...draft, type: value })}
-                  key={value}
-                >
-                  <i>
-                    <Icon />
-                  </i>
-                  <span>
-                    <b>{label}</b>
-                    <small>{desc}</small>
-                  </span>
-                  {draft.type === value && <Check />}
-                </button>
-              ))}
-            </div>
-          )}
-          {step === 2 && (
             <>
               <Field
                 label="강의 제목"
@@ -255,6 +260,7 @@ export function CreateClassPage() {
               />
               <label className="create-field">
                 상세 소개
+                <small>(나중에 수정 가능)</small>
                 <textarea
                   value={draft.description}
                   onChange={(e) => setDraft({ ...draft, description: e.target.value })}
@@ -275,6 +281,77 @@ export function CreateClassPage() {
                   <input type="file" accept="image/*" onChange={addThumbnail} />
                 </span>
               </label>
+            </>
+          )}
+          {step === 2 && (
+            <>
+              <div className="type-list">
+                {types.map(([value, Icon, label, desc]) => (
+                  <button
+                    type="button"
+                    className={draft.type === value ? 'active' : ''}
+                    onClick={() => setDraft({ ...draft, type: value })}
+                    key={value}
+                  >
+                    <i>
+                      <Icon />
+                    </i>
+                    <span>
+                      <b>{label}</b>
+                      <small>{desc}</small>
+                    </span>
+                    {draft.type === value && <Check />}
+                  </button>
+                ))}
+              </div>
+              <div className="delivery-fields">
+              {draft.type !== 'offline' && (
+                <>
+                  <label className="create-field">
+                    진행 도구
+                    <div className="question-chips tools">
+                      {['YouTube', 'Zoom', 'Meet', '기타 URL'].map((x) => (
+                        <button
+                          type="button"
+                          className={tool === x ? 'active' : ''}
+                          onClick={() => setTool(x)}
+                          key={x}
+                        >
+                          {x}
+                        </button>
+                      ))}
+                    </div>
+                  </label>
+                  <Field
+                    label="참여 링크"
+                    value={draft.url}
+                    onChange={(url) => setDraft({ ...draft, url })}
+                    placeholder="나중에 입력해도 돼요"
+                  />
+                </>
+              )}
+              {(draft.type === 'offline' || draft.type === 'hybrid') && (
+                <>
+                  <label className="create-field">
+                    도로명 주소
+                    <button
+                      className="date-field"
+                      type="button"
+                      onClick={() => setAddressOpen(true)}
+                    >
+                      <span>{draft.address || '도로명 주소를 검색하세요'}</span>
+                      <Search />
+                    </button>
+                  </label>
+                  <Field
+                    label="상세 주소"
+                    value={draft.detailedAddress}
+                    onChange={(detailedAddress) => setDraft({ ...draft, detailedAddress })}
+                    placeholder="예) 3층 302호"
+                  />
+                </>
+              )}
+              </div>
             </>
           )}
           {step === 3 && (
@@ -417,62 +494,25 @@ export function CreateClassPage() {
             </>
           )}
           {step === 5 && (
-            <>
-              {draft.type !== 'offline' && (
-                <>
-                  <label className="create-field">
-                    진행 도구
-                    <div className="question-chips tools">
-                      {['YouTube', 'Zoom', 'Meet', '기타 URL'].map((x) => (
-                        <button
-                          type="button"
-                          className={tool === x ? 'active' : ''}
-                          onClick={() => setTool(x)}
-                          key={x}
-                        >
-                          {x}
-                        </button>
-                      ))}
-                    </div>
-                  </label>
-                  <Field
-                    label="참여 링크"
-                    value={draft.url}
-                    onChange={(url) => setDraft({ ...draft, url })}
-                    placeholder="https://"
-                  />
-                </>
-              )}
-              {(draft.type === 'offline' || draft.type === 'hybrid') && (
-                <>
-                  <label className="create-field">
-                    도로명 주소
-                    <button
-                      className="date-field"
-                      type="button"
-                      onClick={() => setAddressOpen(true)}
-                    >
-                      <span>{draft.address || '도로명 주소를 검색하세요'}</span>
-                      <Search />
-                    </button>
-                  </label>
-                  <Field
-                    label="상세 주소"
-                    value={draft.detailedAddress}
-                    onChange={(detailedAddress) => setDraft({ ...draft, detailedAddress })}
-                    placeholder="예) 3층 302호"
-                  />
-                </>
-              )}
-            </>
+            <div className="publish-ready">
+              <Check />
+              <h2>신청 페이지가 준비됐어요</h2>
+              <p>미리보기에서 확인한 뒤 바로 공개하고 링크를 복사할 수 있어요.</p>
+              <dl>
+                <div><dt>강의</dt><dd>{draft.title || '제목 미입력'}</dd></div>
+                <div><dt>진행</dt><dd>{types.find(([value]) => value === draft.type)?.[2]}</dd></div>
+                <div><dt>일정</dt><dd>{draft.startDate || '일정 미정'}</dd></div>
+                <div><dt>가격</dt><dd>{draft.payment === 'paid' ? `${draft.price.toLocaleString()}원` : '무료'}</dd></div>
+              </dl>
+            </div>
           )}
           {error && <p className="form-error">{error}</p>}
         </div>
         <button className="primary create-cta" type="submit" disabled={submitting}>
-          {submitting ? '저장 중' : step < 5 ? '다음' : '미리보기'}
+          {submitting ? '저장 중' : step < 5 ? '다음' : '신청 페이지 확인'}
         </button>
       </form>
-    </main>
+    </main>}
     {calendar && <CalendarSheet title={calendar === 'startDate' ? '강의 일정을 골라주세요' : '모집 마감일을 골라주세요'} onClose={() => setCalendar(undefined)} onPick={(date) => { setDraft({ ...draft, [calendar]: date }); setCalendar(undefined); }} />}
     {addressOpen && <div className="sheet-overlay" onClick={() => setAddressOpen(false)}><section className="address-sheet" onClick={(e) => e.stopPropagation()}><i /><header><b>주소 검색</b><button type="button" onClick={() => setAddressOpen(false)}>닫기</button></header><label><Search /><input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="도로명, 건물명 또는 지번 검색" /></label>{query && addressSuggestions.map((x) => <button type="button" className="address-result" onClick={() => { setDraft({ ...draft, address: x }); setAddressOpen(false); }} key={x}><b>{x}</b><small>서울특별시 상세 주소</small></button>)}</section></div>}
     </>

@@ -5,7 +5,7 @@
 }
 .create-scroll {
   height: 100%;
-  padding: 50px 20px 125px;
+  padding: 50px 20px 185px;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -121,6 +121,16 @@
 .type-list button > svg {
   width: 18px;
   color: var(--blue);
+}
+.delivery-fields {
+  min-height: 178px;
+  margin-top: 14px;
+}
+.oc-create-web .delivery-fields {
+  min-height: 291px;
+}
+.create-mobile .delivery-fields {
+  min-height: 327px;
 }
 .create-field {
   display: block;

@@ -22,6 +22,7 @@ export function AppLayout() {
   const [title, subtitle] = getPageTitle(pathname);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const profileImage = useProfileImage();
+  const hideMobileNav = pathname === '/classes/published' || /^\/classes\/[^/]+\/preview$/.test(pathname);
 
   return (
     <main className="stage oc-app">
@@ -75,25 +76,27 @@ export function AppLayout() {
             <Outlet />
           </div>
         </div>
-        <nav className="five-nav app-only">
-          {mobileNav.slice(0, 2).map(([to, Icon, label]) => (
-            <NavLink key={to} to={to} end={to === '/dashboard'}>
-              <Icon size={22} />
-              <small>{label}</small>
+        {!hideMobileNav && (
+          <nav className="five-nav app-only">
+            {mobileNav.slice(0, 2).map(([to, Icon, label]) => (
+              <NavLink key={to} to={to} end={to === '/dashboard'}>
+                <Icon size={22} />
+                <small>{label}</small>
+              </NavLink>
+            ))}
+            <Link className="nav-create" to="/classes/new" aria-label="강의 만들기">
+              <Plus size={27} />
+            </Link>
+            <NavLink to="/applicants">
+              <Users size={22} />
+              <small>신청자</small>
             </NavLink>
-          ))}
-          <Link className="nav-create" to="/classes/new" aria-label="강의 만들기">
-            <Plus size={27} />
-          </Link>
-          <NavLink to="/applicants">
-            <Users size={22} />
-            <small>신청자</small>
-          </NavLink>
-          <NavLink to="/my">
-            <UserRound size={22} />
-            <small>마이</small>
-          </NavLink>
-        </nav>
+            <NavLink to="/my">
+              <UserRound size={22} />
+              <small>마이</small>
+            </NavLink>
+          </nav>
+        )}
       </section>
     </main>
   );
