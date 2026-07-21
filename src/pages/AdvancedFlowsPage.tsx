@@ -6,12 +6,15 @@ import {
   Link2,
   Minus,
   Plus,
+  QrCode,
   Share2,
   Star,
   Trophy,
+  Users,
 } from 'lucide-react';
+import QRCode from 'qrcode';
 import { useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/common/PageHeader';
 
 const people = [
@@ -345,8 +348,12 @@ export function StudentFlowPage() {
   );
 }
 export function PublishDonePage() {
+  const [params] = useSearchParams();
   const [toast, setToast] = useState('');
-  const link = 'https://oneclick.class/c/9Xk2p';
+  const [qrUrl, setQrUrl] = useState('');
+  const sharePath = `/s/${params.get('shareToken') || 'notion-auto'}`;
+  const link = `${window.location.origin}${sharePath}`;
+  const displayLink = link.replace(/^https?:\/\//, '');
   const confetti = [
     ['8%', '#3182f6', '2.4s', '0s'],
     ['24%', '#12b886', '2.7s', '.3s'],
@@ -364,6 +371,10 @@ export function PublishDonePage() {
     notify('신청 링크를 복사했어요');
     void navigator.clipboard?.writeText(link).catch(() => undefined);
   };
+  const prepareQr = async () => {
+    setQrUrl(await QRCode.toDataURL(link, { width: 220, margin: 1 }));
+    notify('신청 페이지 QR 코드를 만들었어요');
+  };
   const share = async () => {
     try {
       if (navigator.share) await navigator.share({ title: '원클릭 클래스', url: link });
@@ -373,65 +384,141 @@ export function PublishDonePage() {
     }
   };
   return (
-    <div className="page publish-done exact-done">
-      {confetti.map(([left, background, animationDuration, animationDelay]) => (
-        <i
-          className="confetti"
-          style={{ left, background, animationDuration, animationDelay }}
-          key={left}
-        />
-      ))}
-      <div className="done-check">
-        <Check strokeWidth={2.6} />
-      </div>
-      <h1>
-        클래스가
-        <br />
-        공개됐어요! 🎉
-      </h1>
-      <p>
-        이제 링크만 공유하면
-        <br />
-        바로 신청받을 수 있어요
-      </p>
-      <div className="published-link">
-        <Link2 />
-        <span>oneclick.class/c/9Xk2p</span>
-        <button onClick={copy}>복사</button>
-      </div>
-      <div className="share-actions">
-        <button onClick={share}>
-          <i className="kakao-icon">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 3C6.5 3 2 6.6 2 11c0 2.8 1.9 5.3 4.7 6.7-.2.7-.7 2.7-.8 3.1 0 .2.1.4.4.2.2-.1 2.8-1.9 3.9-2.7.6.1 1.2.1 1.8.1 5.5 0 10-3.6 10-8s-4.5-8-10-8z" />
-            </svg>
-          </i>
-          카카오톡
-        </button>
-        <button onClick={copy}>
-          <i>
+    <>
+      <div className="oc-web-page publish-done-web">
+        <section className="oc-publish-card exact-done">
+          {confetti.map(([left, background, animationDuration, animationDelay]) => (
+            <i
+              className="confetti"
+              style={{ left, background, animationDuration, animationDelay }}
+              key={left}
+            />
+          ))}
+          <div className="done-check">
+            <Check strokeWidth={2.6} />
+          </div>
+          <h1>
+            클래스가
+            <br />
+            공개됐어요!
+          </h1>
+          <p>
+            이제 링크만 공유하면
+            <br />
+            바로 신청받을 수 있어요
+          </p>
+          <div className="published-link">
             <Link2 />
-          </i>
-          링크 복사
-        </button>
-        <button onClick={share}>
-          <i>
-            <Share2 />
-          </i>
-          공유하기
-        </button>
+            <span>{displayLink}</span>
+            <button onClick={copy}>복사</button>
+          </div>
+          <button className="publish-copy-main" onClick={copy}>
+            <Link2 />
+            링크 복사하기
+          </button>
+          <div className="share-actions">
+            <button onClick={share}>
+              <i className="kakao-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 3C6.5 3 2 6.6 2 11c0 2.8 1.9 5.3 4.7 6.7-.2.7-.7 2.7-.8 3.1 0 .2.1.4.4.2.2-.1 2.8-1.9 3.9-2.7.6.1 1.2.1 1.8.1 5.5 0 10-3.6 10-8s-4.5-8-10-8z" />
+                </svg>
+              </i>
+              카카오톡
+            </button>
+            <button onClick={copy}>
+              <i>
+                <Link2 />
+              </i>
+              링크 복사
+            </button>
+            <button onClick={share}>
+              <i>
+                <Share2 />
+              </i>
+              공유하기
+            </button>
+          </div>
+          <Link className="secondary" to={sharePath}>
+            신청 페이지 열기
+          </Link>
+          <div className="publish-next-inline">
+            <b>다음으로 할 일</b>
+            {qrUrl && <span className="publish-qr-preview"><img src={qrUrl} alt="신청 페이지 QR 코드" /><small>스캔하면 신청 페이지가 열려요</small></span>}
+            <Link to="/applicants"><Users /> 신청자 현황 보기</Link>
+            <Link to="/classes"><CircleCheck /> 강의 관리로 이동</Link>
+            <button onClick={() => void prepareQr()}><QrCode /> 신청 QR 만들기</button>
+          </div>
+        </section>
+        {toast && <div className="done-toast" aria-live="polite">{toast}</div>}
       </div>
-      <Link className="secondary" to="/classes/notion/enroll">
-        신청 페이지 보기
-      </Link>
-      <Link className="done-home" to="/">
-        홈으로 가기
-      </Link>
-      {toast && (
-        <div className="done-toast" aria-live="polite">
-          {toast}
+
+      <div className="page publish-done exact-done app-only">
+        {confetti.map(([left, background, animationDuration, animationDelay]) => (
+          <i
+            className="confetti"
+            style={{ left, background, animationDuration, animationDelay }}
+            key={left}
+          />
+        ))}
+        <div className="done-check">
+          <Check strokeWidth={2.6} />
         </div>
-      )}
-    </div>
+        <h1>
+          클래스가
+          <br />
+          공개됐어요!
+        </h1>
+        <p>
+          이제 링크만 공유하면
+          <br />
+          바로 신청받을 수 있어요
+        </p>
+        <div className="published-link">
+          <Link2 />
+          <span>{displayLink}</span>
+          <button onClick={copy}>복사</button>
+        </div>
+        <div className="share-actions">
+          <button onClick={share}>
+            <i className="kakao-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3C6.5 3 2 6.6 2 11c0 2.8 1.9 5.3 4.7 6.7-.2.7-.7 2.7-.8 3.1 0 .2.1.4.4.2.2-.1 2.8-1.9 3.9-2.7.6.1 1.2.1 1.8.1 5.5 0 10-3.6 10-8s-4.5-8-10-8z" />
+              </svg>
+            </i>
+            카카오톡
+          </button>
+          <button onClick={copy}>
+            <i>
+              <Link2 />
+            </i>
+            링크 복사
+          </button>
+          <button onClick={share}>
+            <i>
+              <Share2 />
+            </i>
+            공유하기
+          </button>
+          <button onClick={() => void prepareQr()}>
+            <i>
+              <QrCode />
+            </i>
+            신청 QR
+          </button>
+        </div>
+        {qrUrl && <span className="publish-qr-preview"><img src={qrUrl} alt="신청 페이지 QR 코드" /><small>스캔하면 신청 페이지가 열려요</small></span>}
+        <Link className="secondary" to={sharePath}>
+          신청 페이지 열기
+        </Link>
+        <Link className="done-home" to="/">
+          홈으로 가기
+        </Link>
+        {toast && (
+          <div className="done-toast" aria-live="polite">
+            {toast}
+          </div>
+        )}
+      </div>
+    </>
   );
 }

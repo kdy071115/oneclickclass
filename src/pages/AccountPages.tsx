@@ -3,7 +3,6 @@ import {
   Camera,
   CreditCard,
   Download,
-  Heart,
   Megaphone,
   MessageCircle,
   Star,
@@ -54,62 +53,6 @@ function WebHead({ title, sub }: { title: string; sub: string }) {
       <h1>{title}</h1>
       <p>{sub}</p>
     </div>
-  );
-}
-
-export function WishlistPage() {
-  const load = useCallback(() => userService.wishlist(), []);
-  const { data, loading, error, retry } = useAsync(load);
-  const [removed, setRemoved] = useState<string[]>([]);
-  const [toast, notify] = useToast();
-  if (loading || error || !data) return <AsyncBoth loading={loading} error={error} retry={retry} />;
-  const shown = data.filter((w) => !removed.includes(w.id));
-
-  return (
-    <>
-      <div className="oc-web-page">
-        <WebHead title="관심 클래스" sub="찜한 클래스를 모아봤어요" />
-        <div className="oc-card-grid">
-          {shown.map((w) => (
-            <article className="oc-card wishlist-web-card" key={w.id}>
-              <Link to={`/learn/classes/${w.id}`}>
-                <div className="wishlist-thumbnail" style={{ background: `linear-gradient(135deg,${w.color},color-mix(in srgb, ${w.color}, white 35%))` }} />
-                <h3>{w.title}</h3><p>{w.meta}</p><b>{w.price}</b>
-              </Link>
-              <button aria-label={`${w.title} 관심 해제`} onClick={() => { setRemoved([...removed, w.id]); notify('관심 클래스에서 해제했어요'); }}><Heart fill="currentColor" /></button>
-            </article>
-          ))}
-        </div>
-      </div>
-      <div className="page account-page">
-        <h1>관심 클래스</h1>
-        <p className="account-lead">찜한 클래스를 모아봤어요</p>
-        <div className="student-stack">
-          {shown.map((w) => (
-            <Link className="student-class-card market wishlist-card" to={`/learn/classes/${w.id}`} key={w.id}>
-              <i style={{ background: `linear-gradient(135deg,${w.color},color-mix(in srgb, ${w.color}, white 35%))` }} />
-              <span>
-                <b>{w.title}</b>
-                <small>{w.meta}</small>
-                <strong>{w.price}</strong>
-              </span>
-              <button
-                aria-label="관심 해제"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setRemoved([...removed, w.id]);
-                  notify('관심 클래스에서 해제했어요');
-                }}
-              >
-                <Heart fill="currentColor" />
-              </button>
-            </Link>
-          ))}
-        </div>
-        <AsyncState loading={false} empty={!shown.length} />
-        {toast && <div className="done-toast">{toast}</div>}
-      </div>
-    </>
   );
 }
 

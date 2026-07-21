@@ -1,20 +1,20 @@
 import { FormEvent, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { authService } from '../api/services';
 import { setSession } from '../auth/session';
 import { PageHeader } from '../components/common/PageHeader';
 import { StatusBar } from '../components/common/StatusBar';
-import { useRole, type UserRole } from '../hooks/useRole';
+import { useRole } from '../hooks/useRole';
 
 const termLabels = ['(필수) 서비스 이용약관', '(필수) 개인정보 수집·이용 동의', '(선택) 마케팅 정보 수신 동의'];
 
 export function SignupPage() {
   const nav = useNavigate();
+  const location = useLocation();
   const { setRole } = useRole();
   const [terms, setTerms] = useState([false, false, false]);
   const [openTerm, setOpenTerm] = useState('');
   const [fields, setFields] = useState({ email: '', id: '', password: '', name: '' });
-  const [role, setSignupRole] = useState<UserRole>('teacher');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const valid =
@@ -31,10 +31,11 @@ export function SignupPage() {
     setSubmitting(true);
     setError('');
     try {
-      const session = await authService.signup({ email: fields.email, username: fields.id, password: fields.password, name: fields.name, role });
+      const session = await authService.signup({ email: fields.email, username: fields.id, password: fields.password, name: fields.name, role: 'teacher' });
       setSession(session);
       setRole(session.user.role);
-      nav('/dashboard', { replace: true });
+      const target = (location.state as { from?: string } | null)?.from ?? '/classes/new';
+      nav(target, { replace: true });
     } catch {
       setError('회원가입에 실패했어요. 잠시 후 다시 시도해 주세요.');
     } finally {
@@ -46,11 +47,7 @@ export function SignupPage() {
     <main className="standalone framed">
       <form className="page signup" onSubmit={submit}>
         <StatusBar />
-        <PageHeader title="회원가입" subtitle="1분이면 가입 완료돼요" />
-        <div className="segments role-segments" aria-label="가입 유형">
-          <button type="button" className={role === 'teacher' ? 'active' : ''} onClick={() => setSignupRole('teacher')}>강의자</button>
-          <button type="button" className={role === 'student' ? 'active' : ''} onClick={() => setSignupRole('student')}>수강생</button>
-        </div>
+        <PageHeader title="강의를 저장할 계정" subtitle="만든 강의와 신청자를 안전하게 관리해요" />
         {[
           ['email', '이메일', 'example@email.com'],
           ['id', '아이디', '사용할 아이디'],
@@ -115,11 +112,11 @@ export function SignupPage() {
 }
 
 export function GuestPage() {
-  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [sent, setSent] = useState(false);
   const [result, setResult] = useState(false);
-  const canSearch = sent && email.includes('@') && code.length >= 6;
+  const canSearch = sent && phone.replace(/\D/g, '').length >= 10 && code.length >= 6;
 
   return (
     <main className="standalone framed">
@@ -128,15 +125,16 @@ export function GuestPage() {
         <PageHeader title="" />
         <div className="guest-title">
           <i>✓</i>
-          <h1>비회원 신청조회</h1>
-          <p>신청 시 입력한 이메일로 조회할 수 있어요</p>
+          <h1>신청 정보 확인</h1>
+          <p>신청할 때 입력한 휴대전화 번호로 이어볼 수 있어요</p>
         </div>
         <label>
-          이메일
+          휴대전화 번호
           <input
-            placeholder="신청 시 입력한 이메일"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            inputMode="tel"
+            placeholder="010-0000-0000"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
           />
         </label>
         <label>
@@ -158,12 +156,12 @@ export function GuestPage() {
         {result && (
           <section className="guest-result">
             <b>노션으로 시작하는 업무 자동화</b>
-            <small>신청 완료 · 결제 대기 · 45,000원</small>
+            <small>수강 가능 · 이전 위치 3강 14분 27초</small>
           </section>
         )}
-        <p>회원가입을 하면 더욱 편하게 이용할 수 있어요!</p>
-        <Link className="secondary" to="/signup">
-          회원가입
+        <p>공유받은 신청 링크에서 바로 수강을 시작할 수 있어요.</p>
+        <Link className="secondary" to="/s/notion-auto">
+          신청 링크로 이동
         </Link>
       </section>
     </main>

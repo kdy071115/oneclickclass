@@ -35,6 +35,21 @@ export interface AttendanceRow {
   status: AttendanceStatus;
 }
 
+export interface SurveyOverviewItem {
+  id: string;
+  type: '설문' | '시험';
+  title: string;
+  meta: string;
+  status: '진행중' | '마감' | '예정';
+  response: number;
+}
+
+export interface ClassSettingsUpdate {
+  publicOn?: boolean;
+  recruitmentClosed?: boolean;
+  capacity?: number;
+}
+
 export interface ApplicantUpdate {
   payment: PaymentStatus;
 }
