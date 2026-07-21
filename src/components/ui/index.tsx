@@ -92,8 +92,8 @@ export function Skeleton({ lines = 3 }: { lines?: number }) {
   return <div className="ui-skeleton" aria-label="불러오는 중" aria-busy="true">{Array.from({ length: lines }, (_, index) => <i key={index} />)}</div>;
 }
 
-export function EmptyState({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
-  return <div className="ui-empty"><strong>{title}</strong>{description && <p>{description}</p>}{action}</div>;
+export function EmptyState({ icon, title, description, action }: { icon?: ReactNode; title: string; description?: string; action?: ReactNode }) {
+  return <div className="ui-empty">{icon && <span className="ui-empty-icon">{icon}</span>}<strong>{title}</strong>{description && <p>{description}</p>}{action}</div>;
 }
 
 export function Pagination({ page, totalPages, onChange }: { page: number; totalPages: number; onChange: (page: number) => void }) {
@@ -131,7 +131,24 @@ export function DonutChart({ value, label, tone = 'var(--color-primary)' }: { va
 
 export function BarChart({ data, label }: { data: readonly { label: string; value: number }[]; label: string }) {
   const max = Math.max(...data.map((item) => item.value), 1);
-  return <div className="ui-bar-chart" role="img" aria-label={label}>{data.map((item) => <span key={item.label}><i style={{ height: `${(item.value / max) * 100}%` }} /><small>{item.label}</small></span>)}</div>;
+  const axisSteps = [max, max * 0.75, max * 0.5, max * 0.25, 0];
+  return (
+    <div className="ui-bar-chart-wrap" role="img" aria-label={label}>
+      <div className="ui-bar-chart-body">
+        <div className="ui-bar-chart-axis">
+          {axisSteps.map((step, index) => (
+            <span key={step} style={{ top: `${(index / (axisSteps.length - 1)) * 100}%` }}>
+              {Math.round(step)}
+            </span>
+          ))}
+        </div>
+        <div className="ui-bar-chart-main">
+          <div className="ui-bar-chart">{data.map((item) => <span key={item.label}><i style={{ height: `${(item.value / max) * 100}%` }} /></span>)}</div>
+          <div className="ui-bar-chart-labels">{data.map((item) => <small key={item.label}>{item.label}</small>)}</div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function FileDropzone({ onFile, accept = 'image/png,image/jpeg,image/webp', maxSize = 5 * 1024 * 1024 }: { onFile: (file: File) => void; accept?: string; maxSize?: number }) {

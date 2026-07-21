@@ -3,22 +3,23 @@ import {
   Heart,
   LogOut,
   Plus,
-  Search,
   Settings,
   UserRound,
   Users,
 } from 'lucide-react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+import { classService } from '../api/services';
 import { clearSession, getSession } from '../auth/session';
 import { StatusBar } from '../components/common/StatusBar';
 import { NotificationPopover } from '../components/feature/NotificationPopover';
 import { mobileNav, studentNav, teacherNav } from '../constants/navigation';
+import { useAsync } from '../hooks/useAsync';
 import { useRole } from '../hooks/useRole';
 import { useProfileImage } from '../hooks/useProfileImage';
 
 export function AppLayout() {
-  const { role, setRole } = useRole();
+  const { role } = useRole();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const user = getSession()?.user;
@@ -27,6 +28,9 @@ export function AppLayout() {
   const [title, subtitle] = getPageTitle(pathname, teacher);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const profileImage = useProfileImage();
+  const loadClasses = useCallback(() => classService.list(), []);
+  const { data: classItems = [] } = useAsync(loadClasses);
+  const hasClasses = classItems.length > 0;
 
   return (
     <main className="stage oc-app">
@@ -37,14 +41,14 @@ export function AppLayout() {
             <span>✓</span>
             원클릭 클래스
           </Link>
-          <div className="oc-role-switch">
+          {/* <div className="oc-role-switch">
             <button className={teacher ? 'active' : ''} onClick={() => setRole('teacher')}>
               강의자
             </button>
             <button className={!teacher ? 'active' : ''} onClick={() => setRole('student')}>
               수강생
             </button>
-          </div>
+          </div> */}
           <nav className="oc-side-nav">
             {webNav.map(([to, Icon, label, badge]) => (
               <NavLink key={to} to={to} end={to === '/dashboard'}>
@@ -69,17 +73,17 @@ export function AppLayout() {
               <h1>{title}</h1>
               <p>{subtitle}</p>
             </div>
-            <label>
+            {/* <label>
               <Search size={17} />
               <input placeholder="클래스·신청자 검색" />
-            </label>
+            </label> */}
             <div className="oc-notification-menu">
               <button className="oc-icon-link unread" aria-label="알림" aria-haspopup="dialog" aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen((open) => !open)}>
                 <Bell size={20} />
               </button>
               {notificationsOpen && <NotificationPopover onClose={() => setNotificationsOpen(false)} />}
             </div>
-            {teacher && (
+            {teacher && hasClasses && (
               <Link className="oc-create" to="/classes/new">
                 <Plus size={18} />
                 강의 만들기
@@ -124,7 +128,7 @@ export function AppLayout() {
 }
 
 function getPageTitle(pathname: string, teacher: boolean) {
-  if (pathname === '/' || pathname === '/dashboard') return teacher ? ['대시보드', '오늘 강의 2개, 신규 신청 3건이 있어요'] : ['홈', '이어서 들을 강의를 확인하세요'];
+  if (pathname === '/' || pathname === '/dashboard') return teacher ? ['홈', '오늘 강의 2개, 신규 신청 3건이 있어요'] : ['홈', '이어서 들을 강의를 확인하세요'];
   if (pathname.startsWith('/classes')) return ['클래스', teacher ? '내가 연 강의를 관리하세요' : '수강 중인 클래스를 확인하세요'];
   if (pathname.startsWith('/learn/classes')) return ['학습', '수강 중인 클래스를 이어서 학습하세요'];
   if (pathname.startsWith('/applicants')) return ['신청자', '신청 현황과 결제 상태를 확인하세요'];

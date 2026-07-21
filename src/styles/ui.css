@@ -70,8 +70,11 @@
 .ui-skeleton i { height: 18px; border-radius: 6px; background: linear-gradient(90deg, #f2f4f6 25%, #e7eaee 50%, #f2f4f6 75%); background-size: 200% 100%; animation: ui-shimmer 1.2s infinite; }
 .ui-skeleton i:last-child { width: 68%; }
 @keyframes ui-shimmer { to { background-position: -200% 0; } }
-.ui-empty { min-height: 180px; display: grid; place-content: center; justify-items: center; gap: var(--space-2); padding: var(--space-6); color: var(--color-text-secondary); text-align: center; }
-.ui-empty p { margin: 0; color: var(--color-text-tertiary); font-size: var(--font-size-sm); }
+.ui-empty { min-height: 320px; display: grid; place-content: center; justify-items: center; gap: var(--space-4); padding: var(--space-8); color: var(--color-text-secondary); text-align: center; }
+.ui-empty-icon { display: grid; place-items: center; width: 72px; height: 72px; border-radius: 50%; background: var(--color-tint-blue); color: var(--color-primary); }
+.ui-empty strong { font-size: 24px; letter-spacing: -0.4px; color: var(--color-text); }
+.ui-empty p { margin: 0; color: var(--color-text-tertiary); font-size: 16px; white-space: nowrap; }
+.ui-empty .ui-button { min-height: 50px; padding: 0 var(--space-6); font-size: 16px; }
 .ui-pagination { display: flex; justify-content: center; align-items: center; gap: var(--space-1); margin-top: var(--space-5); }
 .ui-pagination > button:not(.ui-icon-button) { width: 34px; height: 34px; border-radius: var(--radius-sm); color: var(--color-text-secondary); }
 .ui-pagination > button.is-active { background: var(--color-primary); color: #fff; }
@@ -107,10 +110,40 @@
 .ui-donut > span { width: 108px; aspect-ratio: 1; display: grid; place-content: center; justify-items: center; border-radius: 50%; background: #fff; }
 .ui-donut b { font-size: var(--font-size-2xl); }
 .ui-donut small { color: var(--color-text-tertiary); }
-.ui-bar-chart { height: 180px; display: flex; align-items: end; gap: var(--space-3); padding-top: var(--space-4); }
-.ui-bar-chart > span { height: 100%; flex: 1; display: grid; grid-template-rows: 1fr auto; align-items: end; gap: var(--space-2); text-align: center; }
+.ui-bar-chart-wrap { display: flex; flex-direction: column; }
+.ui-bar-chart-body { display: flex; align-items: stretch; gap: var(--space-3); }
+.ui-bar-chart-axis {
+  position: relative;
+  flex: none;
+  width: 30px;
+  height: 180px;
+}
+.ui-bar-chart-axis span {
+  position: absolute;
+  right: 0;
+  transform: translateY(-50%);
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-xs);
+  line-height: 1;
+  white-space: nowrap;
+}
+.ui-bar-chart-main { flex: 1; min-width: 0; }
+.ui-bar-chart {
+  height: 180px;
+  display: flex;
+  align-items: end;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-bottom: 1px solid #d0d5db;
+  background-image: linear-gradient(#e5e8ec 1px, transparent 1px);
+  background-size: 100% 25%;
+  background-position: top;
+  background-repeat: repeat;
+}
+.ui-bar-chart > span { height: 100%; flex: 1; display: flex; align-items: end; justify-content: center; }
 .ui-bar-chart i { width: min(100%, 34px); min-height: 4px; justify-self: center; border-radius: 5px 5px 0 0; background: var(--color-primary); }
-.ui-bar-chart small { color: var(--color-text-tertiary); font-size: var(--font-size-xs); }
+.ui-bar-chart-labels { display: flex; gap: var(--space-3); margin-top: var(--space-2); }
+.ui-bar-chart-labels small { flex: 1; text-align: center; color: var(--color-text-tertiary); font-size: var(--font-size-xs); }
 
 .ui-dropzone label { min-height: 164px; display: grid; place-content: center; justify-items: center; gap: var(--space-2); padding: var(--space-5); border: 1px dashed #c7d0d9; border-radius: var(--radius-lg); background: #fafbfc; color: var(--color-text-secondary); text-align: center; cursor: pointer; }
 .ui-dropzone label:hover { border-color: var(--color-primary); background: var(--color-tint-blue); }

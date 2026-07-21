@@ -8,7 +8,7 @@ export const mobileNav = [
 ] as const;
 
 export const teacherNav = [
-  ['/dashboard', Grid2X2, '대시보드'],
+  ['/dashboard', Home, '홈'],
   ['/classes', BookOpen, '클래스'],
   ['/applicants', Users, '신청자', '3'],
   ['/settlements', CreditCard, '정산 관리'],
