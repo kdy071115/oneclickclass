@@ -1,6 +1,6 @@
 import { ArrowLeft, Check, Mail, Phone } from 'lucide-react';
 import { useCallback, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { applicantService } from '../api/services';
 import { AsyncState } from '../components/common/AsyncState';
 import { PageHeader } from '../components/common/PageHeader';
@@ -11,7 +11,10 @@ import { getStatusTone } from '../utils/status';
 
 export function ApplicantDetailPage() {
   const { id = '' } = useParams();
-  const load = useCallback(() => applicantService.get(id), [id]);
+  const [params] = useSearchParams();
+  const classId = params.get('classId') || '';
+  const backTo = classId ? `/classes/${classId}/applicants` : '/applicants';
+  const load = useCallback(() => applicantService.get(id, classId || undefined), [classId, id]);
   const { data, loading, error, retry } = useAsync(load);
   const [payment, setPayment] = useState<'결제대기' | '결제완료' | '환불'>();
   const [message, setMessage] = useState('');
@@ -24,7 +27,11 @@ export function ApplicantDetailPage() {
 
   const currentPayment = payment ?? data.payment;
   const confirmPayment = async () => {
-    const updated = await applicantService.updatePayment(data.id, { payment: '결제완료' });
+    const updated = await applicantService.updatePayment(
+      data.id,
+      { payment: '결제완료' },
+      classId || undefined,
+    );
     setPayment(updated.payment);
     setNotice('결제 상태를 확인했어요.');
   };
@@ -38,7 +45,7 @@ export function ApplicantDetailPage() {
   return (
     <>
       <div className="oc-web-page applicant-detail-web">
-        <Link className="oc-back-link" to="/applicants"><ArrowLeft size={16} /> 신청자 목록</Link>
+        <Link className="oc-back-link" to={backTo}><ArrowLeft size={16} /> {classId ? '강의 신청자' : '신청자 목록'}</Link>
         <header className="applicant-detail-head">
           <Avatar name={data.name} size={58} />
           <div><h1>{data.name}</h1><p>{data.classTitle} · {data.appliedAt} 신청</p></div>
@@ -68,7 +75,7 @@ export function ApplicantDetailPage() {
       </div>
 
       <div className="page subpage">
-        <PageHeader title="" backTo="/applicants" />
+        <PageHeader title="" backTo={backTo} />
         <div className="applicant-profile"><Avatar name={data.name} size={50} /><div><h2>{data.name}</h2><small>{data.classTitle}</small></div></div>
         <section className="info-card"><h4>신청 정보</h4><p><span>전화번호</span><b>{data.phone}</b></p><p><span>이메일</span><b>{data.email}</b></p>{data.answers.map((answer) => <p key={answer.label}><span>{answer.label}</span><b>{answer.value}</b></p>)}</section>
         <section className={`payment-detail ${currentPayment === '결제완료' ? 'paid' : ''}`}><div><small>결제</small><b>{won(data.amount)} · {currentPayment}</b></div><button onClick={() => void confirmPayment()} disabled={currentPayment === '결제완료'}>{currentPayment === '결제완료' ? '확인 완료' : '결제 확인'}</button></section>

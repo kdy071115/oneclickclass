@@ -35,7 +35,7 @@ const todaySchedule = [
   ['20:00', '오후', '실전 유튜브 편집 8주 · 3주차', '수강생 20명', '라이브'],
 ];
 const classColumns: TableColumn<ClassItem>[] = [
-  { key: 'title', header: '클래스명', render: (item) => <b>{item.title}</b> },
+  { key: 'title', header: '클래스명', render: (item) => <Link to={`/classes/${item.id}`}><b>{item.title}</b></Link> },
   { key: 'status', header: '상태', render: (item) => <Badge tone={getStatusTone(item.status)}>{item.status}</Badge> },
   { key: 'enrolled', header: '신청/정원', render: (item) => <>{item.enrolled} / {item.capacity}명</> },
   { key: 'schedule', header: '일정', render: (item) => <>{item.type} · {item.date}</> },
