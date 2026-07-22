@@ -30,7 +30,7 @@ const lessonTypes: Record<
   LessonContentType,
   { label: string; Icon: typeof CirclePlay; urlLabel: string }
 > = {
-  video: { label: '녹화 영상', Icon: CirclePlay, urlLabel: '영상 URL' },
+  video: { label: '녹화 영상', Icon: CirclePlay, urlLabel: '영상 URL (MP4 · YouTube · Vimeo)' },
   live: { label: '라이브', Icon: Radio, urlLabel: '참여 URL' },
   document: { label: '학습 자료', Icon: FileText, urlLabel: '자료 URL' },
   assignment: { label: '과제', Icon: BookOpen, urlLabel: '제출 안내 URL' },
