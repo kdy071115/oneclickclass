@@ -1,6 +1,5 @@
 import {
   Bell,
-  Heart,
   LogOut,
   Plus,
   Settings,
@@ -13,7 +12,7 @@ import { classService } from '../api/services';
 import { clearSession, getSession } from '../auth/session';
 import { StatusBar } from '../components/common/StatusBar';
 import { NotificationPopover } from '../components/feature/NotificationPopover';
-import { mobileNav, studentNav, teacherNav } from '../constants/navigation';
+import { mobileNav, teacherNav } from '../constants/navigation';
 import { useAsync } from '../hooks/useAsync';
 import { useRole } from '../hooks/useRole';
 import { useProfileImage } from '../hooks/useProfileImage';
@@ -24,13 +23,13 @@ export function AppLayout() {
   const { pathname } = useLocation();
   const user = getSession()?.user;
   const teacher = role === 'teacher';
-  const webNav = teacher ? teacherNav : studentNav;
   const [title, subtitle] = getPageTitle(pathname, teacher);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const profileImage = useProfileImage();
   const loadClasses = useCallback(() => classService.list(), []);
   const { data: classItems = [] } = useAsync(loadClasses);
   const hasClasses = classItems.length > 0;
+  const hideMobileNav = pathname === '/classes/published' || /^\/classes\/[^/]+\/preview$/.test(pathname);
 
   return (
     <main className="stage oc-app">
@@ -50,7 +49,7 @@ export function AppLayout() {
             </button>
           </div> */}
           <nav className="oc-side-nav">
-            {webNav.map(([to, Icon, label, badge]) => (
+            {teacherNav.map(([to, Icon, label, badge]) => (
               <NavLink key={to} to={to} end={to === '/dashboard'}>
                 <Icon size={21} />
                 <span>{label}</span>
@@ -94,34 +93,27 @@ export function AppLayout() {
             <Outlet />
           </div>
         </div>
-        <nav className={`five-nav ${teacher ? '' : 'student-nav'} app-only`}>
-          {mobileNav.slice(0, 2).map(([to, Icon, label]) => (
-            <NavLink key={to} to={to} end={to === '/dashboard'}>
-              <Icon size={22} />
-              <small>{label}</small>
-            </NavLink>
-          ))}
-          {teacher ? (
+        {!hideMobileNav && (
+          <nav className="five-nav app-only">
+            {mobileNav.slice(0, 2).map(([to, Icon, label]) => (
+              <NavLink key={to} to={to} end={to === '/dashboard'}>
+                <Icon size={22} />
+                <small>{label}</small>
+              </NavLink>
+            ))}
             <Link className="nav-create" to="/classes/new" aria-label="강의 만들기">
               <Plus size={27} />
             </Link>
-          ) : (
-            <NavLink to="/wishlist">
-              <Heart size={22} />
-              <small>관심</small>
-            </NavLink>
-          )}
-          {teacher && (
             <NavLink to="/applicants">
               <Users size={22} />
               <small>신청자</small>
             </NavLink>
-          )}
-          <NavLink to="/my">
-            <UserRound size={22} />
-            <small>마이</small>
-          </NavLink>
-        </nav>
+            <NavLink to="/my">
+              <UserRound size={22} />
+              <small>마이</small>
+            </NavLink>
+          </nav>
+        )}
       </section>
     </main>
   );
