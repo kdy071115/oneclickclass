@@ -41,11 +41,13 @@ import type {
   SurveyQuestion,
 } from '../types/class';
 import { initialClassDraft } from '../constants/classDraft';
-import { loadClassPreview } from '../utils/classDraft';
+import { hasClassData, listClassPreviewIds, loadClassPreview } from '../utils/classDraft';
 const mock = import.meta.env.VITE_USE_MOCK !== 'false';
 const delay = <T>(data: T) => new Promise<T>((resolve) => setTimeout(() => resolve(data), 350));
 const MOCK_CLASSES_KEY = 'oneclick.mock.classes';
+const mockSettingsKey = (classId: string) => `oneclick.class-settings.${classId}`;
 const curriculumKey = (classId: string) => `oneclick.curriculum.${classId}`;
+const surveyKey = (classId: string) => `oneclick.surveys.${classId}`;
 const classTypeLabel: Record<ClassDraft['type'], string> = {
   online: '온라인',
   live: '라이브',
@@ -63,10 +65,38 @@ const savedMockClasses = (): ClassItem[] => {
     return [];
   }
 };
-const mockClasses = () => [
-  ...savedMockClasses(),
-  ...classes.filter((item) => !savedMockClasses().some((saved) => saved.id === item.id)),
-];
+const previewClassItem = (id: string): ClassItem => {
+  const draft = loadClassPreview(id, initialClassDraft);
+  const hasEnrollment = Boolean(localStorage.getItem(`oneclick.enrollment.${id}`));
+  let enrollmentTitle = '';
+  try {
+    const enrollment = JSON.parse(localStorage.getItem(`oneclick.enrollment.${id}`) || '{}') as {
+      courseTitle?: string;
+    };
+    enrollmentTitle = enrollment.courseTitle || '';
+  } catch {
+    enrollmentTitle = '';
+  }
+  return {
+    id,
+    title: draft.title || enrollmentTitle || classDetail.title,
+    status: '모집중',
+    type: classTypeLabel[draft.type],
+    date: draft.startDate || '일정 미정',
+    enrolled: hasEnrollment ? 1 : 0,
+    capacity: draft.capacity,
+    color: '#3182f6',
+    thumbnail: draft.thumbnail || undefined,
+  };
+};
+const mockClasses = () => {
+  const saved = savedMockClasses();
+  const combined = [...saved, ...classes.filter((item) => !saved.some((row) => row.id === item.id))];
+  for (const id of listClassPreviewIds()) {
+    if (!combined.some((item) => item.id === id)) combined.unshift(previewClassItem(id));
+  }
+  return combined;
+};
 const saveMockClasses = (items: ClassItem[]) =>
   localStorage.setItem(
     MOCK_CLASSES_KEY,
@@ -102,6 +132,115 @@ const mockCurriculum = (classId: string): CurriculumSection[] => {
 const saveMockCurriculum = (classId: string, sections: CurriculumSection[]) => {
   localStorage.setItem(curriculumKey(classId), JSON.stringify(sections));
   return sections;
+};
+const mockSettings = (classId: string, capacity = 30): Required<ClassSettingsUpdate> => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(mockSettingsKey(classId)) || '{}') as ClassSettingsUpdate;
+    return {
+      publicOn: saved.publicOn ?? true,
+      recruitmentClosed: saved.recruitmentClosed ?? false,
+      capacity: saved.capacity ?? capacity,
+    };
+  } catch {
+    return { publicOn: true, recruitmentClosed: false, capacity };
+  }
+};
+const saveMockSettings = (classId: string, update: ClassSettingsUpdate, capacity = 30) => {
+  const next = { ...mockSettings(classId, capacity), ...update };
+  localStorage.setItem(mockSettingsKey(classId), JSON.stringify(next));
+  return next;
+};
+const enrollmentApplicant = (classId: string): Applicant | undefined => {
+  try {
+    const stored = localStorage.getItem(`oneclick.enrollment.${classId}`);
+    if (!stored) return undefined;
+    const enrollment = JSON.parse(stored) as {
+      courseApplySeq?: string;
+      learnerName?: string;
+      phone?: string;
+      email?: string;
+      applyStatusCd?: string;
+    };
+    const item = mockClasses().find((current) => current.id === classId);
+    const draft = loadClassPreview(classId, initialClassDraft);
+    return {
+      id: enrollment.courseApplySeq || `enrollment-${classId}`,
+      classId,
+      name: enrollment.learnerName || '수강생',
+      classTitle: item?.title || draft.title,
+      appliedAt: '최근 신청',
+      payment: enrollment.applyStatusCd === 'APPLY_STATUS::004' ? '결제대기' : '결제완료',
+      amount: draft.payment === 'paid' ? draft.price : 0,
+      phone: enrollment.phone || '-',
+      email: enrollment.email || '-',
+      answers: [],
+    };
+  } catch {
+    return undefined;
+  }
+};
+const mockApplicantsByClass = (classId: string) => {
+  const rows = applicants.filter((item) => item.classId === classId);
+  const enrollment = enrollmentApplicant(classId);
+  return enrollment && !rows.some((item) => item.id === enrollment.id)
+    ? [enrollment, ...rows]
+    : rows;
+};
+const allMockApplicants = () => {
+  const rows = [...applicants];
+  for (const classId of listClassPreviewIds()) {
+    const enrollment = enrollmentApplicant(classId);
+    if (enrollment && !rows.some((item) => item.id === enrollment.id)) rows.unshift(enrollment);
+  }
+  return rows;
+};
+const demoSurveyItems: SurveyOverviewItem[] = [
+  {
+    id: 's1',
+    type: '설문',
+    title: '중간 만족도 설문',
+    meta: '5문항 · 익명',
+    status: '진행중',
+    response: 65,
+  },
+  {
+    id: 'e1',
+    type: '시험',
+    title: '3주차 퀴즈',
+    meta: '10문항 · 70점 이상 통과',
+    status: '마감',
+    response: 90,
+  },
+  {
+    id: 'e2',
+    type: '시험',
+    title: '최종 시험',
+    meta: '20문항 · 60분',
+    status: '예정',
+    response: 0,
+  },
+  {
+    id: 's2',
+    type: '설문',
+    title: '수료 후기 설문',
+    meta: '3문항 · 공개',
+    status: '진행중',
+    response: 40,
+  },
+];
+const mockSurveyItems = (classId: string): SurveyOverviewItem[] => {
+  try {
+    const stored = localStorage.getItem(surveyKey(classId));
+    if (stored) return JSON.parse(stored) as SurveyOverviewItem[];
+    return classId === 'notion' ? demoSurveyItems : [];
+  } catch {
+    return classId === 'notion' ? demoSurveyItems : [];
+  }
+};
+const saveMockSurveyItem = (classId: string, item: SurveyOverviewItem) => {
+  const items = [item, ...mockSurveyItems(classId)];
+  localStorage.setItem(surveyKey(classId), JSON.stringify(items));
+  return item;
 };
 const pageItems = <T>(items: T[], query: PageQuery = {}): PageResponse<T> => {
   const page = Math.max(1, query.page ?? 1);
@@ -155,7 +294,9 @@ export const classService = {
       : apiClient.get<PageResponse<ClassItem>>('/classes', { params: query }).then((r) => r.data),
   get: (id: string): Promise<ClassItem> =>
     mock
-      ? delay(mockClasses().find((c) => c.id === id) ?? classes[0])
+      ? mockClasses().some((c) => c.id === id)
+        ? delay(mockClasses().find((c) => c.id === id) as ClassItem)
+        : Promise.reject(new Error('class not found'))
       : apiClient.get<ClassItem>(`/classes/${id}`).then((r) => r.data),
   create: (draft: ClassDraft): Promise<ClassItem> => {
     if (!mock) return apiClient.post<ClassItem>('/classes', draft).then((r) => r.data);
@@ -185,10 +326,18 @@ export const classService = {
     saveMockClasses([item, ...savedMockClasses().filter((saved) => saved.id !== id)]);
     return delay(item);
   },
-  updateSettings: (id: string, update: ClassSettingsUpdate): Promise<void> =>
-    mock
-      ? delay(undefined)
-      : apiClient.patch<void>(`/classes/${id}/settings`, update).then((r) => r.data),
+  updateSettings: (id: string, update: ClassSettingsUpdate): Promise<void> => {
+    if (!mock) return apiClient.patch<void>(`/classes/${id}/settings`, update).then((r) => r.data);
+    const current = mockClasses().find((item) => item.id === id);
+    const next = saveMockSettings(id, update, current?.capacity);
+    if (current && next.capacity !== current.capacity) {
+      saveMockClasses([
+        { ...current, capacity: next.capacity },
+        ...savedMockClasses().filter((item) => item.id !== id),
+      ]);
+    }
+    return delay(undefined);
+  },
   publish: (id: string): Promise<{ shareToken: string }> =>
     mock
       ? delay({ shareToken: id })
@@ -211,28 +360,47 @@ export const classService = {
 };
 export const applicantService = {
   list: (): Promise<Applicant[]> =>
-    mock ? delay(applicants) : apiClient.get<Applicant[]>('/applicants').then((r) => r.data),
+    mock ? delay(allMockApplicants()) : apiClient.get<Applicant[]>('/applicants').then((r) => r.data),
   listPage: (query: PageQuery = {}): Promise<PageResponse<Applicant>> =>
     mock
-      ? delay(pageItems(applicants, query))
+      ? delay(pageItems(allMockApplicants(), query))
       : apiClient
           .get<PageResponse<Applicant>>('/applicants', { params: query })
           .then((r) => r.data),
   listByClass: (classId: string): Promise<Applicant[]> =>
     mock
-      ? delay(applicants)
+      ? delay(mockApplicantsByClass(classId))
       : apiClient.get<Applicant[]>(`/classes/${classId}/applicants`).then((r) => r.data),
-  get: (id: string): Promise<Applicant> =>
+  get: (id: string, classId?: string): Promise<Applicant> =>
     mock
-      ? delay(applicants.find((a) => a.id === id) ?? applicants[0])
+      ? delay(
+          (classId ? mockApplicantsByClass(classId) : allMockApplicants()).find((a) => a.id === id) ??
+            applicants[0],
+        )
       : apiClient.get<Applicant>(`/applicants/${id}`).then((r) => r.data),
-  updatePayment: (id: string, update: ApplicantUpdate): Promise<Applicant> =>
-    mock
-      ? delay({
-          ...(applicants.find((a) => a.id === id) ?? applicants[0]),
-          payment: update.payment,
-        })
-      : apiClient.patch<Applicant>(`/applicants/${id}/payment`, update).then((r) => r.data),
+  updatePayment: (id: string, update: ApplicantUpdate, classId?: string): Promise<Applicant> => {
+    if (!mock)
+      return apiClient.patch<Applicant>(`/applicants/${id}/payment`, update).then((r) => r.data);
+    const source = classId ? mockApplicantsByClass(classId) : allMockApplicants();
+    const applicant = source.find((item) => item.id === id);
+    if (!applicant) return Promise.reject(new Error('applicant not found'));
+    if (classId && !applicants.some((item) => item.id === id)) {
+      const enrollmentKey = `oneclick.enrollment.${classId}`;
+      const storedEnrollment = localStorage.getItem(enrollmentKey);
+      if (storedEnrollment) {
+        const enrollment = JSON.parse(storedEnrollment) as { applyStatusCd?: string };
+        localStorage.setItem(
+          enrollmentKey,
+          JSON.stringify({
+            ...enrollment,
+            applyStatusCd:
+              update.payment === '결제완료' ? 'APPLY_STATUS::002' : 'APPLY_STATUS::004',
+          }),
+        );
+      }
+    }
+    return delay({ ...applicant, payment: update.payment });
+  },
   sendMessage: (id: string, message: string): Promise<void> =>
     mock
       ? delay(undefined)
@@ -242,9 +410,12 @@ export const detailService = {
   getClass: (id: string): Promise<ClassDetail> => {
     if (!mock) return apiClient.get<ClassDetail>(`/classes/${id}/detail`).then((r) => r.data);
     const item = mockClasses().find((current) => current.id === id);
+    if (!item && !hasClassData(id)) return Promise.reject(new Error('class not found'));
     const draft = loadClassPreview(id, initialClassDraft);
     const hasReview = Boolean(localStorage.getItem(`oneclick.review.${id}`));
     const savedCurriculum = mockCurriculum(id);
+    const settings = mockSettings(id, item?.capacity || draft.capacity);
+    const enrolled = Math.max(item?.enrolled || 0, mockApplicantsByClass(id).length);
     return delay({
       ...classDetail,
       ...item,
@@ -259,7 +430,14 @@ export const detailService = {
           ? [draft.address, draft.detailedAddress].filter(Boolean).join(' ')
           : draft.url || classDetail.location,
       shareToken: id === 'notion' ? 'notion-auto' : id,
+      enrolled,
+      capacity: settings.capacity,
+      publicOn: settings.publicOn,
+      recruitmentClosed: settings.recruitmentClosed,
       reviewCount: (id === 'notion' ? 2 : 0) + (hasReview ? 1 : 0),
+      rating: id === 'notion' ? classDetail.rating : hasReview ? 5 : 0,
+      completionRate: id === 'notion' ? classDetail.completionRate : 0,
+      applicantTrend: id === 'notion' ? classDetail.applicantTrend : [],
       curriculum: savedCurriculum.flatMap((section) =>
         section.lessons.map((lesson) => ({
           id: lesson.id,
@@ -270,12 +448,12 @@ export const detailService = {
         })),
       ),
       sessions: savedCurriculum.reduce((total, section) => total + section.lessons.length, 0),
-      recentActivities: item?.enrolled
+      recentActivities: enrolled
         ? [
             {
               id: 'a1',
               type: 'applicant' as const,
-              label: `신청자 ${item.enrolled}명`,
+              label: `신청자 ${enrolled}명`,
               occurredAt: '최근 집계',
             },
           ]
@@ -425,12 +603,13 @@ export const userService = {
       : apiClient.patch<PaymentSummary>('/me/payment/default-method', { id }).then((r) => r.data),
 };
 
-const attendanceRows: AttendanceRow[] = applicants.map((item, index) => ({
-  id: item.id,
-  name: item.name,
-  checkedAt: index === 3 ? undefined : `10:0${index}`,
-  status: index === 3 ? '결석' : index === 2 ? '지각' : '출석',
-}));
+const mockAttendanceRows = (classId: string): AttendanceRow[] =>
+  mockApplicantsByClass(classId).map((item, index) => ({
+    id: item.id,
+    name: item.name,
+    checkedAt: index % 4 === 3 ? undefined : `10:0${index}`,
+    status: index % 4 === 3 ? '결석' : index % 4 === 2 ? '지각' : '출석',
+  }));
 
 export const attendanceService = {
   issueQr: (classId: string): Promise<QrSession> =>
@@ -449,7 +628,7 @@ export const attendanceService = {
       : apiClient.post<QrSession>(`/classes/${classId}/attendance/qr/refresh`).then((r) => r.data),
   checkins: (classId: string): Promise<AttendanceRow[]> =>
     mock
-      ? delay(attendanceRows)
+      ? delay(mockAttendanceRows(classId))
       : apiClient
           .get<AttendanceRow[]>(`/classes/${classId}/attendance/checkins`)
           .then((r) => r.data),
@@ -466,45 +645,25 @@ export const attendanceService = {
 export const surveyService = {
   list: (classId: string): Promise<SurveyOverviewItem[]> =>
     mock
-      ? delay([
-          {
-            id: 's1',
-            type: '설문',
-            title: '중간 만족도 설문',
-            meta: '5문항 · 익명',
-            status: '진행중',
-            response: 65,
-          },
-          {
-            id: 'e1',
-            type: '시험',
-            title: '3주차 퀴즈',
-            meta: '10문항 · 70점 이상 통과',
-            status: '마감',
-            response: 90,
-          },
-          {
-            id: 'e2',
-            type: '시험',
-            title: '최종 시험',
-            meta: '20문항 · 60분',
-            status: '예정',
-            response: 0,
-          },
-          {
-            id: 's2',
-            type: '설문',
-            title: '수료 후기 설문',
-            meta: '3문항 · 공개',
-            status: '진행중',
-            response: 40,
-          },
-        ] as SurveyOverviewItem[])
+      ? delay(mockSurveyItems(classId))
       : apiClient.get<SurveyOverviewItem[]>(`/classes/${classId}/surveys`).then((r) => r.data),
-  create: (classId: string, payload: unknown) =>
-    mock
-      ? delay({ id: crypto.randomUUID(), classId, payload })
-      : apiClient.post(`/classes/${classId}/surveys`, payload).then((r) => r.data),
+  create: (classId: string, payload: unknown): Promise<SurveyOverviewItem> => {
+    if (!mock)
+      return apiClient
+        .post<SurveyOverviewItem>(`/classes/${classId}/surveys`, payload)
+        .then((r) => r.data);
+    const input = payload as { title?: string; questions?: unknown[] };
+    return delay(
+      saveMockSurveyItem(classId, {
+        id: crypto.randomUUID(),
+        type: '설문',
+        title: input.title || '새 설문',
+        meta: `${input.questions?.length || 0}문항 · 익명`,
+        status: '예정',
+        response: 0,
+      }),
+    );
+  },
   responses: (surveyId: string) =>
     mock ? delay([]) : apiClient.get(`/surveys/${surveyId}/responses`).then((r) => r.data),
   summary: (surveyId: string) =>
@@ -514,10 +673,23 @@ export const surveyService = {
 };
 
 export const examService = {
-  create: (classId: string, payload: unknown) =>
-    mock
-      ? delay({ id: crypto.randomUUID(), classId, payload })
-      : apiClient.post(`/classes/${classId}/exams`, payload).then((r) => r.data),
+  create: (classId: string, payload: unknown): Promise<SurveyOverviewItem> => {
+    if (!mock)
+      return apiClient
+        .post<SurveyOverviewItem>(`/classes/${classId}/exams`, payload)
+        .then((r) => r.data);
+    const input = payload as { title?: string; questions?: unknown[]; passScore?: number };
+    return delay(
+      saveMockSurveyItem(classId, {
+        id: crypto.randomUUID(),
+        type: '시험',
+        title: input.title || '새 시험',
+        meta: `${input.questions?.length || 0}문항 · ${input.passScore ?? 70}점 이상 통과`,
+        status: '예정',
+        response: 0,
+      }),
+    );
+  },
   responses: (examId: string) =>
     mock ? delay([]) : apiClient.get(`/exams/${examId}/responses`).then((r) => r.data),
   summary: (examId: string) =>
@@ -529,7 +701,7 @@ export const examService = {
 export const certificateService = {
   recipients: (classId: string): Promise<Applicant[]> =>
     mock
-      ? delay(applicants.slice(1))
+      ? delay(mockApplicantsByClass(classId))
       : apiClient
           .get<Applicant[]>(`/classes/${classId}/certificates/recipients`)
           .then((r) => r.data),

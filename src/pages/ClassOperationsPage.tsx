@@ -43,6 +43,7 @@ type Config = {
   subtitle: string;
   kind: 'people' | 'attendance' | 'survey' | 'exams' | 'builder' | 'settings' | 'certificates';
 };
+type OperationTab = Config['kind'] | 'overview';
 const configs: Record<string, Config> = {
   applicants: { title: '신청자 관리', subtitle: '노션으로 시작하는 업무 자동화', kind: 'people' },
   attendance: { title: '출석 관리', subtitle: '노션으로 시작하는 업무 자동화', kind: 'attendance' },
@@ -92,30 +93,54 @@ export function ClassOperationsPage() {
     window.setTimeout(() => setToast(''), 2000);
   };
   const certificateManager = useCertificateManager(id, notify);
-  const active = cfg.kind === 'builder' || cfg.kind === 'exams' ? 'survey' : cfg.kind;
+  const active: OperationTab = cfg.kind === 'builder' || cfg.kind === 'exams' ? 'survey' : cfg.kind;
   return (
     <>
       <div className="oc-web-page">
         <WebClassChrome id={id} active={active} item={item} detail={detail} notify={notify} />
         {cfg.kind === 'people' && <WebPeople id={id} notify={notify} />}{' '}
-        {cfg.kind === 'attendance' && <WebAttendance id={id} notify={notify} />}{' '}
-        {(cfg.kind === 'survey' || cfg.kind === 'exams') && <WebSurvey id={id} notify={notify} />}{' '}
+        {cfg.kind === 'attendance' && (
+          <WebAttendance
+            id={id}
+            enabled={item.type !== '온라인'}
+            sessionCount={Math.max(1, detail?.sessions || 1)}
+            schedule={item.date}
+            notify={notify}
+          />
+        )}{' '}
+        {(cfg.kind === 'survey' || cfg.kind === 'exams') && (
+          <WebSurvey id={id} detail={detail} notify={notify} />
+        )}{' '}
         {cfg.kind === 'builder' && (
           <WebBuilder classId={id} exam={key.startsWith('exam')} notify={notify} />
         )}{' '}
         {cfg.kind === 'settings' && <WebManage id={id} detail={detail} notify={notify} />}{' '}
-        {cfg.kind === 'certificates' && <WebCertificates manager={certificateManager} />}{' '}
+        {cfg.kind === 'certificates' && (
+          <WebCertificates manager={certificateManager} classTitle={item.title} />
+        )}{' '}
       </div>
       <div className="page subpage operations original-operations">
         <PageHeader title={cfg.title} subtitle={item.title} backTo={`/classes/${id}`} />
-        {cfg.kind === 'people' && <People />}
-        {cfg.kind === 'attendance' && <Attendance id={id} />}{' '}
-        {cfg.kind === 'survey' && <Survey id={id} />} {cfg.kind === 'exams' && <Exams id={id} />}{' '}
+        {cfg.kind === 'people' && <People id={id} />}
+        {cfg.kind === 'attendance' && (
+          <Attendance
+            id={id}
+            enabled={item.type !== '온라인'}
+            sessionCount={Math.max(1, detail?.sessions || 1)}
+            schedule={item.date}
+          />
+        )}{' '}
+        {cfg.kind === 'survey' && <Survey id={id} detail={detail} />}{' '}
+        {cfg.kind === 'exams' && <Exams id={id} />}{' '}
         {cfg.kind === 'builder' && (
           <Builder classId={id} exam={key.startsWith('exam')} notify={notify} />
         )}{' '}
-        {cfg.kind === 'settings' && <Manage id={id} notify={notify} />}{' '}
-        {cfg.kind === 'certificates' && <Certificates manager={certificateManager} />}{' '}
+        {cfg.kind === 'settings' && (
+          <Manage id={id} detail={detail} notify={notify} />
+        )}{' '}
+        {cfg.kind === 'certificates' && (
+          <Certificates manager={certificateManager} requiresAttendance={item.type !== '온라인'} />
+        )}{' '}
       </div>
       {toast && (
         <div className="done-toast" aria-live="polite">
@@ -221,18 +246,25 @@ function WebClassChrome({
   notify,
 }: {
   id: string;
-  active: Config['kind'];
+  active: OperationTab;
   item: (typeof classes)[number];
   detail?: ClassDetail;
   notify: (message: string) => void;
 }) {
   const thumbnail = getClassThumbnail(id);
-  const tabs: [string, string, Config['kind']][] = [
-    ['개요', `/classes/${id}`, 'settings'],
+  const tabs: [string, string, OperationTab][] = [
+    ['개요', `/classes/${id}`, 'overview'],
     ['신청자', `/classes/${id}/applicants`, 'people'],
-    ['출석/QR', `/classes/${id}/attendance`, 'attendance'],
+    ...(item.type === '온라인'
+      ? []
+      : ([['출석/QR', `/classes/${id}/attendance`, 'attendance']] as [
+          string,
+          string,
+          OperationTab,
+        ][])),
     ['설문·시험', `/classes/${id}/survey`, 'survey'],
     ['수료증', `/classes/${id}/certificates`, 'certificates'],
+    ['설정', `/classes/${id}/manage`, 'settings'],
   ];
   return (
     <>
@@ -262,7 +294,7 @@ function WebClassChrome({
               </span>
               <span>
                 <Users size={18} />
-                <b>{item.enrolled}명</b> 신청
+                <b>{detail?.enrolled ?? item.enrolled}명</b> 신청
               </span>
               <span>
                 <CalendarDays size={18} />
@@ -319,6 +351,8 @@ function WebPeople({ id, notify }: { id: string; notify: (message: string) => vo
       alive = false;
     };
   }, [id]);
+  const paid = rows.filter((row) => row.payment === '결제완료').length;
+  const waiting = rows.filter((row) => row.payment === '결제대기').length;
   const download = () => {
     const csv = [
       '이름,클래스,신청일,결제상태,금액',
@@ -344,9 +378,9 @@ function WebPeople({ id, notify }: { id: string; notify: (message: string) => vo
         onAction={download}
       />
       <div className="operation-metrics">
-        <OperationMetric icon={Users} label="전체 신청" value="24명" tone="blue" />
-        <OperationMetric icon={CheckCircle2} label="결제 완료" value="21명" tone="green" />
-        <OperationMetric icon={BarChart3} label="결제 대기" value="3건" tone="orange" />
+        <OperationMetric icon={Users} label="전체 신청" value={`${rows.length}명`} tone="blue" />
+        <OperationMetric icon={CheckCircle2} label="결제 완료" value={`${paid}명`} tone="green" />
+        <OperationMetric icon={BarChart3} label="결제 대기" value={`${waiting}건`} tone="orange" />
       </div>
       <div className="oc-table operation-table">
         <div className="oc-table-head">
@@ -357,7 +391,11 @@ function WebPeople({ id, notify }: { id: string; notify: (message: string) => vo
           <span>금액</span>
         </div>
         {rows.map((a, i) => (
-          <Link className="oc-table-row" to={`/applicants/${a.id}`} key={a.id}>
+          <Link
+            className="oc-table-row"
+            to={`/applicants/${a.id}?classId=${encodeURIComponent(id)}`}
+            key={a.id}
+          >
             <span className="operation-person">
               <span
                 className="oc-avatar"
@@ -378,14 +416,33 @@ function WebPeople({ id, notify }: { id: string; notify: (message: string) => vo
             <strong>{a.amount.toLocaleString()}원</strong>
           </Link>
         ))}
+        {!rows.length && (
+          <div className="operation-table-empty">
+            <Users size={24} />
+            <b>아직 신청자가 없어요</b>
+            <p>신청 링크를 공유하면 신청 내역이 여기에 표시됩니다.</p>
+          </div>
+        )}
       </div>
     </section>
   );
 }
 
-function WebAttendance({ id, notify }: { id: string; notify: (message: string) => void }) {
+function WebAttendance({
+  id,
+  enabled,
+  sessionCount,
+  schedule,
+  notify,
+}: {
+  id: string;
+  enabled: boolean;
+  sessionCount: number;
+  schedule: string;
+  notify: (message: string) => void;
+}) {
   const [rows, setRows] = useState<AttendanceRow[]>([]);
-  const [session, setSession] = useState(3);
+  const [session, setSession] = useState(1);
   const [qrUrl, setQrUrl] = useState('');
   const [seconds, setSeconds] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -406,9 +463,10 @@ function WebAttendance({ id, notify }: { id: string; notify: (message: string) =
     [id, notify],
   );
   useEffect(() => {
-    void loadQr();
-  }, [loadQr]);
+    if (enabled) void loadQr();
+  }, [enabled, loadQr]);
   useEffect(() => {
+    if (!enabled) return;
     let alive = true;
     attendanceService.checkins(id).then((items) => {
       if (alive) setRows(items);
@@ -416,11 +474,14 @@ function WebAttendance({ id, notify }: { id: string; notify: (message: string) =
     return () => {
       alive = false;
     };
-  }, [id]);
+  }, [enabled, id]);
   useEffect(() => {
     const timer = window.setInterval(() => setSeconds((value) => Math.max(0, value - 1)), 1000);
     return () => window.clearInterval(timer);
   }, []);
+  useEffect(() => {
+    if (enabled && qrUrl && seconds === 0 && !loading) void loadQr(true);
+  }, [enabled, loadQr, loading, qrUrl, seconds]);
   const present = rows.filter((row) => row.status !== '결석').length;
   const time = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
   const changeStatus = (row: AttendanceRow) =>
@@ -448,6 +509,24 @@ function WebAttendance({ id, notify }: { id: string; notify: (message: string) =
     URL.revokeObjectURL(url);
     notify('출석 내역을 저장했어요');
   };
+  if (!enabled) {
+    return (
+      <section className="operation-content">
+        <OperationHead
+          title="출석·QR"
+          description="실시간 출석은 라이브·오프라인 강의에서 사용할 수 있어요"
+        />
+        <div className="oc-panel operation-empty-state">
+          <CalendarDays size={30} />
+          <h2>이 강의는 별도 출석 체크가 필요하지 않아요</h2>
+          <p>녹화형 온라인 강의는 영상 진도로 수강 상태를 확인합니다.</p>
+          <Link className="oc-soft-button" to={`/classes/${id}`}>
+            강의 개요로 돌아가기
+          </Link>
+        </div>
+      </section>
+    );
+  }
   return (
     <section className="operation-content">
       <OperationHead
@@ -472,7 +551,7 @@ function WebAttendance({ id, notify }: { id: string; notify: (message: string) =
         <OperationMetric
           icon={CalendarDays}
           label="현재 회차"
-          value={`${session}주차`}
+          value={`${session}회차`}
           tone="purple"
         />
       </div>
@@ -507,7 +586,7 @@ function WebAttendance({ id, notify }: { id: string; notify: (message: string) =
             <div>
               <h2>출석 명단</h2>
               <p>
-                {session}주차 · 7월 {11 + session}일
+                {session}회차 · {schedule}
               </p>
             </div>
             <Select
@@ -515,9 +594,9 @@ function WebAttendance({ id, notify }: { id: string; notify: (message: string) =
               value={session}
               onChange={(event) => setSession(Number(event.target.value))}
             >
-              {[1, 2, 3, 4].map((value) => (
+              {Array.from({ length: sessionCount }, (_, index) => index + 1).map((value) => (
                 <option value={value} key={value}>
-                  {value}주차
+                  {value}회차
                 </option>
               ))}
             </Select>
@@ -545,7 +624,15 @@ function WebAttendance({ id, notify }: { id: string; notify: (message: string) =
   );
 }
 
-function WebSurvey({ id = 'notion', notify }: { id?: string; notify: (message: string) => void }) {
+function WebSurvey({
+  id = 'notion',
+  detail,
+  notify,
+}: {
+  id?: string;
+  detail?: ClassDetail;
+  notify: (message: string) => void;
+}) {
   const [items, setItems] = useState<SurveyOverviewItem[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [selected, setSelected] = useState<SurveyOverviewItem>();
@@ -561,16 +648,17 @@ function WebSurvey({ id = 'notion', notify }: { id?: string; notify: (message: s
       alive = false;
     };
   }, [id]);
-  const create = () => {
+  const create = async () => {
     if (!title.trim()) return;
-    const item: SurveyOverviewItem = {
-      id: crypto.randomUUID(),
-      type,
+    const payload = {
       title: title.trim(),
-      meta: `${questions}문항 · ${type === '설문' ? '익명' : '70점 이상 통과'}`,
-      status: '예정',
-      response: 0,
+      passScore: type === '시험' ? 70 : undefined,
+      questions: Array.from({ length: questions }, (_, index) => ({ id: index + 1 })),
     };
+    const item =
+      type === '시험'
+        ? await examService.create(id, payload)
+        : await surveyService.create(id, payload);
     setItems([item, ...items]);
     setCreateOpen(false);
     setTitle('');
@@ -591,7 +679,12 @@ function WebSurvey({ id = 'notion', notify }: { id?: string; notify: (message: s
       <div className="operation-metrics">
         <OperationMetric icon={ClipboardList} label="진행 중" value={`${active}개`} tone="blue" />
         <OperationMetric icon={BarChart3} label="평균 응답률" value={`${average}%`} tone="green" />
-        <OperationMetric icon={Star} label="평균 만족도" value="4.8" tone="orange" />
+        <OperationMetric
+          icon={Star}
+          label="평균 만족도"
+          value={detail?.reviewCount ? String(detail.rating) : '-'}
+          tone="orange"
+        />
       </div>
       <div className="survey-grid">
         {items.map((item) => (
@@ -620,6 +713,16 @@ function WebSurvey({ id = 'notion', notify }: { id?: string; notify: (message: s
             </button>
           </article>
         ))}
+        {!items.length && (
+          <div className="oc-panel operation-empty-state survey-empty-state">
+            <ClipboardList size={30} />
+            <h2>아직 만든 설문이나 시험이 없어요</h2>
+            <p>첫 항목을 만들고 수강생의 응답과 학습 결과를 확인해 보세요.</p>
+            <button className="oc-soft-button" onClick={() => setCreateOpen(true)}>
+              첫 항목 만들기
+            </button>
+          </div>
+        )}
       </div>
       <Modal
         open={createOpen}
@@ -630,7 +733,7 @@ function WebSurvey({ id = 'notion', notify }: { id?: string; notify: (message: s
             <Button variant="secondary" onClick={() => setCreateOpen(false)}>
               취소
             </Button>
-            <Button disabled={!title.trim()} onClick={create}>
+            <Button disabled={!title.trim()} onClick={() => void create()}>
               생성
             </Button>
           </>
@@ -939,6 +1042,11 @@ function WebManage({
   useEffect(() => {
     if (detail?.capacity) setCapacity(detail.capacity);
   }, [detail?.capacity]);
+  useEffect(() => {
+    if (!detail) return;
+    setPublicOn(detail.publicOn ?? true);
+    setClosed(detail.recruitmentClosed ?? false);
+  }, [detail]);
   const changeThumbnail = async (file: File) => {
     const value = await readImageFile(file);
     setThumbnail(value);
@@ -999,7 +1107,7 @@ function WebManage({
           <div>
             <span>
               <b>정원</b>
-              <small>현재 24명 신청</small>
+              <small>현재 {detail?.enrolled || 0}명 신청</small>
             </span>
             <em>
               <button
@@ -1066,7 +1174,13 @@ function WebManage({
   );
 }
 
-function WebCertificates({ manager }: { manager: CertificateManager }) {
+function WebCertificates({
+  manager,
+  classTitle,
+}: {
+  manager: CertificateManager;
+  classTitle: string;
+}) {
   const {
     issued,
     recipients,
@@ -1115,7 +1229,7 @@ function WebCertificates({ manager }: { manager: CertificateManager }) {
             <b>CERTIFICATE</b>
             <strong>수료증</strong>
             <p>
-              홍길동 님은 「노션 업무 자동화」 과정을 성실히 수료하였습니다.
+              홍길동 님은 「{classTitle}」 과정을 성실히 수료하였습니다.
               <br />
               {message}
             </p>
@@ -1169,6 +1283,13 @@ function WebCertificates({ manager }: { manager: CertificateManager }) {
               </div>
             );
           })}
+          {!recipients.length && (
+            <div className="certificate-empty-state">
+              <Users size={26} />
+              <b>수료증 발급 대상이 아직 없어요</b>
+              <p>신청자가 수료 조건을 충족하면 이곳에서 발급할 수 있습니다.</p>
+            </div>
+          )}
           {selected.length > 0 && (
             <Button className="certificate-selected-issue" onClick={() => issue(selected)}>
               선택 {selected.length}명 발급
@@ -1223,7 +1344,7 @@ function OperationHead({
 }: {
   title: string;
   description: string;
-  action: string;
+  action?: string;
   onAction?: () => void;
 }) {
   return (
@@ -1232,7 +1353,7 @@ function OperationHead({
         <h2>{title}</h2>
         <p>{description}</p>
       </div>
-      <button onClick={onAction}>{action}</button>
+      {action && <button onClick={onAction}>{action}</button>}
     </header>
   );
 }
@@ -1260,31 +1381,44 @@ function OperationMetric({
   );
 }
 
-function People() {
+function People({ id }: { id: string }) {
   const [filter, setFilter] = useState('전체');
   const [query, setQuery] = useState('');
-  const list = applicants.filter(
-    (a) => (filter === '전체' || a.payment === filter) && a.name.includes(query),
+  const [rows, setRows] = useState<typeof applicants>([]);
+  useEffect(() => {
+    let alive = true;
+    applicantService.listByClass(id).then((items) => {
+      if (alive) setRows(items);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [id]);
+  const list = rows.filter(
+    (a) =>
+      (filter === '전체' || a.payment === filter) &&
+      (a.name.includes(query) || a.phone.includes(query)),
   );
+  const count = (payment: string) => rows.filter((item) => item.payment === payment).length;
   return (
     <>
       <div className="operation-stats">
         <div className="blue">
           <small>전체 신청</small>
           <b>
-            24<em>명</em>
+            {rows.length}<em>명</em>
           </b>
         </div>
         <div className="orange">
           <small>결제 대기</small>
           <b>
-            3<em>건</em>
+            {count('결제대기')}<em>건</em>
           </b>
         </div>
         <div className="green">
           <small>결제 완료</small>
           <b>
-            21<em>명</em>
+            {count('결제완료')}<em>명</em>
           </b>
         </div>
       </div>
@@ -1296,10 +1430,10 @@ function People() {
       />
       <div className="chips">
         {[
-          ['전체', '24'],
-          ['결제대기', '3'],
-          ['결제완료', '21'],
-          ['환불', '0'],
+          ['전체', String(rows.length)],
+          ['결제대기', String(count('결제대기'))],
+          ['결제완료', String(count('결제완료'))],
+          ['환불', String(count('환불'))],
         ].map(([x, n]) => (
           <button className={filter === x ? 'active' : ''} onClick={() => setFilter(x)} key={x}>
             {x} <span>{n}</span>
@@ -1307,34 +1441,71 @@ function People() {
         ))}
       </div>
       {list.map((a, i) => (
-        <ApplicantRow item={a} index={i} key={a.id} />
+        <Link
+          className="applicant-row-link"
+          to={`/applicants/${a.id}?classId=${encodeURIComponent(id)}`}
+          key={a.id}
+        >
+          <ApplicantRow item={a} index={i} />
+        </Link>
       ))}
+      {!list.length && <div className="mobile-operation-empty">표시할 신청자가 없어요.</div>}
     </>
   );
 }
 
-function Attendance({ id }: { id: string }) {
-  const [session, setSession] = useState(2);
+function Attendance({
+  id,
+  enabled,
+  sessionCount,
+  schedule,
+}: {
+  id: string;
+  enabled: boolean;
+  sessionCount: number;
+  schedule: string;
+}) {
+  const [session, setSession] = useState(1);
   const [absent, setAbsent] = useState<string[]>([]);
+  const [rows, setRows] = useState<AttendanceRow[]>([]);
+  useEffect(() => {
+    if (!enabled) return;
+    let alive = true;
+    attendanceService.checkins(id).then((items) => {
+      if (alive) setRows(items);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [enabled, id]);
+  if (!enabled)
+    return (
+      <div className="mobile-operation-empty">
+        <CalendarDays />
+        <b>이 강의는 별도 출석 체크가 필요하지 않아요.</b>
+        <Link to={`/classes/${id}`}>강의 개요로 돌아가기</Link>
+      </div>
+    );
+  const present = rows.length - absent.length;
   return (
     <>
       <div className="operation-stats attendance-stats">
         <div className="blue">
           <small>전체 수강생</small>
           <b>
-            24<em>명</em>
+            {rows.length}<em>명</em>
           </b>
         </div>
         <div className="green">
           <small>출석</small>
           <b>
-            22<em>명</em>
+            {present}<em>명</em>
           </b>
         </div>
         <div className="orange">
           <small>결석</small>
           <b>
-            2<em>명</em>
+            {absent.length}<em>명</em>
           </b>
         </div>
       </div>
@@ -1342,31 +1513,35 @@ function Attendance({ id }: { id: string }) {
         <QrCode />
         <span>
           <b>출석 QR 열기</b>
-          <small>오늘 오후 8:00 · 2회차</small>
+          <small>{schedule} · {session}회차</small>
         </span>
       </Link>
       <div className="chips session-chips">
-        {[1, 2, 3, 4].map((n) => (
+        {Array.from({ length: sessionCount }, (_, index) => index + 1).map((n) => (
           <button className={session === n ? 'active' : ''} onClick={() => setSession(n)} key={n}>
             {n}회차
           </button>
         ))}
       </div>
       <h3 className="list-heading">
-        2회차 출석 현황 <small>7월 15일</small>
+        {session}회차 출석 현황 <small>{schedule}</small>
       </h3>
-      {['김서연', '이준호', '박민지', '최유진'].map((name) => (
+      {rows.map((row) => (
         <button
           className="check-row"
           onClick={() =>
-            setAbsent(absent.includes(name) ? absent.filter((x) => x !== name) : [...absent, name])
+            setAbsent(
+              absent.includes(row.id)
+                ? absent.filter((value) => value !== row.id)
+                : [...absent, row.id],
+            )
           }
-          key={name}
+          key={row.id}
         >
-          <span>{name[0]}</span>
-          <b>{name}</b>
-          <em className={absent.includes(name) ? 'absent' : ''}>
-            {absent.includes(name) ? '결석' : '출석'}
+          <span>{row.name[0]}</span>
+          <b>{row.name}</b>
+          <em className={absent.includes(row.id) ? 'absent' : ''}>
+            {absent.includes(row.id) ? '결석' : '출석'}
           </em>
         </button>
       ))}
@@ -1374,7 +1549,17 @@ function Attendance({ id }: { id: string }) {
   );
 }
 
-function Survey({ id }: { id: string }) {
+function Survey({ id, detail }: { id: string; detail?: ClassDetail }) {
+  const [items, setItems] = useState<SurveyOverviewItem[]>([]);
+  useEffect(() => {
+    let alive = true;
+    surveyService.list(id).then((values) => {
+      if (alive) setItems(values);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [id]);
   return (
     <>
       <Link className="soft-primary" to={`/classes/${id}/survey-builder`}>
@@ -1383,44 +1568,24 @@ function Survey({ id }: { id: string }) {
       </Link>
       <section className="survey-overview">
         <div>
-          <small>응답</small>
+          <small>등록 항목</small>
           <b>
-            18<em>/ 24명</em>
+            {items.length}<em>개</em>
           </b>
         </div>
         <div>
           <small>전체 만족도</small>
-          <b>4.8</b>
-          <span>
-            <Star fill="currentColor" /> 5.0
-          </span>
+          <b>{detail?.reviewCount ? detail.rating : '-'}</b>
         </div>
       </section>
-      {['강의 내용은 만족스러웠나요?', '강사의 설명은 이해하기 쉬웠나요?'].map((q, i) => (
-        <article className="survey-result" key={q}>
-          <b>
-            {i + 1}. {q}
-          </b>
-          {[
-            ['매우 만족', 72],
-            ['만족', 18],
-            ['보통', 10],
-          ].map(([label, pct]) => (
-            <p key={label}>
-              <span>{label}</span>
-              <i>
-                <em style={{ width: `${pct}%` }} />
-              </i>
-              <small>{pct}%</small>
-            </p>
-          ))}
+      {items.map((item) => (
+        <article className="survey-result mobile-survey-item" key={item.id}>
+          <b>{item.title}</b>
+          <p>{item.meta}</p>
+          <small>{item.status} · 응답률 {item.response}%</small>
         </article>
       ))}
-      <article className="survey-comments">
-        <b>3. 가장 좋았던 점을 알려주세요</b>
-        <p>실제 업무에 바로 활용할 수 있어서 좋았어요.</p>
-        <p>예제가 구체적이고 설명이 쉬웠습니다.</p>
-      </article>
+      {!items.length && <div className="mobile-operation-empty">아직 만든 설문이 없어요.</div>}
     </>
   );
 }
@@ -1565,11 +1730,25 @@ function Builder({
   );
 }
 
-function Manage({ id, notify }: { id: string; notify: (message: string) => void }) {
+function Manage({
+  id,
+  detail,
+  notify,
+}: {
+  id: string;
+  detail?: ClassDetail;
+  notify: (message: string) => void;
+}) {
   const nav = useNavigate();
   const [publicOn, setPublicOn] = useState(true);
   const [closed, setClosed] = useState(false);
   const [capacity, setCapacity] = useState(30);
+  useEffect(() => {
+    if (!detail) return;
+    setPublicOn(detail.publicOn ?? true);
+    setClosed(detail.recruitmentClosed ?? false);
+    setCapacity(detail.capacity);
+  }, [detail]);
   return (
     <>
       <Link className="thumbnail-manage-link" to={`/classes/new?edit=${id}`}>
@@ -1585,6 +1764,7 @@ function Manage({ id, notify }: { id: string; notify: (message: string) => void 
             className={`switch ${publicOn ? 'on' : ''}`}
             onClick={() => {
               setPublicOn(!publicOn);
+              void classService.updateSettings(id, { publicOn: !publicOn });
               notify(publicOn ? '비공개로 전환했어요' : '공개로 전환했어요');
             }}
           >
@@ -1600,6 +1780,7 @@ function Manage({ id, notify }: { id: string; notify: (message: string) => void 
             className="badge blue"
             onClick={() => {
               setClosed(!closed);
+              void classService.updateSettings(id, { recruitmentClosed: !closed });
               notify(closed ? '모집을 다시 열었어요' : '모집을 마감했어요');
             }}
           >
@@ -1609,11 +1790,19 @@ function Manage({ id, notify }: { id: string; notify: (message: string) => void 
         <div>
           <span>
             <b>정원</b>
-            <small>현재 24명 신청</small>
+            <small>현재 {detail?.enrolled || 0}명 신청</small>
           </span>
           <em>
-            <button onClick={() => setCapacity(Math.max(25, capacity - 5))}>−</button>
-            {capacity}명<button onClick={() => setCapacity(capacity + 5)}>＋</button>
+            <button onClick={() => {
+              const next = Math.max(1, capacity - 5);
+              setCapacity(next);
+              void classService.updateSettings(id, { capacity: next });
+            }}>−</button>
+            {capacity}명<button onClick={() => {
+              const next = capacity + 5;
+              setCapacity(next);
+              void classService.updateSettings(id, { capacity: next });
+            }}>＋</button>
           </em>
         </div>
       </section>
@@ -1652,7 +1841,13 @@ function Manage({ id, notify }: { id: string; notify: (message: string) => void 
   );
 }
 
-function Certificates({ manager }: { manager: CertificateManager }) {
+function Certificates({
+  manager,
+  requiresAttendance,
+}: {
+  manager: CertificateManager;
+  requiresAttendance: boolean;
+}) {
   const { issued, recipients, pending, condition, issue, setEditOpen } = manager;
   return (
     <>
@@ -1661,7 +1856,7 @@ function Certificates({ manager }: { manager: CertificateManager }) {
         <span>
           <b>수료 조건</b>
           <small>
-            진도 {condition}% 이상 · 출석 80% 이상
+            진도 {condition}% 이상{requiresAttendance ? ' · 출석 80% 이상' : ''}
             <br />
             조건 충족 시 발급 대기 등록
           </small>

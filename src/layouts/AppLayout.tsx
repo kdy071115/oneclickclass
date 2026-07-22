@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useCallback, useState } from 'react';
-import { classService } from '../api/services';
+import { applicantService, classService } from '../api/services';
 import { clearSession, getSession } from '../auth/session';
 import { StatusBar } from '../components/common/StatusBar';
 import { NotificationPopover } from '../components/feature/NotificationPopover';
@@ -28,6 +28,8 @@ export function AppLayout() {
   const profileImage = useProfileImage();
   const loadClasses = useCallback(() => classService.list(), []);
   const { data: classItems = [] } = useAsync(loadClasses);
+  const loadApplicants = useCallback(() => applicantService.list(), []);
+  const { data: applicantItems = [] } = useAsync(loadApplicants);
   const hasClasses = classItems.length > 0;
   const hideMobileNav = pathname === '/classes/published' || /^\/classes\/[^/]+\/preview$/.test(pathname);
 
@@ -49,13 +51,16 @@ export function AppLayout() {
             </button>
           </div> */}
           <nav className="oc-side-nav">
-            {teacherNav.map(([to, Icon, label, badge]) => (
-              <NavLink key={to} to={to} end={to === '/dashboard'}>
-                <Icon size={21} />
-                <span>{label}</span>
-                {badge && <em>{badge}</em>}
-              </NavLink>
-            ))}
+            {teacherNav.map(([to, Icon, label, badge]) => {
+              const resolvedBadge = label === '신청자' ? applicantItems.length : badge;
+              return (
+                <NavLink key={to} to={to} end={to === '/dashboard'}>
+                  <Icon size={21} />
+                  <span>{label}</span>
+                  {Boolean(resolvedBadge) && <em>{resolvedBadge}</em>}
+                </NavLink>
+              );
+            })}
           </nav>
           <div className="oc-user">
             <span>{profileImage ? <img src={profileImage} alt="프로필" /> : (user?.name.slice(0, 1) ?? '지')}</span>

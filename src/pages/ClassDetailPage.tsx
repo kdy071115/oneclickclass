@@ -10,6 +10,7 @@ import {
   Eye,
   Image,
   Link2,
+  type LucideIcon,
   QrCode,
   Settings,
   Share2,
@@ -19,21 +20,16 @@ import {
 import QRCode from 'qrcode';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { AsyncState } from '../components/common/AsyncState';
 import { PageHeader } from '../components/common/PageHeader';
 import { getClassThumbnail } from '../utils/classThumbnail';
 import { detailService } from '../api/services';
 import type { ClassDetail } from '../types/class';
 
-const menus = [
-  ['applicants', Users, '신청자', '24명 관리'],
-  ['attendance', CheckSquare, '출석', '3회차 · 평균 92%'],
-  ['survey', BarChart3, '설문', '응답 18 · 만족 4.8'],
-  ['exams', ClipboardList, '시험', '응시 15 · 합격 12'],
-] as const;
-
 export function ClassDetailPage() {
   const { id = 'notion' } = useParams();
   const [detail, setDetail] = useState<ClassDetail>();
+  const [error, setError] = useState('');
   const thumbnail = getClassThumbnail(id);
   const [toast, setToast] = useState('');
   const [shareQrUrl, setShareQrUrl] = useState('');
@@ -45,6 +41,26 @@ export function ClassDetailPage() {
   const reviewCount = detail?.reviewCount || 0;
   const completionRate = detail?.completionRate || 0;
   const curriculum = detail?.curriculum || [];
+  const supportsAttendance = detail?.type !== '온라인';
+  const mobileMenus: [string, LucideIcon, string, string][] = [
+    ['applicants', Users, '신청자', `${enrolled}명 관리`],
+  ];
+  if (supportsAttendance) {
+    mobileMenus.push([
+      'attendance',
+      CheckSquare,
+      '출석',
+      `${Math.max(1, detail?.sessions || 1)}회차 관리`,
+    ]);
+  }
+  mobileMenus.push([
+    'survey',
+    BarChart3,
+    '설문·시험',
+    reviewCount
+      ? `후기 ${reviewCount}개 · 만족 ${detail?.rating || '-'}`
+      : '항목 만들기 · 결과 확인',
+  ]);
   const applicantTrend = detail?.applicantTrend || [];
   const stats = [
     ['모집 현황', String(enrolled), `/ ${capacity}명`, `${recruitRate}%`, Users, '#3182f6'],
@@ -68,20 +84,38 @@ export function ClassDetailPage() {
       '수강 완료율',
       String(completionRate),
       '%',
-      enrolled ? '진도에서 확인' : '수강 전',
+      completionRate ? '진도에서 확인' : '수강 시작 전',
       CheckCircle2,
       '#7048e8',
     ],
   ] as const;
   useEffect(() => {
     let alive = true;
-    detailService.getClass(id).then((value) => {
-      if (alive) setDetail(value);
-    });
+    setError('');
+    detailService
+      .getClass(id)
+      .then((value) => {
+        if (alive) setDetail(value);
+      })
+      .catch(() => {
+        if (alive) setError('강의 정보를 찾을 수 없어요.');
+      });
     return () => {
       alive = false;
     };
   }, [id]);
+  if (error) {
+    return (
+      <div className="oc-web-page">
+        <AsyncState loading={false} error={error} onRetry={() => location.reload()} />
+        <div className="class-detail-recovery">
+          <Link className="primary" to="/classes">
+            클래스 목록으로
+          </Link>
+        </div>
+      </div>
+    );
+  }
   const notify = (message: string) => {
     setToast(message);
     window.setTimeout(() => setToast(''), 2000);
@@ -182,7 +216,7 @@ export function ClassDetailPage() {
               {[
                 ['개요', `/classes/${id}`],
                 ['신청자', `/classes/${id}/applicants`],
-                ['출석/QR', `/classes/${id}/attendance`],
+                ...(supportsAttendance ? [['출석/QR', `/classes/${id}/attendance`]] : []),
                 ['설문·시험', `/classes/${id}/survey`],
                 ['수료증', `/classes/${id}/certificates`],
                 ['설정', `/classes/${id}/manage`],
@@ -198,7 +232,7 @@ export function ClassDetailPage() {
                 <h2>
                   커리큘럼{' '}
                   <small>
-                    총 {curriculum.length}개 섹션 · {detail?.sessions || 0}회차 과정
+                    총 {curriculum.length}개 차시
                   </small>
                 </h2>
                 <Link to={`/classes/${id}/curriculum`}>강의 구성 수정</Link>
@@ -356,14 +390,12 @@ export function ClassDetailPage() {
       <div className="page subpage class-dashboard original-detail">
         <PageHeader title="" backTo="/classes" />
         <div className="class-cover" />
-        <h1>
-          노션으로 시작하는
-          <br />
-          업무 자동화
-        </h1>
-        <p className="muted">신청 24 / 30명 · 모집 마감 D-7</p>
+        <h1>{detail?.title || '강의 정보를 불러오는 중이에요'}</h1>
+        <p className="muted">
+          신청 {enrolled} / {capacity}명 · {detail?.recruitEndDate || '마감일 미정'}
+        </p>
         <div className="dashboard-grid">
-          {menus.map(([path, Icon, title, desc]) => (
+          {mobileMenus.map(([path, Icon, title, desc]) => (
             <Link to={`/classes/${id}/${path}`} key={path}>
               <Icon />
               <b>{title}</b>
@@ -377,7 +409,7 @@ export function ClassDetailPage() {
           </i>
           <span>
             <b>수료증</b>
-            <small>발급 대기 12명 · 발급 완료 0명</small>
+            <small>수료 조건 설정 · 발급 대상 확인</small>
           </span>
         </Link>
         <Link className="wide-menu manage-menu" to={`/classes/${id}/manage`}>

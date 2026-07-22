@@ -60,6 +60,7 @@ export const classes: ClassItem[] = [
 export const applicants: Applicant[] = [
   {
     id: '1',
+    classId: 'notion',
     name: '김서연',
     classTitle: '노션 업무 자동화',
     appliedAt: '방금',
@@ -74,6 +75,7 @@ export const applicants: Applicant[] = [
   },
   {
     id: '2',
+    classId: 'calligraphy',
     name: '이준호',
     classTitle: '캘리그라피 클래스',
     appliedAt: '12분 전',
@@ -87,6 +89,7 @@ export const applicants: Applicant[] = [
   },
   {
     id: '3',
+    classId: 'notion',
     name: '박민지',
     classTitle: '노션 업무 자동화',
     appliedAt: '1시간 전',
