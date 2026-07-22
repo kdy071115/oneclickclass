@@ -933,9 +933,7 @@
     padding: 20px;
     border-radius: 14px;
     color: #191f28;
-    transition:
-      box-shadow 0.18s,
-      transform 0.18s;
+    transition: box-shadow 0.18s, transform 0.18s;
   }
 
   .oc-tint-card:hover,
@@ -987,7 +985,9 @@
     padding: 18px 20px;
     border-radius: 16px;
     color: #191f28;
-    transition: box-shadow 0.18s, transform 0.18s;
+    transition:
+      box-shadow 0.18s,
+      transform 0.18s;
   }
 
   .oc-kpi-card:hover {
@@ -1361,6 +1361,10 @@
     display: flex;
     gap: 8px;
     margin-bottom: 18px;
+  }
+
+  .oc-search-limit {
+    margin-bottom: 16px;
   }
 
   .oc-filters button {
