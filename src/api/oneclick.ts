@@ -1,9 +1,11 @@
 import { apiClient } from './client';
-import { classes } from '../constants/mockData';
+import { classes, examQuestions, surveyQuestions } from '../constants/mockData';
 import { initialClassDraft } from '../constants/classDraft';
-import { loadClassPreview } from '../utils/classDraft';
+import { hasClassPreview, loadClassPreview } from '../utils/classDraft';
+import type { ExamQuestion, SurveyQuestion } from '../types/class';
 
 const mock = import.meta.env.VITE_USE_MOCK !== 'false';
+const demoCourseIds = new Set(['notion', 'notion-auto', '104', '7KpX92Lm']);
 const delay = <T>(data: T) => new Promise<T>((resolve) => setTimeout(() => resolve(data), 350));
 
 export type OneClickShare = {
@@ -22,7 +24,22 @@ export type OneClickShare = {
   scheduleText: string;
   locationText: string;
   requiresApproval: boolean;
+  difficulty: string;
+  highlights: string[];
+  curriculum: OneClickCurriculumItem[];
 };
+
+export type OneClickCurriculumItem = {
+  lessonId: string;
+  title: string;
+  description: string;
+  durationText: string;
+  contentUrl?: string;
+  contentProvider: OneClickContentProvider;
+};
+
+export type OneClickContentProvider =
+  'FILE' | 'YOUTUBE' | 'VIMEO' | 'LIVE' | 'DOCUMENT' | 'ASSIGNMENT' | 'EXTERNAL';
 
 export type OneClickEnrollment = {
   memberSeq: string;
@@ -45,6 +62,24 @@ export type OneClickLesson = {
   completed: boolean;
   playable: boolean;
   currentSeconds?: number;
+  contentUrl?: string;
+  contentProvider: OneClickContentProvider;
+};
+
+export type OneClickToolItem = {
+  id: string;
+  label: string;
+  title: string;
+  description: string;
+  actionLabel?: string;
+  url?: string;
+  read?: boolean;
+};
+
+export type OneClickAssessment = OneClickToolItem & {
+  type: 'SURVEY' | 'EXAM';
+  required: boolean;
+  completed: boolean;
 };
 
 export type OneClickToolSummary = {
@@ -59,7 +94,19 @@ export type OneClickLearnRoom = OneClickEnrollment & {
   courseSummary: string;
   lessons: OneClickLesson[];
   tools: OneClickToolSummary;
+  notices: OneClickToolItem[];
+  resources: OneClickToolItem[];
+  assessments: OneClickAssessment[];
 };
+
+export type OneClickExamResult = {
+  score: number;
+  correctCount: number;
+  totalCount: number;
+  passed: boolean;
+};
+
+export type OneClickExamQuestion = Omit<ExamQuestion, 'answer'> & { answer?: number };
 
 export type OneClickReview = {
   reviewSeq: string;
@@ -83,6 +130,7 @@ type OneClickHeartbeatInput = {
   courseApplySeq: string;
   lessonId: string;
   currentSeconds: number;
+  durationSeconds?: number;
   playing: boolean;
 };
 
@@ -103,8 +151,31 @@ export const isApprovalPending = (enrollment?: OneClickEnrollment | null) =>
 
 const oneclickEnrollmentKey = (courseActiveSeq: string) => `oneclick.enrollment.${courseActiveSeq}`;
 const oneclickReviewKey = (courseActiveSeq: string) => `oneclick.review.${courseActiveSeq}`;
+const oneclickVerificationKey = (courseActiveSeq: string, phone: string) =>
+  `oneclick.verification.${courseActiveSeq}.${phone.replace(/\D/g, '')}`;
+const oneclickExamResultKey = (courseActiveSeq: string) =>
+  `oneclick.exam-result.${courseActiveSeq}`;
+const oneclickAssessmentKey = (courseActiveSeq: string, type: 'survey' | 'exam') =>
+  `oneclick.assessment.${courseActiveSeq}.${type}`;
+const oneclickNoticeReadKey = (courseActiveSeq: string, noticeId: string) =>
+  `oneclick.notice-read.${courseActiveSeq}.${noticeId}`;
+const oneclickLessonProgressKey = (courseActiveSeq: string, lessonId: string) =>
+  `oneclick.lesson-progress.${courseActiveSeq}.${lessonId}`;
 export const shareTokenFromCourseActiveSeq = (courseActiveSeq: string) =>
-  courseActiveSeq === '104' ? '7KpX92Lm' : 'notion-auto';
+  courseActiveSeq === '104' ? '7KpX92Lm' : courseActiveSeq;
+
+export const detectContentProvider = (
+  contentUrl = '',
+  contentType = 'video',
+): OneClickContentProvider => {
+  const type = contentType.toLowerCase();
+  if (type.includes('live')) return 'LIVE';
+  if (type.includes('document')) return 'DOCUMENT';
+  if (type.includes('assignment')) return 'ASSIGNMENT';
+  if (/youtu\.be|youtube\.com/i.test(contentUrl)) return 'YOUTUBE';
+  if (/vimeo\.com/i.test(contentUrl)) return 'VIMEO';
+  return type.includes('video') ? 'FILE' : 'EXTERNAL';
+};
 
 const normalizeStoredEnrollment = (
   enrollment: OneClickEnrollment,
@@ -171,6 +242,13 @@ const firstArray = (source: Record<string, unknown>, keys: string[]) => {
   return [];
 };
 
+const stringArray = (source: Record<string, unknown>, keys: string[]) =>
+  firstArray(source, keys)
+    .map((item) =>
+      typeof item === 'string' ? item : pickString(asRecord(item), ['text', 'title']),
+    )
+    .filter(Boolean);
+
 const normalizeApplyStatus = (value: string): OneClickShare['applyStatus'] =>
   value === 'CLOSED' || value === 'N' || value.includes('CLOSE') ? 'CLOSED' : 'OPEN';
 
@@ -180,6 +258,8 @@ const normalizePaymentType = (price: number, value: string): OneClickShare['paym
 const mockShare = (shareToken: string): OneClickShare => {
   const classItem = classes[0];
   const draft = loadClassPreview(shareToken, initialClassDraft);
+  const price = draft.payment === 'paid' ? draft.price : shareToken === 'notion-auto' ? 45000 : 0;
+  const curriculum = mockCurriculum(shareToken);
   return {
     shareToken,
     courseActiveSeq:
@@ -190,11 +270,11 @@ const mockShare = (shareToken: string): OneClickShare => {
     description:
       draft.description ||
       '데이터베이스 설계부터 반복 업무 자동화, 팀 협업 템플릿까지 직접 만들며 배웁니다.',
-    price: draft.payment === 'paid' ? draft.price : shareToken === 'notion-auto' ? 45000 : 0,
+    price,
     capacity: draft.title ? draft.capacity : classItem.capacity,
     enrolled: draft.title ? 0 : classItem.enrolled,
     applyStatus: 'OPEN',
-    paymentType: draft.title ? (draft.payment === 'paid' ? 'PAID' : 'FREE') : 'PAID',
+    paymentType: price > 0 ? 'PAID' : 'FREE',
     instructorName: '이지훈',
     scheduleText: draft.startDate || '자유 수강',
     locationText:
@@ -202,7 +282,86 @@ const mockShare = (shareToken: string): OneClickShare => {
         ? [draft.address, draft.detailedAddress].filter(Boolean).join(' ')
         : draft.url || '온라인 강의실',
     requiresApproval: false,
+    difficulty: '초급',
+    highlights: [
+      '업무 흐름을 기준으로 데이터베이스를 설계해요.',
+      '반복 업무를 버튼과 자동화 도구로 줄여요.',
+      '팀원이 바로 쓸 수 있는 운영 템플릿을 완성해요.',
+    ],
+    curriculum,
   };
+};
+
+const mockCurriculum = (courseActiveSeq: string): OneClickCurriculumItem[] => {
+  try {
+    const saved = localStorage.getItem(`oneclick.curriculum.${courseActiveSeq}`);
+    if (saved) {
+      const sections = JSON.parse(saved) as Array<{
+        lessons?: Array<{
+          id?: string;
+          title?: string;
+          description?: string;
+          durationMinutes?: number;
+          published?: boolean;
+          contentUrl?: string;
+          contentType?: string;
+        }>;
+      }>;
+      return sections.flatMap((section) =>
+        (section.lessons ?? [])
+          .filter((lesson) => lesson.published !== false)
+          .map((lesson, index) => ({
+            lessonId: lesson.id || String(index + 1),
+            title: lesson.title || `${index + 1}강`,
+            description: lesson.description || '',
+            durationText: `${lesson.durationMinutes || 0}분`,
+            contentUrl: lesson.contentUrl || '',
+            contentProvider: detectContentProvider(lesson.contentUrl, lesson.contentType),
+          })),
+      );
+    }
+  } catch {
+    // Invalid local mock data falls back to the demo curriculum.
+  }
+  return demoCourseIds.has(courseActiveSeq)
+    ? fallbackLessons(0).map(({ lessonId, title, description = '', durationText }) => ({
+        lessonId,
+        title,
+        description,
+        durationText,
+        contentProvider: 'FILE',
+      }))
+    : [];
+};
+
+const normalizeCurriculum = (
+  source: Record<string, unknown>,
+  fallback: OneClickCurriculumItem[],
+) => {
+  const list = firstArray(source, ['curriculum', 'lessons', 'elementList', 'listElement']);
+  if (!list.length) return fallback;
+  return list.map((item, index) => {
+    const record = asRecord(item);
+    return {
+      lessonId: pickString(
+        record,
+        ['lessonId', 'activeElementSeq', 'seq', 'id'],
+        String(index + 1),
+      ),
+      title: pickString(record, ['title', 'elementTitle', 'name'], `${index + 1}강`),
+      description: pickString(record, ['description', 'summary', 'contents'], ''),
+      durationText: pickString(
+        record,
+        ['durationText', 'studyTimeText', 'learningTimeText'],
+        `${pickNumber(record, ['durationMinutes', 'studyTime', 'learningTime'], 0)}분`,
+      ),
+      contentUrl: pickString(record, ['contentUrl', 'videoUrl', 'mediaUrl', 'url'], ''),
+      contentProvider: detectContentProvider(
+        pickString(record, ['contentUrl', 'videoUrl', 'mediaUrl', 'url'], ''),
+        pickString(record, ['contentProvider', 'contentType', 'elementType'], 'video'),
+      ),
+    };
+  });
 };
 
 const normalizeShare = (raw: unknown, shareToken: string): OneClickShare => {
@@ -282,6 +441,15 @@ const normalizeShare = (raw: unknown, shareToken: string): OneClickShare => {
       ['requiresApproval', 'approvalYn'],
       fallback.requiresApproval,
     ),
+    difficulty: pickString(
+      merged,
+      ['difficulty', 'difficultyName', 'levelName'],
+      fallback.difficulty,
+    ),
+    highlights: stringArray(merged, ['highlights', 'learningPoints', 'objectives']).length
+      ? stringArray(merged, ['highlights', 'learningPoints', 'objectives'])
+      : fallback.highlights,
+    curriculum: normalizeCurriculum(merged, fallback.curriculum),
   };
 };
 
@@ -347,13 +515,14 @@ const fallbackLessons = (progress = 62): OneClickLesson[] => {
     locked: index >= 2,
     completed: lessonProgress[index] >= 100,
     playable: index < 2,
+    contentProvider: 'FILE',
   }));
 };
 
 const normalizeLessons = (raw: unknown): OneClickLesson[] => {
   const root = asRecord(raw);
   const list = firstArray(root, ['lessons', 'curriculum', 'elementList', 'listElement', 'list']);
-  if (!list.length) return fallbackLessons();
+  if (!list.length) return [];
   return list.map((item, index) => {
     const record = asRecord(item);
     const progress = Math.min(
@@ -370,6 +539,11 @@ const normalizeLessons = (raw: unknown): OneClickLesson[] => {
     const locked =
       pickBoolean(record, ['locked', 'lockYn'], false) ||
       pickString(record, ['useYn', 'playableYn'], 'Y') === 'N';
+    const contentUrl = pickString(record, ['contentUrl', 'videoUrl', 'mediaUrl', 'url'], '');
+    const contentProvider = detectContentProvider(
+      contentUrl,
+      pickString(record, ['contentProvider', 'contentType', 'elementType'], 'video'),
+    );
     return {
       lessonId: pickString(
         record,
@@ -390,11 +564,105 @@ const normalizeLessons = (raw: unknown): OneClickLesson[] => {
       progress,
       locked,
       completed: pickBoolean(record, ['completed', 'completeYn'], progress >= 100),
-      playable: !locked,
+      playable: !locked && Boolean(contentUrl),
       currentSeconds: pickNumber(record, ['currentSeconds', 'lastSeconds'], 0),
+      contentUrl,
+      contentProvider,
     };
   });
 };
+
+const normalizeToolItems = (
+  raw: unknown,
+  keys: string[],
+  fallback: OneClickToolItem[] = [],
+): OneClickToolItem[] => {
+  const list = firstArray(asRecord(raw), keys);
+  if (!list.length) return fallback;
+  return list.map((item, index) => {
+    const record = asRecord(item);
+    return {
+      id: pickString(record, ['id', 'seq', 'noticeSeq', 'resourceSeq'], String(index + 1)),
+      label: pickString(record, ['label', 'typeName', 'fileType'], '안내'),
+      title: pickString(record, ['title', 'name', 'subject'], '제목 없음'),
+      description: pickString(record, ['description', 'content', 'contents'], ''),
+      actionLabel: pickString(record, ['actionLabel'], ''),
+      url: pickString(record, ['url', 'fileUrl', 'downloadUrl'], ''),
+      read: pickBoolean(record, ['read', 'readYn'], false),
+    };
+  });
+};
+
+const defaultNotices: OneClickToolItem[] = [
+  {
+    id: 'notice-1',
+    label: '필독',
+    title: '수강 전 확인해 주세요',
+    description: '강의 자료와 실습 파일은 각 강의 시작 전에 순서대로 열립니다.',
+    actionLabel: '읽음 표시',
+  },
+];
+
+const defaultResources: OneClickToolItem[] = [
+  {
+    id: 'resource-1',
+    label: 'PDF',
+    title: '1강 업무 구조 체크리스트',
+    description: '강의 전에 현재 업무 흐름을 정리하는 자료입니다.',
+    actionLabel: '열기',
+  },
+  {
+    id: 'resource-2',
+    label: '템플릿',
+    title: '자동화 실습 템플릿',
+    description: '2강에서 사용할 버튼, 알림, 상태 변경 예제입니다.',
+    actionLabel: '다운로드',
+  },
+];
+
+const normalizeAssessments = (raw: unknown, fallback: OneClickAssessment[] = []) => {
+  const list = firstArray(asRecord(raw), ['assessments', 'assessmentList', 'surveyExamList']);
+  if (!list.length) return fallback;
+  return list.map((item, index) => {
+    const record = asRecord(item);
+    const type = pickString(record, ['type', 'assessmentType', 'paperType'], 'SURVEY');
+    return {
+      id: pickString(record, ['id', 'seq', 'paperSeq'], String(index + 1)),
+      label: pickString(record, ['label'], type.includes('EXAM') ? '퀴즈' : '설문'),
+      title: pickString(
+        record,
+        ['title', 'name'],
+        type.includes('EXAM') ? '학습 확인' : '수강 설문',
+      ),
+      description: pickString(record, ['description', 'contents'], ''),
+      actionLabel: pickString(record, ['actionLabel'], ''),
+      type: type.includes('EXAM') ? ('EXAM' as const) : ('SURVEY' as const),
+      required: pickBoolean(record, ['required', 'requiredYn'], false),
+      completed: pickBoolean(record, ['completed', 'completeYn'], false),
+    };
+  });
+};
+
+const defaultAssessments: OneClickAssessment[] = [
+  {
+    id: 'survey-1',
+    label: '필수',
+    title: '수강 전 설문',
+    description: '현재 업무 자동화 경험을 확인해 강의 예제를 추천해요.',
+    type: 'SURVEY',
+    required: true,
+    completed: false,
+  },
+  {
+    id: 'exam-1',
+    label: '퀴즈',
+    title: '1강 학습 확인',
+    description: '업무 구조를 제대로 정리했는지 가볍게 확인합니다.',
+    type: 'EXAM',
+    required: false,
+    completed: false,
+  },
+];
 
 const normalizeTools = (raw: unknown): OneClickToolSummary => {
   const root = asRecord(raw);
@@ -473,6 +741,9 @@ const normalizeLearnRoom = (raw: unknown, fallbackCourseActiveSeq: string): OneC
     courseSummary: pickString(root, ['courseSummary', 'summary'], share.summary),
     lessons: normalizeLessons(raw),
     tools: normalizeTools(raw),
+    notices: normalizeToolItems(raw, ['notices', 'noticeList', 'listNotice']),
+    resources: normalizeToolItems(raw, ['resources', 'resourceList', 'listResource']),
+    assessments: normalizeAssessments(raw),
   };
 };
 
@@ -542,23 +813,111 @@ export const oneclickService = {
       JSON.parse(value) as OneClickEnrollment,
       courseActiveSeq,
     );
-    const publishedDraft = loadClassPreview(courseActiveSeq, initialClassDraft);
+    const hasPublishedDraft = hasClassPreview(courseActiveSeq);
+    const savedCurriculum = localStorage.getItem(`oneclick.curriculum.${courseActiveSeq}`)
+      ? mockCurriculum(courseActiveSeq)
+      : [];
+    const assessments = defaultAssessments.map((assessment) => ({
+      ...assessment,
+      completed:
+        sessionStorage.getItem(
+          oneclickAssessmentKey(courseActiveSeq, assessment.type === 'SURVEY' ? 'survey' : 'exam'),
+        ) === 'done',
+    }));
+    const notices = defaultNotices.map((notice) => ({
+      ...notice,
+      read: localStorage.getItem(oneclickNoticeReadKey(courseActiveSeq, notice.id)) === 'done',
+    }));
+    const lessonStates = savedCurriculum.map((lesson) => {
+      const stored = localStorage.getItem(
+        oneclickLessonProgressKey(courseActiveSeq, lesson.lessonId),
+      );
+      return stored
+        ? (JSON.parse(stored) as { currentSeconds: number; progress: number })
+        : { currentSeconds: 0, progress: 0 };
+    });
+    const lessons = savedCurriculum.length
+      ? savedCurriculum.map((lesson, index) => ({
+          ...lesson,
+          currentSeconds: lessonStates[index].currentSeconds,
+          progress: lessonStates[index].progress,
+          locked: index > 0 && lessonStates[index - 1].progress < 100,
+          completed: lessonStates[index].progress >= 100,
+          playable:
+            Boolean(lesson.contentUrl) && (index === 0 || lessonStates[index - 1].progress >= 100),
+        }))
+      : demoCourseIds.has(courseActiveSeq) && !hasPublishedDraft
+        ? fallbackLessons(enrollment.progress)
+        : [];
+    const lastLessonNumber = Number.parseInt(enrollment.lastPosition, 10);
+    const totalProgress = savedCurriculum.length
+      ? Math.round(
+          lessonStates.reduce((total, lesson) => total + lesson.progress, 0) /
+            savedCurriculum.length,
+        )
+      : enrollment.progress;
     return delay({
       ...enrollment,
+      progress: totalProgress,
+      lastPosition:
+        lessons.length && lastLessonNumber > lessons.length
+          ? '1강 0분 0초'
+          : enrollment.lastPosition,
       courseActiveSeq: enrollment.courseActiveSeq || courseActiveSeq,
       courseTitle: mockShare(courseActiveSeq).title,
       courseSummary: mockShare(courseActiveSeq).summary,
-      lessons: publishedDraft.title ? [] : fallbackLessons(enrollment.progress),
-      tools: publishedDraft.title
-        ? { noticeCount: 0, resourceCount: 0, examCount: 0, surveyCount: 0 }
-        : { noticeCount: 1, resourceCount: 3, examCount: 1, surveyCount: 1 },
+      lessons,
+      tools:
+        demoCourseIds.has(courseActiveSeq) && !hasPublishedDraft
+          ? {
+              noticeCount: notices.filter((notice) => !notice.read).length,
+              resourceCount: defaultResources.length,
+              examCount: 1,
+              surveyCount: 1,
+            }
+          : { noticeCount: 0, resourceCount: 0, examCount: 0, surveyCount: 0 },
+      notices: demoCourseIds.has(courseActiveSeq) && !hasPublishedDraft ? notices : [],
+      resources: demoCourseIds.has(courseActiveSeq) && !hasPublishedDraft ? defaultResources : [],
+      assessments: demoCourseIds.has(courseActiveSeq) && !hasPublishedDraft ? assessments : [],
     });
   },
-  continueWithPhone: (courseActiveSeq: string, phone: string): Promise<OneClickEnrollment> => {
+  requestVerification: (
+    courseActiveSeq: string,
+    phone: string,
+  ): Promise<{ expiresAt: string; debugCode?: string }> => {
     if (!mock)
       return apiClient
-        .post<unknown>(`/oneclick/learn/${courseActiveSeq}/continue`, { phone })
+        .post<{ expiresAt: string }>(`/oneclick/learn/${courseActiveSeq}/verification-codes`, {
+          phone,
+        })
+        .then((r) => r.data);
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = new Date(Date.now() + 3 * 60 * 1000).toISOString();
+    sessionStorage.setItem(
+      oneclickVerificationKey(courseActiveSeq, phone),
+      JSON.stringify({ code, expiresAt }),
+    );
+    return delay({ expiresAt, debugCode: code });
+  },
+  continueWithPhone: (
+    courseActiveSeq: string,
+    phone: string,
+    verificationCode: string,
+  ): Promise<OneClickEnrollment> => {
+    if (!mock)
+      return apiClient
+        .post<unknown>(`/oneclick/learn/${courseActiveSeq}/continue`, { phone, verificationCode })
         .then((r) => normalizeEnrollment(r.data, courseActiveSeq));
+    const value = sessionStorage.getItem(oneclickVerificationKey(courseActiveSeq, phone));
+    const verification = value ? (JSON.parse(value) as { code: string; expiresAt: string }) : null;
+    if (
+      !verification ||
+      verification.code !== verificationCode ||
+      Date.parse(verification.expiresAt) < Date.now()
+    ) {
+      return Promise.reject(new Error('invalid verification code'));
+    }
+    sessionStorage.removeItem(oneclickVerificationKey(courseActiveSeq, phone));
     const enrollment = {
       memberSeq: crypto.randomUUID(),
       courseApplySeq: crypto.randomUUID(),
@@ -567,16 +926,124 @@ export const oneclickService = {
       learnerName: '수강생',
       applyStatusCd: 'APPLY_STATUS::002' as const,
       progress: 62,
-      lastPosition: '3강 14분 27초',
+      lastPosition: '2강 14분 27초',
     };
     localStorage.setItem(oneclickEnrollmentKey(courseActiveSeq), JSON.stringify(enrollment));
     return delay(enrollment);
   },
+  surveyQuestions: (courseActiveSeq: string): Promise<SurveyQuestion[]> =>
+    mock
+      ? delay(surveyQuestions)
+      : apiClient
+          .get<SurveyQuestion[]>(`/oneclick/learn/${courseActiveSeq}/survey/questions`)
+          .then((r) => r.data),
+  submitSurvey: (
+    courseActiveSeq: string,
+    answers: Record<string, number | string>,
+  ): Promise<void> => {
+    if (!mock)
+      return apiClient
+        .post<void>(`/oneclick/learn/${courseActiveSeq}/survey/responses`, { answers })
+        .then((r) => r.data);
+    sessionStorage.setItem(oneclickAssessmentKey(courseActiveSeq, 'survey'), 'done');
+    return delay(undefined);
+  },
+  examQuestions: (courseActiveSeq: string): Promise<OneClickExamQuestion[]> =>
+    mock
+      ? delay(examQuestions)
+      : apiClient
+          .get<OneClickExamQuestion[]>(`/oneclick/learn/${courseActiveSeq}/exam/questions`)
+          .then((r) => r.data),
+  submitExam: (
+    courseActiveSeq: string,
+    answers: Record<string, number>,
+  ): Promise<OneClickExamResult> => {
+    if (!mock)
+      return apiClient
+        .post<OneClickExamResult>(`/oneclick/learn/${courseActiveSeq}/exam/submissions`, {
+          answers,
+        })
+        .then((r) => r.data);
+    const correctCount = examQuestions.filter(
+      (question) => answers[question.id] === question.answer,
+    ).length;
+    const result = {
+      score: Math.round((correctCount / examQuestions.length) * 100),
+      correctCount,
+      totalCount: examQuestions.length,
+      passed: correctCount / examQuestions.length >= 0.7,
+    };
+    sessionStorage.setItem(oneclickExamResultKey(courseActiveSeq), JSON.stringify(result));
+    sessionStorage.setItem(oneclickAssessmentKey(courseActiveSeq, 'exam'), 'done');
+    return delay(result);
+  },
+  examResult: (courseActiveSeq: string): Promise<OneClickExamResult | null> => {
+    if (!mock)
+      return apiClient
+        .get<OneClickExamResult>(`/oneclick/learn/${courseActiveSeq}/exam/result`)
+        .then((r) => r.data)
+        .catch(() => null);
+    const value = sessionStorage.getItem(oneclickExamResultKey(courseActiveSeq));
+    return delay(value ? (JSON.parse(value) as OneClickExamResult) : null);
+  },
   heartbeat: (courseActiveSeq: string, input: OneClickHeartbeatInput): Promise<void> => {
-    if (mock) return delay(undefined);
+    if (mock) {
+      const value = localStorage.getItem(oneclickEnrollmentKey(courseActiveSeq));
+      if (value) {
+        const enrollment = normalizeStoredEnrollment(
+          JSON.parse(value) as OneClickEnrollment,
+          courseActiveSeq,
+        );
+        const curriculum = mockCurriculum(courseActiveSeq);
+        const lessonIndex = curriculum.findIndex((lesson) => lesson.lessonId === input.lessonId);
+        const progressValue = localStorage.getItem(
+          oneclickLessonProgressKey(courseActiveSeq, input.lessonId),
+        );
+        const previousProgress = progressValue
+          ? (JSON.parse(progressValue) as { progress: number }).progress
+          : 0;
+        const measuredProgress = input.durationSeconds
+          ? Math.min(100, Math.round((input.currentSeconds / input.durationSeconds) * 100))
+          : previousProgress;
+        const progress = Math.max(previousProgress, measuredProgress);
+        localStorage.setItem(
+          oneclickLessonProgressKey(courseActiveSeq, input.lessonId),
+          JSON.stringify({ currentSeconds: input.currentSeconds, progress }),
+        );
+        const totalProgress = curriculum.length
+          ? Math.round(
+              curriculum.reduce((total, lesson) => {
+                const stored = localStorage.getItem(
+                  oneclickLessonProgressKey(courseActiveSeq, lesson.lessonId),
+                );
+                return total + (stored ? (JSON.parse(stored) as { progress: number }).progress : 0);
+              }, 0) / curriculum.length,
+            )
+          : enrollment.progress;
+        const minutes = Math.floor(input.currentSeconds / 60);
+        const seconds = Math.floor(input.currentSeconds % 60);
+        localStorage.setItem(
+          oneclickEnrollmentKey(courseActiveSeq),
+          JSON.stringify({
+            ...enrollment,
+            progress: totalProgress,
+            lastPosition: `${Math.max(0, lessonIndex) + 1}강 ${minutes}분 ${seconds}초`,
+          }),
+        );
+      }
+      return delay(undefined);
+    }
     return apiClient
       .post<void>(`/oneclick/learn/${courseActiveSeq}/heartbeat`, input)
       .then((r) => r.data);
+  },
+  readNotice: (courseActiveSeq: string, noticeId: string): Promise<void> => {
+    if (!mock)
+      return apiClient
+        .post<void>(`/oneclick/learn/${courseActiveSeq}/notices/${noticeId}/read`)
+        .then((r) => r.data);
+    localStorage.setItem(oneclickNoticeReadKey(courseActiveSeq, noticeId), 'done');
+    return delay(undefined);
   },
   reviews: (shareToken: string): Promise<OneClickReview[]> => {
     if (!mock)
@@ -585,9 +1052,7 @@ export const oneclickService = {
         .then((r) => normalizeReviews(r.data, ''));
     const courseActiveSeq = mockShare(shareToken).courseActiveSeq;
     const saved = localStorage.getItem(oneclickReviewKey(courseActiveSeq));
-    const samples = ['notion', 'notion-auto', '104', '7KpX92Lm'].includes(shareToken)
-      ? defaultReviews(courseActiveSeq)
-      : [];
+    const samples = demoCourseIds.has(shareToken) ? defaultReviews(courseActiveSeq) : [];
     return delay(saved ? [JSON.parse(saved) as OneClickReview, ...samples] : samples);
   },
   myReview: (courseActiveSeq: string): Promise<OneClickReview | null> => {

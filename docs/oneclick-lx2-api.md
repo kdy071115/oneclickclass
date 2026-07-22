@@ -109,7 +109,17 @@ LX2 매핑 기준:
   "paymentType": "PAID",
   "instructorName": "이지훈",
   "scheduleText": "자유 수강",
-  "locationText": "온라인 강의실"
+  "locationText": "온라인 강의실",
+  "difficulty": "초급",
+  "highlights": ["업무 흐름을 기준으로 데이터베이스를 설계해요."],
+  "curriculum": [
+    {
+      "lessonId": "38",
+      "title": "업무 구조 잡기",
+      "description": "흩어진 업무를 수강생 상황에 맞게 정리합니다.",
+      "durationText": "42분"
+    }
+  ]
 }
 ```
 
@@ -189,7 +199,8 @@ APPLY_STATUS::001
       "locked": false,
       "completed": true,
       "playable": true,
-      "currentSeconds": 2520
+      "currentSeconds": 2520,
+      "contentUrl": "https://cdn.example.com/course/38/master.m3u8"
     }
   ],
   "tools": {
@@ -197,13 +208,67 @@ APPLY_STATUS::001
     "resourceCount": 3,
     "examCount": 1,
     "surveyCount": 1
-  }
+  },
+  "notices": [
+    {
+      "id": "12",
+      "label": "필독",
+      "title": "수강 전 확인해 주세요",
+      "description": "강의 자료는 차시별로 열립니다.",
+      "read": false
+    }
+  ],
+  "resources": [
+    {
+      "id": "15",
+      "label": "PDF",
+      "title": "업무 구조 체크리스트",
+      "description": "1강 실습 자료",
+      "url": "https://cdn.example.com/resources/15.pdf"
+    }
+  ],
+  "assessments": [
+    {
+      "id": "21",
+      "type": "SURVEY",
+      "label": "필수",
+      "title": "수강 전 설문",
+      "description": "현재 경험을 확인합니다.",
+      "required": true,
+      "completed": false
+    }
+  ]
+}
+```
+
+카운트와 목록은 같은 데이터에서 계산해 서로 다르지 않게 반환한다. `contentUrl`은 재생 가능한 콘텐츠에만 포함하며, URL이 없으면 프론트는 재생 버튼 대신 준비 중 상태를 표시한다.
+
+### `POST /oneclick/learn/{courseActiveSeq}/verification-codes`
+
+새 기기에서 이어보기 전에 휴대전화 인증번호를 발급한다. 응답이나 로그에 실제 인증번호를 포함하지 않는다.
+
+```json
+{
+  "phone": "010-1234-5678"
+}
+```
+
+```json
+{
+  "expiresAt": "2026-07-22T10:30:00+09:00"
 }
 ```
 
 ### `POST /oneclick/learn/{courseActiveSeq}/continue`
 
-새 기기에서 휴대전화 확인 후 세션을 발급하고 기존 수강권을 반환한다.
+새 기기에서 휴대전화와 인증번호를 함께 검증한 뒤 세션을 발급하고 기존 수강권을 반환한다. 인증번호 누락, 불일치, 만료는 `400` 또는 `401`로 거절한다.
+
+```json
+{
+  "phone": "010-1234-5678",
+  "verificationCode": "123456"
+}
+```
 
 ### `POST /oneclick/learn/{courseActiveSeq}/heartbeat`
 
@@ -215,6 +280,33 @@ APPLY_STATUS::001
   "lessonId": "38",
   "currentSeconds": 721,
   "playing": true
+}
+```
+
+영상 재생 중에는 약 10초 간격으로 저장하고, 일시정지·종료 시 마지막 위치를 한 번 더 저장한다. 서버는 `courseApplySeq`가 현재 세션 소유인지 확인해야 한다.
+
+### `POST /oneclick/learn/{courseActiveSeq}/notices/{noticeId}/read`
+
+현재 세션의 수강생이 공지를 읽은 상태로 저장한다. 성공 후 강의실 응답의 `notices[].read`는 `true`, `tools.noticeCount`는 읽지 않은 공지 수로 반환한다.
+
+### 수강생 설문·시험
+
+```text
+GET  /oneclick/learn/{courseActiveSeq}/survey/questions
+POST /oneclick/learn/{courseActiveSeq}/survey/responses
+GET  /oneclick/learn/{courseActiveSeq}/exam/questions
+POST /oneclick/learn/{courseActiveSeq}/exam/submissions
+GET  /oneclick/learn/{courseActiveSeq}/exam/result
+```
+
+시험 정답은 문제 조회 응답에 포함하지 않는다. 제출 API가 서버에서 채점하고 아래 결과만 반환한다.
+
+```json
+{
+  "score": 67,
+  "correctCount": 2,
+  "totalCount": 3,
+  "passed": false
 }
 ```
 

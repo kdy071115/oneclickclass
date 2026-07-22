@@ -42,3 +42,8 @@ export function loadClassPreview(id: string, fallback: ClassDraft) {
     return fallback;
   }
 }
+
+export function hasClassPreview(id: string) {
+  const key = `${CLASS_PREVIEW_KEY}:${id}`;
+  return Boolean(localStorage.getItem(key) || sessionStorage.getItem(key));
+}
