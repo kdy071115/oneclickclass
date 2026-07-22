@@ -28,6 +28,15 @@ export interface Dashboard {
   pendingAmount: number;
   classes: ClassItem[];
   applicants: Applicant[];
+  studentStats?: StatItem[];
+  studentInProgress?: StudentClassProgress[];
+}
+export interface StudentClassProgress {
+  id: string;
+  title: string;
+  meta: string;
+  progress: number;
+  color: string;
 }
 export interface ClassDraft {
   type: 'online' | 'live' | 'offline' | 'hybrid';

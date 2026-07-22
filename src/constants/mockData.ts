@@ -110,6 +110,27 @@ export const dashboard: Dashboard = {
   pendingAmount: 135000,
   classes: classes.slice(0, 2),
   applicants,
+  studentStats: [
+    { value: '2', label: '수강 중', color: '#3182f6' },
+    { value: '3', label: '이수 완료', color: '#0ca678' },
+    { value: '3', label: '받은 수료증', color: '#f08c00' },
+  ],
+  studentInProgress: [
+    {
+      id: 'ux-research',
+      title: 'UX 리서치 실무 4주',
+      meta: '2주차 진행 중 · 다음 강의 내일 저녁 8시',
+      progress: 62,
+      color: '#0ca678',
+    },
+    {
+      id: 'python-data',
+      title: '데이터 분석 입문 with 파이썬',
+      meta: '1주차 · 방금 수강 시작',
+      progress: 18,
+      color: '#3182f6',
+    },
+  ],
 };
 export const classDetail: ClassDetail = {
   ...classes[0],

@@ -80,6 +80,8 @@ export function HomePage() {
   const memberTotal = memberTrend.reduce((sum, t) => sum + t.value, 0);
   const trendData = statsTab === 'enrollment' ? enrollmentTrend : memberTrend;
   const visibleTrend = trendPeriod === '최근 3개월' ? trendData.slice(-3) : trendData;
+  const studentStats = data.studentStats ?? [];
+  const studentInProgress = data.studentInProgress ?? [];
 
   return (
     <>
@@ -430,7 +432,7 @@ export function HomePage() {
               <i />
             </button>
             <div className="stats">
-              {data.studentStats.map((s) => (
+              {studentStats.map((s) => (
                 <div key={s.label}>
                   <b style={{ color: s.color }}>{s.value}</b>
                   <small>{s.label}</small>
@@ -442,7 +444,7 @@ export function HomePage() {
               <Link to="/classes">전체보기</Link>
             </div>
             <div className="student-stack">
-              {data.studentInProgress.map((c) => (
+              {studentInProgress.map((c) => (
                 <button className="student-class-card" onClick={() => nav(`/learn/classes/${c.id}`)} key={c.id}>
                   <i style={{ background: `linear-gradient(135deg,${c.color},color-mix(in srgb, ${c.color}, white 35%))` }} />
                   <span>
