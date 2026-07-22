@@ -35,7 +35,8 @@ import {
 } from '../api/oneclick';
 import { initialClassDraft } from '../constants/classDraft';
 import { loadClassDraft, loadClassPreview } from '../utils/classDraft';
-import { classService } from '../api/services';
+import { classService, curriculumService } from '../api/services';
+import type { CurriculumSection } from '../types/class';
 import { YouTubePlayer } from '../components/YouTubePlayer';
 
 const fallbackLearnerHighlights = [
@@ -1512,10 +1513,21 @@ function ClassPublicPage({ preview = false }: { preview?: boolean }) {
   const { id = 'notion' } = useParams();
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState('');
+  const [previewCurriculum, setPreviewCurriculum] = useState<CurriculumSection[]>([]);
   const draft = preview
     ? loadClassPreview(id, initialClassDraft)
     : loadClassDraft(initialClassDraft);
-  const hasSavedPreview = preview && Boolean(draft.title);
+  useEffect(() => {
+    if (!preview) return;
+    let alive = true;
+    void curriculumService.list(id).then((sections) => {
+      if (alive) setPreviewCurriculum(sections);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [id, preview]);
+  const previewLessons = previewCurriculum.flatMap((section) => section.lessons);
   const title = draft.title || '노션으로 시작하는 업무 자동화';
   const summary = draft.summary || '반복 업무를 자동화하는 실전 4주 과정';
   const description =
@@ -1608,29 +1620,24 @@ function ClassPublicPage({ preview = false }: { preview?: boolean }) {
             <section className="oc-panel">
               <div className="oc-panel-title">
                 <h2>커리큘럼</h2>
-                <span>{hasSavedPreview ? '준비 전' : '3개 섹션'}</span>
+                <span>{previewCurriculum.length}개 섹션 · {previewLessons.length}개 차시</span>
               </div>
-              {hasSavedPreview ? (
+              {!previewLessons.length ? (
                 <p className="curriculum-empty">
-                  공개 후 강의 관리에서 커리큘럼을 추가할 수 있어요.
+                  강의 관리에서 첫 커리큘럼을 추가해 주세요.
                 </p>
               ) : (
-                [
-                  ['1', '노션 데이터베이스 설계', '45분', true],
-                  ['2', '반복 업무 자동화', '52분', false],
-                  ['3', '팀 협업 템플릿', '48분', false],
-                ].map(([n, t, time, done]) => (
-                  <button className={`student-lesson ${done ? 'done' : ''}`} key={String(n)}>
-                    <span>{done ? <CheckCircle2 /> : n}</span>
+                previewLessons.map((lesson, index) => (
+                  <div className={`student-lesson ${lesson.published ? 'done' : ''}`} key={lesson.id}>
+                    <span>{lesson.published ? <CheckCircle2 /> : index + 1}</span>
                     <b>
-                      {t}
+                      {lesson.title}
                       <small>
                         <Clock3 size={14} />
-                        {time}
+                        {lesson.durationMinutes}분 · {lesson.published ? '공개' : '비공개'}
                       </small>
                     </b>
-                    <Play size={18} />
-                  </button>
+                  </div>
                 ))
               )}
             </section>
@@ -1713,19 +1720,15 @@ function ClassPublicPage({ preview = false }: { preview?: boolean }) {
           </section>
           <section>
             <h3>커리큘럼</h3>
-            {hasSavedPreview ? (
-              <p className="curriculum-empty">공개 후 강의 관리에서 커리큘럼을 추가할 수 있어요.</p>
+            {!previewLessons.length ? (
+              <p className="curriculum-empty">강의 관리에서 첫 커리큘럼을 추가해 주세요.</p>
             ) : (
-              [
-                ['1', '노션 데이터베이스 설계', '업무에 맞는 구조를 직접 만들어요'],
-                ['2', '반복 업무 자동화', '버튼과 연결 도구로 시간을 줄여요'],
-                ['3', '팀 협업 템플릿', '함께 쓰는 시스템으로 완성해요'],
-              ].map((c) => (
-                <div className="curriculum" key={c[0]}>
-                  <i>{c[0]}</i>
+              previewLessons.map((lesson, index) => (
+                <div className="curriculum" key={lesson.id}>
+                  <i>{index + 1}</i>
                   <span>
-                    <b>{c[1]}</b>
-                    <small>{c[2]}</small>
+                    <b>{lesson.title}</b>
+                    <small>{lesson.description || `${lesson.durationMinutes}분`}</small>
                   </span>
                 </div>
               ))

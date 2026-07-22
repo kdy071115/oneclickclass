@@ -54,7 +54,7 @@ export function CreateClassPage() {
   const nav = useNavigate();
   const [params] = useSearchParams();
   const editId = params.get('edit');
-  const [step, setStep] = useState(() => params.has('edit') ? Math.min(labels.length, Math.max(1, Number(params.get('step')) || 2)) : 1);
+  const [step, setStep] = useState(() => params.has('edit') ? Math.min(labels.length, Math.max(1, Number(params.get('step')) || 1)) : 1);
   const [maxStep, setMaxStep] = useState(() => (params.has('edit') ? labels.length : 1));
   const [draft, setDraft] = useState(() => {
     const savedDraft = editId ? loadClassPreview(editId, initialClassDraft) : loadClassDraft(initialClassDraft);
@@ -67,16 +67,23 @@ export function CreateClassPage() {
   const [error, setError] = useState('');
   const [customOpen, setCustomOpen] = useState(false);
   const [customQuestion, setCustomQuestion] = useState('');
-  const [tool, setTool] = useState('YouTube');
+  const [tool, setTool] = useState(() => {
+    const url = draft.url.toLowerCase();
+    if (url.includes('zoom')) return 'Zoom';
+    if (url.includes('meet.google')) return 'Meet';
+    if (url.includes('youtu')) return 'YouTube';
+    return draft.url ? '기타 URL' : 'YouTube';
+  });
   const [submitting, setSubmitting] = useState(false);
   const [savedAt, setSavedAt] = useState('');
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      saveClassDraft(draft);
+      if (editId) saveClassPreview(editId, draft);
+      else saveClassDraft(draft);
       setSavedAt(new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit' }).format(new Date()));
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [draft]);
+  }, [draft, editId]);
   async function next(e: FormEvent) {
     e.preventDefault();
     const needsAddress = draft.type === 'offline' || draft.type === 'hybrid';
