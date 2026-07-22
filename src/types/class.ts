@@ -12,6 +12,7 @@ export interface ClassItem {
 }
 export interface Applicant {
   id: string;
+  classId?: string;
   name: string;
   classTitle: string;
   appliedAt: string;
@@ -66,6 +67,8 @@ export interface ClassDetail extends ClassItem {
   reviewCount: number;
   completionRate: number;
   shareToken: string;
+  publicOn?: boolean;
+  recruitmentClosed?: boolean;
   applicantTrend: number[];
   curriculum: {
     id: string;

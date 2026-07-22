@@ -47,6 +47,8 @@ export type OneClickEnrollment = {
   courseActiveSeq: string;
   shareToken?: string;
   learnerName: string;
+  phone?: string;
+  email?: string;
   applyStatusCd: 'APPLY_STATUS::001' | 'APPLY_STATUS::002' | 'APPLY_STATUS::004';
   progress: number;
   lastPosition: string;
@@ -766,6 +768,8 @@ export const oneclickService = {
       courseActiveSeq: share.courseActiveSeq,
       shareToken: share.shareToken,
       learnerName: input.name,
+      phone: input.phone,
+      email: input.email,
       applyStatusCd: share.requiresApproval
         ? ('APPLY_STATUS::001' as const)
         : share.paymentType === 'PAID'
