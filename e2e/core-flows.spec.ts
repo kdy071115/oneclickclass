@@ -37,14 +37,92 @@ test('강의 생성 단계 검증과 정산 화면을 이동한다', async ({ pa
 });
 
 test('공개 신청 페이지에서 필수 신청 정보를 검증한다', async ({ page }) => {
-  await page.goto('/s/notion-auto');
-  await expect(page.getByRole('heading', { name: '노션으로 시작하는 업무 자동화' })).toBeVisible();
-  await page.getByRole('button', { name: '신청하고 결제하기' }).click();
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      'oneclick-class-preview:e2e-paid-application',
+      JSON.stringify({
+        _schemaVersion: 2,
+        type: 'online',
+        title: '필수 신청 정보 테스트',
+        payment: 'paid',
+        price: 45000,
+        capacity: 30,
+      }),
+    );
+  });
+  await page.goto('/s/e2e-paid-application');
+  await expect(page.getByRole('heading', { name: '필수 신청 정보 테스트' })).toBeVisible();
+  await page.getByRole('button', { name: '휴대전화 확인하기' }).click();
   await expect(page.getByText('이름을 입력해 주세요.')).toBeVisible();
   await page.getByPlaceholder('이름을 입력하세요').fill('테스트 수강생');
   await page.getByPlaceholder('010-0000-0000').fill('010-1234-5678');
   await page.getByRole('checkbox', { name: /개인정보 수집/ }).check();
   await page.getByRole('checkbox', { name: /결제 및 환불/ }).check();
+  await page.getByRole('button', { name: '휴대전화 확인하기' }).click();
+  const verificationHint = await page.getByText(/테스트 인증번호는/).textContent();
+  await page.getByPlaceholder('6자리 인증번호').fill(verificationHint?.match(/\d{6}/)?.[0] ?? '');
+  await expect(page.getByRole('button', { name: '신청하고 결제하기' })).toBeVisible();
+});
+
+test('수강생 신청 페이지와 강의실이 모바일에서 가로로 깨지지 않는다', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      'oneclick-class-preview:responsive-course',
+      JSON.stringify({
+        _schemaVersion: 2,
+        type: 'online',
+        title: '모바일 수강 테스트',
+        summary: '작은 화면에서도 이어지는 강의',
+        description: '모바일 신청과 학습 화면을 확인합니다.',
+        startDate: '2026-08-31',
+        capacity: 20,
+        payment: 'free',
+      }),
+    );
+    localStorage.setItem(
+      'oneclick.curriculum.responsive-course',
+      JSON.stringify([
+        {
+          id: 'section-1',
+          title: '기본 과정',
+          lessons: [
+            {
+              id: 'lesson-1',
+              title: '모바일 첫 강의',
+              durationMinutes: 15,
+              published: true,
+              contentUrl: 'https://youtu.be/M7lc1UVf-VE',
+              contentType: 'video',
+            },
+          ],
+        },
+      ]),
+    );
+    localStorage.setItem(
+      'oneclick.enrollment.responsive-course',
+      JSON.stringify({
+        memberSeq: 'member-mobile',
+        courseApplySeq: 'apply-mobile',
+        courseActiveSeq: 'responsive-course',
+        shareToken: 'responsive-course',
+        learnerName: '모바일 수강생',
+        applyStatusCd: 'APPLY_STATUS::002',
+        progress: 0,
+        lastPosition: '1강 0분 0초',
+      }),
+    );
+  });
+
+  await page.goto('/s/responsive-course');
+  await expect(page.getByRole('heading', { name: '모바일 수강 테스트' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await expect(page.getByRole('button', { name: '바로 이어보기' })).toHaveCount(1);
+  await page.locator('.learner-mobile-apply-cta').click();
+  await expect(page).toHaveURL('/learn/responsive-course');
+  await expect(page.getByRole('heading', { name: '모바일 수강 테스트' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /1 모바일 첫 강의 예상 15분/ })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
 test('신청자 상세와 수료증을 데스크톱에서 표시한다', async ({ page }, testInfo) => {
