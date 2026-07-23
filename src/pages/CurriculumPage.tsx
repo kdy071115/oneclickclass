@@ -11,7 +11,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { curriculumService, detailService } from '../api/services';
 import {
   Button,
@@ -25,15 +25,25 @@ import {
   Toggle,
 } from '../components/ui';
 import type { CurriculumLesson, CurriculumSection, LessonContentType } from '../types/class';
+import {
+  contentProviderLabel,
+  detectContentProvider,
+  validateContentUrl,
+} from '../utils/content';
 
 const lessonTypes: Record<
   LessonContentType,
-  { label: string; Icon: typeof CirclePlay; urlLabel: string }
+  { label: string; Icon: typeof CirclePlay; urlLabel: string; urlHint: string }
 > = {
-  video: { label: '녹화 영상', Icon: CirclePlay, urlLabel: '영상 URL (MP4 · YouTube · Vimeo)' },
-  live: { label: '라이브', Icon: Radio, urlLabel: '참여 URL' },
-  document: { label: '학습 자료', Icon: FileText, urlLabel: '자료 URL' },
-  assignment: { label: '과제', Icon: BookOpen, urlLabel: '제출 안내 URL' },
+  video: {
+    label: '녹화 영상',
+    Icon: CirclePlay,
+    urlLabel: '영상 URL (MP4 · YouTube · Vimeo)',
+    urlHint: '이어보기는 영상 제공자의 재생 위치 연동이 지원되는 경우 저장돼요.',
+  },
+  live: { label: '라이브', Icon: Radio, urlLabel: '참여 URL', urlHint: '수강생이 바로 입장할 수 있는 주소를 입력해 주세요.' },
+  document: { label: '학습 자료', Icon: FileText, urlLabel: '자료 URL', urlHint: '수강생이 열람할 수 있는 공개 주소를 입력해 주세요.' },
+  assignment: { label: '과제', Icon: BookOpen, urlLabel: '제출 안내 URL', urlHint: '과제 설명이나 제출 화면 주소를 입력해 주세요.' },
 };
 
 const emptyLesson = (): Omit<CurriculumLesson, 'id'> => ({
@@ -44,6 +54,8 @@ const emptyLesson = (): Omit<CurriculumLesson, 'id'> => ({
   durationMinutes: 30,
   preview: false,
   published: false,
+  required: true,
+  sequential: false,
 });
 
 type LessonEditor = {
@@ -53,30 +65,38 @@ type LessonEditor = {
 
 export function CurriculumPage() {
   const { id = 'notion' } = useParams();
+  const [searchParams] = useSearchParams();
+  const setup = searchParams.get('setup') === '1';
   const [classTitle, setClassTitle] = useState('');
   const [sections, setSections] = useState<CurriculumSection[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [reload, setReload] = useState(0);
   const [newSectionTitle, setNewSectionTitle] = useState('');
   const [editor, setEditor] = useState<LessonEditor>();
   const [lesson, setLesson] = useState(emptyLesson);
+  const [lessonSnapshot, setLessonSnapshot] = useState('');
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [titleError, setTitleError] = useState('');
+  const [contentUrlError, setContentUrlError] = useState('');
   const [toast, setToast] = useState('');
 
   useEffect(() => {
     let alive = true;
-    Promise.all([detailService.getClass(id), curriculumService.list(id)]).then(
-      ([detail, curriculum]) => {
+    setLoading(true);
+    setLoadError('');
+    Promise.all([detailService.getClass(id), curriculumService.list(id)])
+      .then(([detail, curriculum]) => {
         if (!alive) return;
         setClassTitle(detail.title);
         setSections(curriculum);
-        setLoading(false);
-      },
-    );
+      })
+      .catch(() => alive && setLoadError('커리큘럼을 불러오지 못했어요.'))
+      .finally(() => alive && setLoading(false));
     return () => {
       alive = false;
     };
-  }, [id]);
+  }, [id, reload]);
 
   const notify = (message: string) => {
     setToast(message);
@@ -134,21 +154,38 @@ export function CurriculumPage() {
   };
 
   const openCreateLesson = (sectionId: string) => {
-    setLesson(emptyLesson());
-    setError('');
+    const value = emptyLesson();
+    setLesson(value);
+    setLessonSnapshot(JSON.stringify(value));
+    setTitleError('');
+    setContentUrlError('');
     setEditor({ sectionId });
   };
 
   const openEditLesson = (sectionId: string, current: CurriculumLesson) => {
     const { id: lessonId, ...value } = current;
-    setLesson(value);
-    setError('');
+    const nextValue = { ...value, required: value.required ?? true, sequential: value.sequential ?? false };
+    setLesson(nextValue);
+    setLessonSnapshot(JSON.stringify(nextValue));
+    setTitleError('');
+    setContentUrlError('');
     setEditor({ sectionId, lessonId });
   };
 
   const saveLesson = async () => {
     if (!editor || !lesson.title.trim()) {
-      setError('차시 제목을 입력해 주세요.');
+      setTitleError('차시 제목을 입력해 주세요.');
+      return;
+    }
+    if (lesson.published && !lesson.contentUrl.trim()) {
+      setContentUrlError(
+        `공개하려면 ${lessonTypes[lesson.contentType].urlLabel}을 입력해 주세요.`,
+      );
+      return;
+    }
+    const urlError = validateContentUrl(lesson.contentUrl, lesson.contentType);
+    if (urlError) {
+      setContentUrlError(urlError);
       return;
     }
     setSaving(true);
@@ -169,6 +206,14 @@ export function CurriculumPage() {
     }
   };
 
+  const closeEditor = () => {
+    const changed = JSON.stringify(lesson) !== lessonSnapshot;
+    if (changed && !window.confirm('저장하지 않은 변경 내용이 있어요. 편집을 종료할까요?')) return;
+    setEditor(undefined);
+    setTitleError('');
+    setContentUrlError('');
+  };
+
   const removeLesson = async (current: CurriculumLesson) => {
     if (!window.confirm(`‘${current.title}’ 차시를 삭제할까요?`)) return;
     setSections(await curriculumService.deleteLesson(id, current.id));
@@ -180,6 +225,7 @@ export function CurriculumPage() {
     (total, section) => total + section.lessons.filter((item) => item.published).length,
     0,
   );
+  const detectedProvider = detectContentProvider(lesson.contentUrl, lesson.contentType);
 
   return (
     <div className="page subpage curriculum-manager-page">
@@ -192,10 +238,28 @@ export function CurriculumPage() {
           <h1>커리큘럼 관리</h1>
           <p>섹션과 차시를 수강생이 학습할 순서대로 구성하세요.</p>
         </div>
-        <Link className="curriculum-preview-link" to={`/classes/${id}/preview`}>
-          수강생 화면 보기
-        </Link>
+        {!setup && (
+          <Link className="curriculum-preview-link" to={`/classes/${id}/preview`}>
+            수강생 화면 보기
+          </Link>
+        )}
       </header>
+
+      {setup && (
+        <section className="curriculum-setup-guide" aria-label="강의 공개 준비">
+          <div>
+            <small>강의 공개 준비</small>
+            <h2>{publishedLessons ? '신청 페이지를 확인할 차례예요' : '첫 차시를 만들어 주세요'}</h2>
+            <p>{publishedLessons ? '수강생 화면을 확인한 뒤 공개하면 신청 링크가 만들어져요.' : '섹션을 추가하고 영상·라이브·자료를 차시에 연결해 주세요.'}</p>
+          </div>
+          <ol>
+            <li className="complete"><b>1</b><span>기본 정보<small>저장 완료</small></span></li>
+            <li className={publishedLessons ? 'complete' : 'active'}><b>2</b><span>커리큘럼<small>{publishedLessons ? `공개 차시 ${publishedLessons}개` : '첫 차시 등록'}</small></span></li>
+            <li className={publishedLessons ? 'active' : ''}><b>3</b><span>미리보기·공개<small>신청 링크 만들기</small></span></li>
+          </ol>
+          {publishedLessons > 0 && <Link to={`/classes/${id}/preview`}>신청 페이지 미리보기</Link>}
+        </section>
+      )}
 
       <div className="curriculum-summary" aria-label="커리큘럼 현황">
         <span>
@@ -212,6 +276,7 @@ export function CurriculumPage() {
       <section className="curriculum-add-section">
         <Input
           label="새 섹션"
+          disabled={!!loadError}
           value={newSectionTitle}
           onChange={(event) => setNewSectionTitle(event.target.value)}
           onKeyDown={(event) => {
@@ -219,13 +284,19 @@ export function CurriculumPage() {
           }}
           placeholder="예) 1주차 · 업무 구조 이해하기"
         />
-        <Button disabled={!newSectionTitle.trim()} onClick={() => void addSection()}>
+        <Button disabled={!!loadError || !newSectionTitle.trim()} onClick={() => void addSection()}>
           <Plus size={18} /> 섹션 추가
         </Button>
       </section>
 
       {loading ? (
         <Skeleton lines={5} />
+      ) : loadError ? (
+        <EmptyState
+          title={loadError}
+          description="네트워크 상태를 확인한 뒤 다시 시도해 주세요."
+          action={<Button onClick={() => setReload((value) => value + 1)}>다시 시도</Button>}
+        />
       ) : sections.length ? (
         <div className="curriculum-section-list">
           {sections.map((section, sectionIndex) => (
@@ -272,7 +343,7 @@ export function CurriculumPage() {
                       <div>
                         <b>{item.title}</b>
                         <small>
-                          {type.label} · {item.durationMinutes}분{item.preview ? ' · 미리보기' : ''}
+                          {type.label} · {item.durationMinutes}분{item.required === false ? '' : ' · 필수'}{item.sequential ? ' · 순차 학습' : ''}{item.preview ? ' · 미리보기' : ''}
                         </small>
                       </div>
                       <em className={item.published ? 'published' : ''}>
@@ -333,10 +404,10 @@ export function CurriculumPage() {
       <Modal
         open={!!editor}
         title={editor?.lessonId ? '차시 수정' : '새 차시 추가'}
-        onClose={() => setEditor(undefined)}
+        onClose={closeEditor}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setEditor(undefined)}>
+            <Button variant="secondary" onClick={closeEditor}>
               취소
             </Button>
             <Button disabled={saving} onClick={() => void saveLesson()}>
@@ -349,10 +420,10 @@ export function CurriculumPage() {
           <Input
             label="차시 제목"
             value={lesson.title}
-            error={error}
+            error={titleError}
             onChange={(event) => {
               setLesson({ ...lesson, title: event.target.value });
-              setError('');
+              setTitleError('');
             }}
             placeholder="예) 데이터베이스 기본 구조 만들기"
           />
@@ -365,9 +436,10 @@ export function CurriculumPage() {
           <Select
             label="콘텐츠 유형"
             value={lesson.contentType}
-            onChange={(event) =>
-              setLesson({ ...lesson, contentType: event.target.value as LessonContentType })
-            }
+            onChange={(event) => {
+              setLesson({ ...lesson, contentType: event.target.value as LessonContentType });
+              setContentUrlError('');
+            }}
           >
             {Object.entries(lessonTypes).map(([value, item]) => (
               <option value={value} key={value}>
@@ -379,10 +451,19 @@ export function CurriculumPage() {
             label={lessonTypes[lesson.contentType].urlLabel}
             type="url"
             value={lesson.contentUrl}
-            onChange={(event) => setLesson({ ...lesson, contentUrl: event.target.value })}
+            error={contentUrlError}
+            onChange={(event) => {
+              setLesson({ ...lesson, contentUrl: event.target.value });
+              setContentUrlError('');
+            }}
             placeholder="https://"
-            hint="나중에 입력해도 돼요."
+            hint={lessonTypes[lesson.contentType].urlHint}
           />
+          {lesson.contentUrl.trim() && !contentUrlError && (
+            <div className="content-source-status" role="status">
+              자동 확인 · {contentProviderLabel[detectedProvider]}
+            </div>
+          )}
           <Input
             label="예상 학습 시간(분)"
             type="number"
@@ -401,6 +482,28 @@ export function CurriculumPage() {
               label="무료 미리보기 설정"
               checked={lesson.preview}
               onChange={(preview) => setLesson({ ...lesson, preview })}
+            />
+          </div>
+          <div className="curriculum-toggle-row">
+            <span>
+              <b>필수 차시</b>
+              <small>이수 조건을 계산할 때 반드시 완료해야 하는 차시예요.</small>
+            </span>
+            <Toggle
+              label="필수 차시 설정"
+              checked={lesson.required ?? true}
+              onChange={(required) => setLesson({ ...lesson, required })}
+            />
+          </div>
+          <div className="curriculum-toggle-row">
+            <span>
+              <b>순서대로 학습</b>
+              <small>이전 차시를 완료한 뒤 이 차시를 열 수 있어요.</small>
+            </span>
+            <Toggle
+              label="순차 학습 설정"
+              checked={lesson.sequential ?? false}
+              onChange={(sequential) => setLesson({ ...lesson, sequential })}
             />
           </div>
           <div className="curriculum-toggle-row">

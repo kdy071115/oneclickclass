@@ -3225,6 +3225,12 @@
   color: #3182f6;
 }
 
+@media (max-width: 899px) {
+  .learner-continue-card > .primary {
+    display: none;
+  }
+}
+
 @media (min-width: 900px) {
   .learner-topbar,
   .learner-room-topbar {

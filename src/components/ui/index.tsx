@@ -42,25 +42,26 @@ export function Avatar({ name, src, size = 40 }: { name: string; src?: string; s
 type FieldProps = { label?: string; error?: string; hint?: string };
 
 function Field({ label, error, hint, inputId, children }: FieldProps & { inputId: string; children: ReactNode }) {
-  return <label className="ui-field" htmlFor={inputId}>{label && <span>{label}</span>}{children}{error ? <small className="ui-field-error">{error}</small> : hint ? <small>{hint}</small> : null}</label>;
+  const descriptionId = `${inputId}-description`;
+  return <div className="ui-field">{label && <label htmlFor={inputId}>{label}</label>}{children}{error ? <small id={descriptionId} className="ui-field-error">{error}</small> : hint ? <small id={descriptionId}>{hint}</small> : null}</div>;
 }
 
 export function Input({ label, error, hint, id, className = '', ...props }: InputHTMLAttributes<HTMLInputElement> & FieldProps) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
-  return <Field label={label} error={error} hint={hint} inputId={inputId}><input id={inputId} className={`ui-input ${className}`} aria-invalid={!!error} {...props} /></Field>;
+  return <Field label={label} error={error} hint={hint} inputId={inputId}><input id={inputId} className={`ui-input ${className}`} aria-invalid={!!error} aria-describedby={error || hint ? `${inputId}-description` : undefined} {...props} /></Field>;
 }
 
 export function Textarea({ label, error, hint, id, className = '', ...props }: TextareaHTMLAttributes<HTMLTextAreaElement> & FieldProps) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
-  return <Field label={label} error={error} hint={hint} inputId={inputId}><textarea id={inputId} className={`ui-input ui-textarea ${className}`} aria-invalid={!!error} {...props} /></Field>;
+  return <Field label={label} error={error} hint={hint} inputId={inputId}><textarea id={inputId} className={`ui-input ui-textarea ${className}`} aria-invalid={!!error} aria-describedby={error || hint ? `${inputId}-description` : undefined} {...props} /></Field>;
 }
 
 export function Select({ label, error, hint, id, className = '', children, ...props }: SelectHTMLAttributes<HTMLSelectElement> & FieldProps) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
-  return <Field label={label} error={error} hint={hint} inputId={inputId}><select id={inputId} className={`ui-input ui-select ${className}`} aria-invalid={!!error} {...props}>{children}</select></Field>;
+  return <Field label={label} error={error} hint={hint} inputId={inputId}><select id={inputId} className={`ui-input ui-select ${className}`} aria-invalid={!!error} aria-describedby={error || hint ? `${inputId}-description` : undefined} {...props}>{children}</select></Field>;
 }
 
 export function DatePicker(props: Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> & FieldProps) {

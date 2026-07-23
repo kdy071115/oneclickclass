@@ -41,6 +41,8 @@ export function ClassDetailPage() {
   const reviewCount = detail?.reviewCount || 0;
   const completionRate = detail?.completionRate || 0;
   const curriculum = detail?.curriculum || [];
+  const publishedLessons = curriculum.filter((item) => item.published).length;
+  const readySteps = 1 + Number(publishedLessons > 0) + Number(detail?.publicOn);
   const supportsAttendance = detail?.type !== '온라인';
   const mobileMenus: [string, LucideIcon, string, string][] = [
     ['applicants', Users, '신청자', `${enrolled}명 관리`],
@@ -106,14 +108,14 @@ export function ClassDetailPage() {
   }, [id]);
   if (error) {
     return (
-      <div className="oc-web-page">
+      <main className="class-detail-error">
         <AsyncState loading={false} error={error} onRetry={() => location.reload()} />
         <div className="class-detail-recovery">
           <Link className="primary" to="/classes">
             클래스 목록으로
           </Link>
         </div>
-      </div>
+      </main>
     );
   }
   const notify = (message: string) => {
@@ -148,6 +150,19 @@ export function ClassDetailPage() {
         </div>
         <div className="oc-detail-layout">
           <main>
+            {detail && !detail.publicOn && (
+              <section className="oc-panel class-readiness">
+                <div className="oc-panel-title">
+                  <h2>강의 준비 <small>{readySteps} / 3 완료</small></h2>
+                  <Link to={`/classes/${id}/curriculum?setup=1`}>계속 준비하기</Link>
+                </div>
+                <div className="class-readiness-steps">
+                  <span className="complete"><CheckCircle2 /><b>기본 정보</b><small>저장 완료</small></span>
+                  <span className={publishedLessons ? 'complete' : 'active'}><ClipboardList /><b>커리큘럼</b><small>{publishedLessons ? `공개 차시 ${publishedLessons}개` : '첫 차시 필요'}</small></span>
+                  <span className={publishedLessons ? 'active' : ''}><Share2 /><b>신청 페이지</b><small>미리보기·공개 필요</small></span>
+                </div>
+              </section>
+            )}
             <section className="oc-detail-hero reference">
               <div className="oc-detail-main">
                 <div className="oc-detail-copy">
@@ -262,7 +277,7 @@ export function ClassDetailPage() {
                   <div className="oc-empty-detail">
                     <ClipboardList />
                     <b>등록된 커리큘럼이 없어요.</b>
-                    <p>강의 수정에서 첫 커리큘럼을 등록해 주세요.</p>
+                    <p>강의 구성 수정에서 첫 섹션과 차시를 등록해 주세요.</p>
                   </div>
                 )}
               </div>

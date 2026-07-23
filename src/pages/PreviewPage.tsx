@@ -35,9 +35,10 @@ import {
 } from '../api/oneclick';
 import { initialClassDraft } from '../constants/classDraft';
 import { loadClassDraft, loadClassPreview } from '../utils/classDraft';
-import { classService, curriculumService } from '../api/services';
-import type { CurriculumSection } from '../types/class';
+import { classService, curriculumService, detailService } from '../api/services';
+import type { ClassDetail, CurriculumSection } from '../types/class';
 import { YouTubePlayer } from '../components/YouTubePlayer';
+import { getPublishIssues, type PublishIssue } from '../utils/classReadiness';
 
 const fallbackLearnerHighlights = [
   '업무 흐름을 기준으로 데이터베이스를 설계해요.',
@@ -102,6 +103,9 @@ export function PublicEnrollmentPage() {
   const [reviews, setReviews] = useState<OneClickReview[]>([]);
   const [existing, setExisting] = useState<OneClickEnrollment | null>(null);
   const [showNewApplication, setShowNewApplication] = useState(false);
+  const [verificationSent, setVerificationSent] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [verificationHint, setVerificationHint] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [activeSection, setActiveSection] = useState<'learn' | 'curriculum' | 'reviews'>(() => {
@@ -153,12 +157,30 @@ export function PublicEnrollmentPage() {
     setSubmitting(true);
     setError('');
     try {
+      if (!verificationSent) {
+        const verification = await oneclickService.requestVerification(
+          share.courseActiveSeq,
+          form.phone.trim(),
+        );
+        setVerificationSent(true);
+        setVerificationHint(
+          verification.debugCode
+            ? `테스트 인증번호는 ${verification.debugCode}예요.`
+            : '인증번호를 보냈어요. 3분 안에 입력해 주세요.',
+        );
+        return;
+      }
+      if (verificationCode.replace(/\D/g, '').length !== 6) {
+        setError('문자로 받은 6자리 인증번호를 입력해 주세요.');
+        return;
+      }
       const enrollment = await oneclickService.apply(shareToken, {
         name: form.name.trim(),
         phone: form.phone.trim(),
         email: form.email.trim() || undefined,
         privacyConsent: form.privacyConsent,
         paymentConsent: share.paymentType === 'PAID' ? form.paymentConsent : undefined,
+        verificationCode,
       });
       const courseActiveSeq = enrollment.courseActiveSeq || share.courseActiveSeq;
       if (!isValidCourseId(courseActiveSeq)) throw new Error('missing course id');
@@ -179,9 +201,9 @@ export function PublicEnrollmentPage() {
   const summary = share?.summary || draft.summary || '반복 업무를 자동화하는 실전 4주 과정';
   const priceText = share?.paymentType === 'PAID' ? `${share.price.toLocaleString()}원` : '무료';
   const capacityText = share
-    ? `${share.enrolled} / ${share.capacity}명`
+    ? `${share.confirmedCount} / ${share.capacity}명`
     : `0 / ${draft.capacity}명`;
-  const disabled = share?.applyStatus === 'CLOSED';
+  const disabled = share ? share.recruitmentStatus !== 'OPEN' || share.remainingSeats <= 0 : false;
   const curriculum = share?.curriculum ?? [];
   const showCurriculum = curriculum.length > 0;
   const resumeCourseActiveSeq = existing?.courseActiveSeq || share?.courseActiveSeq;
@@ -215,7 +237,11 @@ export function PublicEnrollmentPage() {
   const applyButtonText = disabled
     ? '신청 마감'
     : submitting
-      ? '신청 처리 중...'
+      ? verificationSent
+        ? '인증 확인 중...'
+        : '인증번호 전송 중...'
+      : !verificationSent
+        ? '휴대전화 확인하기'
       : share?.requiresApproval
         ? '신청서 제출하기'
         : share?.paymentType === 'PAID'
@@ -256,7 +282,7 @@ export function PublicEnrollmentPage() {
     ? (reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1)
     : '0.0';
   const highlights = share?.highlights?.length ? share.highlights : fallbackLearnerHighlights;
-  const remainingSeats = share ? Math.max(0, share.capacity - share.enrolled) : draft.capacity;
+  const remainingSeats = share?.remainingSeats ?? draft.capacity;
   const mobileCtaText = canEnterLearnerRoom(existing)
     ? showCurriculum
       ? '바로 이어보기'
@@ -436,10 +462,30 @@ export function PublicEnrollmentPage() {
                 <input
                   inputMode="tel"
                   value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  onChange={(e) => {
+                    setForm({ ...form, phone: e.target.value });
+                    setVerificationSent(false);
+                    setVerificationCode('');
+                    setVerificationHint('');
+                  }}
                   placeholder="010-0000-0000"
+                  readOnly={verificationSent}
                 />
               </label>
+              {verificationSent && (
+                <label>
+                  인증번호
+                  <input
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    value={verificationCode}
+                    onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                    placeholder="6자리 인증번호"
+                  />
+                  <small className="verify-help">{verificationHint}</small>
+                </label>
+              )}
               <label>
                 이메일 <small>선택</small>
                 <input
@@ -914,14 +960,19 @@ export function LearnerRoomPage() {
       </div>
     );
   }
-  if (
-    enrollment.applyStatusCd === 'APPLY_STATUS::001' ||
-    enrollment.applyStatusCd === 'APPLY_STATUS::004'
-  ) {
-    const pendingTitle =
-      enrollment.applyStatusCd === 'APPLY_STATUS::004'
-        ? '결제 확인이 필요해요.'
-        : '신청 승인 대기 중이에요.';
+  if (!enrollment.canLearn) {
+    const accessCopy = {
+      AWAITING_APPROVAL: ['신청 승인 대기 중이에요.', '강의자가 신청을 확인하면 이 화면에서 바로 알려드릴게요.'],
+      AWAITING_PAYMENT: ['결제 확인이 필요해요.', '결제를 완료하면 수강권이 바로 활성화돼요.'],
+      PAYMENT_FAILED: ['결제를 완료하지 못했어요.', '결제 상태를 확인한 뒤 다시 시도해 주세요.'],
+      REJECTED: ['신청이 승인되지 않았어요.', '자세한 내용은 강의자에게 문의해 주세요.'],
+      CANCELLED: ['취소된 신청이에요.', '다시 참여하려면 강의 정보에서 신청 가능 여부를 확인해 주세요.'],
+      REFUNDED: ['환불이 완료된 수강권이에요.', '환불된 신청으로는 강의를 볼 수 없어요.'],
+      SUSPENDED: ['수강권이 일시 정지됐어요.', '자세한 내용은 강의자에게 문의해 주세요.'],
+      COURSE_UNAVAILABLE: ['현재 강의를 이용할 수 없어요.', '강의 공개 상태를 잠시 후 다시 확인해 주세요.'],
+      AVAILABLE: ['수강권을 확인하고 있어요.', '잠시 후 다시 확인해 주세요.'],
+    } as const;
+    const [pendingTitle, pendingDescription] = accessCopy[enrollment.accessReason];
     const refreshLearnerStatus = async () => {
       setCheckingStatus(true);
       setError('');
@@ -941,7 +992,7 @@ export function LearnerRoomPage() {
           <ShieldCheck />
           <span>수강권 확인</span>
           <h1>{pendingTitle}</h1>
-          <p>수강권이 활성화되면 같은 링크에서 바로 강의실로 입장할 수 있어요.</p>
+          <p>{pendingDescription}</p>
           {error && <p className="form-error">{error}</p>}
           <button
             className="primary"
@@ -1055,12 +1106,14 @@ export function LearnerRoomPage() {
     currentSeconds: number,
     isPlaying: boolean,
     durationSeconds = activeDurationSeconds,
+    ended = false,
   ) => {
     if (!enrollment.courseApplySeq) return;
     const measuredProgress = durationSeconds
       ? Math.min(100, Math.round((currentSeconds / durationSeconds) * 100))
       : activeProgress;
-    const lessonProgress = Math.max(activeLesson.progress, measuredProgress);
+    const lessonCompleted = ended || activeLesson.completed || measuredProgress >= 90;
+    const lessonProgress = Math.max(activeLesson.progress, measuredProgress, lessonCompleted ? 90 : 0);
     const lastPosition = `${activeLessonIndex + 1}강 ${formatPlaybackTime(currentSeconds)}`;
     const totalProgress = Math.round(
       lessons.reduce(
@@ -1073,7 +1126,8 @@ export function LearnerRoomPage() {
       courseApplySeq: enrollment.courseApplySeq,
       lessonId: activeLesson.lessonId,
       currentSeconds: Math.floor(currentSeconds),
-      durationSeconds: Math.floor(durationSeconds),
+      durationSeconds: durationSeconds > 0 ? Math.floor(durationSeconds) : undefined,
+      ended,
       playing: isPlaying,
     });
     setRoom((current) =>
@@ -1088,7 +1142,16 @@ export function LearnerRoomPage() {
                     ...lesson,
                     currentSeconds,
                     progress: lessonProgress,
-                    completed: lessonProgress >= 100,
+                    completed: lessonCompleted,
+                    completedAt:
+                      lessonCompleted && !lesson.completed
+                        ? new Date().toISOString()
+                        : lesson.completedAt,
+                    completionReason: ended
+                      ? 'ENDED'
+                      : lessonCompleted
+                        ? lesson.completionReason || 'WATCH_THRESHOLD'
+                        : null,
                   }
                 : lesson,
             ),
@@ -1167,7 +1230,12 @@ export function LearnerRoomPage() {
                   );
                 }}
                 onEnded={(event) =>
-                  savePlayback(event.currentTarget.currentTime, false, event.currentTarget.duration)
+                  savePlayback(
+                    event.currentTarget.currentTime,
+                    false,
+                    event.currentTarget.duration,
+                    true,
+                  )
                 }
                 onTimeUpdate={(event) => {
                   const seconds = event.currentTarget.currentTime;
@@ -1182,9 +1250,9 @@ export function LearnerRoomPage() {
                 videoId={getYouTubeVideoId(activeLesson.contentUrl)}
                 startSeconds={playbackStartSeconds}
                 onPlayingChange={setPlaying}
-                onProgress={(currentSeconds, durationSeconds, isPlaying) => {
+                onProgress={(currentSeconds, durationSeconds, isPlaying, ended) => {
                   setActiveDurationSeconds(durationSeconds);
-                  savePlayback(currentSeconds, isPlaying, durationSeconds);
+                  savePlayback(currentSeconds, isPlaying, durationSeconds, ended);
                 }}
               />
             ) : activeLesson.contentProvider === 'VIMEO' && activeLesson.contentUrl ? (
@@ -1514,30 +1582,70 @@ function ClassPublicPage({ preview = false }: { preview?: boolean }) {
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState('');
   const [previewCurriculum, setPreviewCurriculum] = useState<CurriculumSection[]>([]);
+  const [previewDetail, setPreviewDetail] = useState<ClassDetail>();
   const draft = preview
     ? loadClassPreview(id, initialClassDraft)
     : loadClassDraft(initialClassDraft);
   useEffect(() => {
     if (!preview) return;
     let alive = true;
-    void curriculumService.list(id).then((sections) => {
-      if (alive) setPreviewCurriculum(sections);
-    });
+    void Promise.all([curriculumService.list(id), detailService.getClass(id)]).then(
+      ([sections, detail]) => {
+        if (!alive) return;
+        setPreviewCurriculum(sections);
+        setPreviewDetail(detail);
+      },
+    );
     return () => {
       alive = false;
     };
   }, [id, preview]);
   const previewLessons = previewCurriculum.flatMap((section) => section.lessons);
-  const title = draft.title || '노션으로 시작하는 업무 자동화';
-  const summary = draft.summary || '반복 업무를 자동화하는 실전 4주 과정';
+  const previewType = previewDetail
+    ? ({ 온라인: 'online', 라이브: 'live', 오프라인: 'offline', 혼합형: 'hybrid' } as const)[
+        previewDetail.type as '온라인' | '라이브' | '오프라인' | '혼합형'
+      ] || draft.type
+    : draft.type;
+  const readinessDraft = previewDetail
+    ? {
+        ...draft,
+        type: previewType,
+        title: previewDetail.title,
+        summary: previewDetail.summary,
+        description: previewDetail.description,
+        startDate: previewDetail.date,
+        recruitEndDate: previewDetail.recruitEndDate,
+        capacity: previewDetail.capacity,
+        payment: previewDetail.price > 0 ? ('paid' as const) : ('free' as const),
+        price: previewDetail.price,
+        address:
+          previewType === 'offline' || previewType === 'hybrid'
+            ? previewDetail.location
+            : draft.address,
+      }
+    : draft;
+  const publishIssues = getPublishIssues(readinessDraft, previewCurriculum);
+  const canPublish = publishIssues.length === 0;
+  const title = previewDetail?.title || draft.title || '노션으로 시작하는 업무 자동화';
+  const summary = previewDetail?.summary || draft.summary || '반복 업무를 자동화하는 실전 4주 과정';
   const description =
+    previewDetail?.description ||
     draft.description ||
     '데이터베이스 설계부터 반복 업무 자동화, 팀 협업 템플릿까지 4주 동안 직접 만들며 배웁니다.';
   const location =
-    draft.type === 'offline' || draft.type === 'hybrid'
-      ? [draft.address, draft.detailedAddress].filter(Boolean).join(' ')
-      : draft.url || 'ZOOM 온라인';
+    previewDetail?.location || (draft.type === 'offline' || draft.type === 'hybrid'
+      ? [draft.address, draft.detailedAddress].filter(Boolean).join(' ') || '장소 협의 중'
+      : draft.type === 'live'
+        ? '라이브 · 차시별 참여 링크'
+        : '온라인 · 차시별 영상');
+  const previewPrice = previewDetail?.price ?? (draft.payment === 'paid' ? draft.price : 0);
+  const previewCapacity = previewDetail?.capacity ?? draft.capacity;
+  const previewDate = previewDetail?.date || draft.startDate;
   const publish = async () => {
+    if (!canPublish) {
+      setPublishError(publishIssues[0]?.label || '공개 준비 항목을 확인해 주세요.');
+      return;
+    }
     setPublishing(true);
     setPublishError('');
     try {
@@ -1591,13 +1699,14 @@ function ClassPublicPage({ preview = false }: { preview?: boolean }) {
                   <Link to={`/classes/new?edit=${id}`}>수정하기</Link>
                   <button
                     className="student-continue"
-                    disabled={publishing}
+                    disabled={publishing || !canPublish}
                     onClick={() => void publish()}
                   >
                     {publishing ? '공개 중...' : '공개하고 링크 복사'}
                   </button>
                 </div>
                 {publishError && <p className="form-error">{publishError}</p>}
+                {!canPublish && <PublishReadiness issues={publishIssues} classId={id} />}
               </>
             ) : (
               <>
@@ -1652,7 +1761,7 @@ function ClassPublicPage({ preview = false }: { preview?: boolean }) {
               <p>
                 <CalendarDays />
                 <span>
-                  일정<b>{draft.startDate || '자유 수강'}</b>
+                  일정<b>{previewDate || '자유 수강'}</b>
                 </span>
               </p>
               <p>
@@ -1706,14 +1815,15 @@ function ClassPublicPage({ preview = false }: { preview?: boolean }) {
           <div className="preview-numbers">
             <div>
               <small>참가비</small>
-              <b>{draft.payment === 'paid' ? `${draft.price.toLocaleString()}원` : '무료'}</b>
+              <b>{previewPrice > 0 ? `${previewPrice.toLocaleString()}원` : '무료'}</b>
             </div>
             <i />
             <div>
               <small>모집 현황</small>
-              <b>0 / {draft.capacity}명</b>
+              <b>0 / {previewCapacity}명</b>
             </div>
           </div>
+          {preview && !canPublish && <PublishReadiness issues={publishIssues} classId={id} />}
           <section>
             <h3>소개</h3>
             <p>{description}</p>
@@ -1739,7 +1849,7 @@ function ClassPublicPage({ preview = false }: { preview?: boolean }) {
             <div className="schedule-card">
               <p>
                 <span>일정</span>
-                <b>{draft.startDate || '일정 미정'}</b>
+                <b>{previewDate || '일정 미정'}</b>
               </p>
               <p>
                 <span>진행</span>
@@ -1764,12 +1874,28 @@ function ClassPublicPage({ preview = false }: { preview?: boolean }) {
         {preview && (
           <div className="layout-fixed-action">
             {publishError && <p className="form-error">{publishError}</p>}
-            <button className="primary" disabled={publishing} onClick={() => void publish()}>
+            <button className="primary" disabled={publishing || !canPublish} onClick={() => void publish()}>
               {publishing ? '공개 중...' : '공개하기'}
             </button>
           </div>
         )}
       </div>
     </>
+  );
+}
+
+function PublishReadiness({ issues, classId }: { issues: PublishIssue[]; classId: string }) {
+  return (
+    <section className="preview-readiness" aria-label="공개 전 확인">
+      <b>공개 전에 {issues.length}가지만 확인해 주세요</b>
+      {issues.map((issue) => (
+        <Link
+          to={issue.area === 'basic' ? `/classes/new?edit=${classId}` : `/classes/${classId}/curriculum?setup=1`}
+          key={issue.id}
+        >
+          {issue.label} <span>수정하기</span>
+        </Link>
+      ))}
+    </section>
   );
 }

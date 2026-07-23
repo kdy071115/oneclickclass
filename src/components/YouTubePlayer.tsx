@@ -54,7 +54,12 @@ type YouTubePlayerProps = {
   videoId: string;
   startSeconds?: number;
   onPlayingChange: (playing: boolean) => void;
-  onProgress: (currentSeconds: number, durationSeconds: number, playing: boolean) => void;
+  onProgress: (
+    currentSeconds: number,
+    durationSeconds: number,
+    playing: boolean,
+    ended: boolean,
+  ) => void;
 };
 
 export function YouTubePlayer({
@@ -74,8 +79,8 @@ export function YouTubePlayer({
     let timer: number | undefined;
     let active = true;
     const wrapper = wrapperRef.current;
-    const report = (target: YouTubePlayerApi, playing: boolean) =>
-      onProgressRef.current(target.getCurrentTime(), target.getDuration(), playing);
+    const report = (target: YouTubePlayerApi, playing: boolean, ended = false) =>
+      onProgressRef.current(target.getCurrentTime(), target.getDuration(), playing, ended);
 
     void loadYouTubeApi().then((YT) => {
       if (!active || !wrapper) return;
@@ -100,7 +105,7 @@ export function YouTubePlayer({
             if (playing) {
               timer = window.setInterval(() => report(target, true), 10000);
             } else if (data === YT.PlayerState.PAUSED || data === YT.PlayerState.ENDED) {
-              report(target, false);
+              report(target, false, data === YT.PlayerState.ENDED);
             }
           },
         },
@@ -111,7 +116,6 @@ export function YouTubePlayer({
       active = false;
       if (timer) window.clearInterval(timer);
       player?.destroy();
-      wrapper?.replaceChildren();
     };
   }, [startSeconds, videoId]);
 

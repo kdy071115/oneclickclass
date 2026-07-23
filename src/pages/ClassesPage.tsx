@@ -38,7 +38,7 @@ export function ClassesPage() {
         </div>
         <div className="class-list-toolbar">
           <div className="oc-filters">
-            {(['전체', '모집중', '진행중', '종료'] as const).map((x) => <button className={filter === x ? 'active' : ''} onClick={() => setFilter(x)} key={x}>{x}</button>)}
+            {(['전체', '준비중', '모집중', '진행중', '종료'] as const).map((x) => <button className={filter === x ? 'active' : ''} onClick={() => setFilter(x)} key={x}>{x}</button>)}
           </div>
           <div className="class-view-switch" aria-label="보기 방식">
             <IconButton label="카드로 보기" className={view === 'cards' ? 'active' : ''} onClick={() => setView('cards')}><LayoutGrid size={18} /></IconButton>
@@ -52,7 +52,7 @@ export function ClassesPage() {
           <h1>클래스</h1>
         </div>
         <div className="chips">
-          {(['전체', '모집중', '진행중', '종료'] as const).map((x) => (
+          {(['전체', '준비중', '모집중', '진행중', '종료'] as const).map((x) => (
             <button className={filter === x ? 'active' : ''} onClick={() => setFilter(x)} key={x}>
               {x}
             </button>
