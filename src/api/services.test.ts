@@ -8,6 +8,7 @@ import {
   examService,
   surveyService,
 } from './services';
+import { initialClassDraft } from '../constants/classDraft';
 
 describe('instructor mock services', () => {
   beforeEach(() => {
@@ -52,6 +53,48 @@ describe('instructor mock services', () => {
     await expect(applicantService.listByClass('calligraphy')).resolves.toHaveLength(1);
   });
 
+  it('keeps each course detail content scoped to that course', async () => {
+    await expect(detailService.getClass('calligraphy')).resolves.toMatchObject({
+      title: '주말 원데이 캘리그라피 클래스',
+      summary: expect.stringContaining('손글씨'),
+      location: '서울 마포구 연남로 12',
+    });
+    await expect(detailService.getClass('photo')).resolves.toMatchObject({
+      title: '스마트폰 사진 보정 클래스',
+      summary: expect.stringContaining('사진'),
+    });
+  });
+
+  it('does not let a partial saved draft replace canonical course detail', async () => {
+    localStorage.setItem(
+      'oneclick-class-preview:calligraphy',
+      JSON.stringify({ title: '수정 중인 제목' }),
+    );
+
+    await expect(detailService.getClass('calligraphy')).resolves.toMatchObject({
+      summary: expect.stringContaining('손글씨'),
+      location: '서울 마포구 연남로 12',
+      recruitEndDate: '8월 7일',
+    });
+  });
+
+  it('applies a current saved draft to canonical course detail', async () => {
+    localStorage.setItem(
+      'oneclick-class-preview:calligraphy',
+      JSON.stringify({
+        _schemaVersion: 2,
+        type: 'offline',
+        summary: '수정한 캘리그라피 소개',
+        address: '서울 마포구 새 주소 1',
+      }),
+    );
+
+    await expect(detailService.getClass('calligraphy')).resolves.toMatchObject({
+      summary: '수정한 캘리그라피 소개',
+      location: '서울 마포구 새 주소 1',
+    });
+  });
+
   it('persists capacity and visibility settings in the course detail', async () => {
     await classService.updateSettings('notion', {
       capacity: 40,
@@ -63,6 +106,31 @@ describe('instructor mock services', () => {
       capacity: 40,
       publicOn: false,
       recruitmentClosed: true,
+    });
+  });
+
+  it('creates a course privately and marks it public only after publishing', async () => {
+    const created = await classService.create({
+      ...initialClassDraft,
+      title: '새 강의',
+      startDate: '2026-08-01',
+    });
+
+    expect(created).toMatchObject({
+      courseActiveSeq: created.id,
+      status: '준비중',
+      lifecycleStatus: 'DRAFT',
+    });
+    expect(created.courseMasterSeq).toBeTruthy();
+    await expect(detailService.getClass(created.id)).resolves.toMatchObject({
+      publicOn: false,
+      status: '준비중',
+    });
+    await classService.publish(created.id);
+    await expect(detailService.getClass(created.id)).resolves.toMatchObject({
+      publicOn: true,
+      status: '모집중',
+      lifecycleStatus: 'RECRUITING',
     });
   });
 

@@ -2,6 +2,9 @@ import type { ClassDraft } from '../types/class';
 
 export const CLASS_DRAFT_KEY = 'oneclick-class-draft';
 const CLASS_PREVIEW_KEY = 'oneclick-class-preview';
+const CLASS_PREVIEW_SCHEMA_VERSION = 2;
+
+export type ClassPreviewPatch = Partial<ClassDraft> & { _schemaVersion?: number };
 
 export function listClassPreviewIds() {
   const prefixes = [
@@ -41,10 +44,11 @@ export function clearClassDraft() {
 }
 
 export function saveClassPreview(id: string, draft: ClassDraft) {
+  const preview = { ...draft, _schemaVersion: CLASS_PREVIEW_SCHEMA_VERSION };
   try {
-    localStorage.setItem(`${CLASS_PREVIEW_KEY}:${id}`, JSON.stringify(draft));
+    localStorage.setItem(`${CLASS_PREVIEW_KEY}:${id}`, JSON.stringify(preview));
   } catch {
-    localStorage.setItem(`${CLASS_PREVIEW_KEY}:${id}`, JSON.stringify({ ...draft, thumbnail: '' }));
+    localStorage.setItem(`${CLASS_PREVIEW_KEY}:${id}`, JSON.stringify({ ...preview, thumbnail: '' }));
   }
 }
 
@@ -56,6 +60,18 @@ export function loadClassPreview(id: string, fallback: ClassDraft) {
     return saved ? ({ ...fallback, ...JSON.parse(saved) } as ClassDraft) : fallback;
   } catch {
     return fallback;
+  }
+}
+
+export function loadClassPreviewPatch(id: string): ClassPreviewPatch | undefined {
+  try {
+    const key = `${CLASS_PREVIEW_KEY}:${id}`;
+    const saved = localStorage.getItem(key) || sessionStorage.getItem(key);
+    if (!saved) return undefined;
+    if (!localStorage.getItem(key)) localStorage.setItem(key, saved);
+    return JSON.parse(saved) as ClassPreviewPatch;
+  } catch {
+    return undefined;
   }
 }
 

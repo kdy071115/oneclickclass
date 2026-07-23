@@ -185,6 +185,51 @@ export const classDetail: ClassDetail = {
     { id: 'a2', type: 'completion', label: '수강 완료 1명', occurredAt: '1일 전' },
   ],
 };
+
+export const classDetailOverrides: Record<string, Partial<ClassDetail>> = {
+  calligraphy: {
+    summary: '주말 하루, 손글씨의 기본부터 작품 완성까지 배우는 원데이 클래스',
+    description: '기본 획과 글자 균형을 연습하고 나만의 문구를 엽서 작품으로 완성합니다.',
+    instructor: '김지훈',
+    price: 45000,
+    recruitEndDate: '8월 7일',
+    sessions: 1,
+    location: '서울 마포구 연남로 12',
+    rating: 5,
+    reviewCount: 1,
+    completionRate: 0,
+    applicantTrend: [18, 25, 31, 34, 38, 40],
+    curriculum: [],
+  },
+  branding: {
+    summary: '브랜드 방향을 정리하고 실제 운영에 필요한 결과물을 만드는 4주 과정',
+    description: '브랜드 메시지, 시각 기준, 콘텐츠 운영 계획을 단계별로 완성합니다.',
+    instructor: '김지훈',
+    price: 120000,
+    recruitEndDate: '7월 3일',
+    sessions: 4,
+    location: '서울 성동구 왕십리로 115',
+    rating: 4.8,
+    reviewCount: 8,
+    completionRate: 64,
+    applicantTrend: [35, 48, 60, 72, 80, 90],
+    curriculum: [],
+  },
+  photo: {
+    summary: '스마트폰 사진을 자연스럽고 선명하게 보정하는 실습 클래스',
+    description: '촬영 기본 설정부터 색감과 밝기 보정, 결과물 저장까지 한 번에 익힙니다.',
+    instructor: '김지훈',
+    price: 35000,
+    recruitEndDate: '6월 12일',
+    sessions: 1,
+    location: '온라인 녹화 강의',
+    rating: 4.7,
+    reviewCount: 14,
+    completionRate: 92,
+    applicantTrend: [42, 55, 67, 78, 90, 100],
+    curriculum: [],
+  },
+};
 export const surveyQuestions: SurveyQuestion[] = [
   {
     id: 's1',

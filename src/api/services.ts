@@ -13,6 +13,7 @@ import {
   applicants,
   certificates,
   classDetail,
+  classDetailOverrides,
   classes,
   dashboard,
   examQuestions,
@@ -41,7 +42,13 @@ import type {
   SurveyQuestion,
 } from '../types/class';
 import { initialClassDraft } from '../constants/classDraft';
-import { hasClassData, listClassPreviewIds, loadClassPreview } from '../utils/classDraft';
+import {
+  hasClassData,
+  hasClassPreview,
+  listClassPreviewIds,
+  loadClassPreview,
+  loadClassPreviewPatch,
+} from '../utils/classDraft';
 const mock = import.meta.env.VITE_USE_MOCK !== 'false';
 const delay = <T>(data: T) => new Promise<T>((resolve) => setTimeout(() => resolve(data), 350));
 const MOCK_CLASSES_KEY = 'oneclick.mock.classes';
@@ -67,6 +74,10 @@ const savedMockClasses = (): ClassItem[] => {
 };
 const previewClassItem = (id: string): ClassItem => {
   const draft = loadClassPreview(id, initialClassDraft);
+  const settings = mockSettings(id, draft.capacity);
+  const hasPublishedLesson = mockCurriculum(id).some((section) =>
+    section.lessons.some((lesson) => lesson.published),
+  );
   const hasEnrollment = Boolean(localStorage.getItem(`oneclick.enrollment.${id}`));
   let enrollmentTitle = '';
   try {
@@ -79,8 +90,15 @@ const previewClassItem = (id: string): ClassItem => {
   }
   return {
     id,
+    courseMasterSeq: id,
+    courseActiveSeq: id,
+    lifecycleStatus: settings.publicOn
+      ? 'RECRUITING'
+      : hasPublishedLesson
+        ? 'READY'
+        : 'CURRICULUM',
     title: draft.title || enrollmentTitle || classDetail.title,
-    status: '모집중',
+    status: settings.publicOn ? '모집중' : '준비중',
     type: classTypeLabel[draft.type],
     date: draft.startDate || '일정 미정',
     enrolled: hasEnrollment ? 1 : 0,
@@ -300,10 +318,15 @@ export const classService = {
       : apiClient.get<ClassItem>(`/classes/${id}`).then((r) => r.data),
   create: (draft: ClassDraft): Promise<ClassItem> => {
     if (!mock) return apiClient.post<ClassItem>('/classes', draft).then((r) => r.data);
+    const id = crypto.randomUUID();
     const item = {
       ...classes[0],
-      id: crypto.randomUUID(),
+      id,
+      courseMasterSeq: crypto.randomUUID(),
+      courseActiveSeq: id,
+      lifecycleStatus: 'DRAFT' as const,
       title: draft.title,
+      status: '준비중' as const,
       type: classTypeLabel[draft.type],
       date: draft.startDate || '일정 미정',
       capacity: draft.capacity,
@@ -311,6 +334,7 @@ export const classService = {
       thumbnail: draft.thumbnail,
     };
     saveMockClasses([item, ...savedMockClasses()]);
+    saveMockSettings(item.id, { publicOn: false, recruitmentClosed: false }, item.capacity);
     return delay(item);
   },
   update: (id: string, draft: Partial<ClassDraft>): Promise<ClassItem> => {
@@ -338,10 +362,19 @@ export const classService = {
     }
     return delay(undefined);
   },
-  publish: (id: string): Promise<{ shareToken: string }> =>
-    mock
-      ? delay({ shareToken: id })
-      : apiClient.post<{ shareToken: string }>(`/classes/${id}/publish`).then((r) => r.data),
+  publish: (id: string): Promise<{ shareToken: string }> => {
+    if (!mock)
+      return apiClient.post<{ shareToken: string }>(`/classes/${id}/publish`).then((r) => r.data);
+    saveMockSettings(id, { publicOn: true });
+    const current = mockClasses().find((item) => item.id === id);
+    if (current) {
+      saveMockClasses([
+        { ...current, status: '모집중', lifecycleStatus: 'RECRUITING' },
+        ...savedMockClasses().filter((item) => item.id !== id),
+      ]);
+    }
+    return delay({ shareToken: id });
+  },
   remove: (id: string): Promise<void> => {
     if (!mock) return apiClient.delete<void>(`/classes/${id}`).then((r) => r.data);
     saveMockClasses(savedMockClasses().filter((item) => item.id !== id));
@@ -416,38 +449,69 @@ export const detailService = {
     const savedCurriculum = mockCurriculum(id);
     const settings = mockSettings(id, item?.capacity || draft.capacity);
     const enrolled = Math.max(item?.enrolled || 0, mockApplicantsByClass(id).length);
+    const baseDetail = { ...classDetail, ...classDetailOverrides[id] };
+    const hasDraft = hasClassPreview(id);
+    const savedDraftPatch = loadClassPreviewPatch(id);
+    const draftPatch =
+      classDetailOverrides[id] && savedDraftPatch?._schemaVersion !== 2
+        ? undefined
+        : savedDraftPatch;
+    const draftType = draftPatch?.type;
+    const location = draftType
+      ? draftType === 'offline' || draftType === 'hybrid'
+        ? [draftPatch.address, draftPatch.detailedAddress].filter(Boolean).join(' ')
+        : draftType === 'live'
+          ? '라이브 · 차시별 참여 링크'
+          : '온라인 · 차시별 영상'
+      : baseDetail.location;
     return delay({
-      ...classDetail,
+      ...baseDetail,
       ...item,
       id,
-      title: item?.title ?? classDetail.title,
-      summary: draft.summary || classDetail.summary,
-      description: draft.description || classDetail.description,
-      price: draft.payment === 'paid' ? draft.price : 0,
-      recruitEndDate: draft.recruitEndDate || classDetail.recruitEndDate,
-      location:
-        draft.type === 'offline' || draft.type === 'hybrid'
-          ? [draft.address, draft.detailedAddress].filter(Boolean).join(' ')
-          : draft.url || classDetail.location,
+      courseMasterSeq: item?.courseMasterSeq || id,
+      courseActiveSeq: item?.courseActiveSeq || id,
+      lifecycleStatus: settings.publicOn
+        ? 'RECRUITING'
+        : savedCurriculum.some((section) => section.lessons.some((lesson) => lesson.published))
+          ? 'READY'
+          : hasDraft
+            ? 'CURRICULUM'
+            : baseDetail.lifecycleStatus,
+      status: settings.publicOn ? (item?.status === '준비중' ? '모집중' : item?.status || baseDetail.status) : '준비중',
+      title: item?.title ?? baseDetail.title,
+      summary: draftPatch?.summary?.trim() ? draftPatch.summary : baseDetail.summary,
+      description: draftPatch?.description?.trim() ? draftPatch.description : baseDetail.description,
+      price: draftPatch?.payment
+        ? draftPatch.payment === 'paid'
+          ? draftPatch.price || 0
+          : 0
+        : baseDetail.price,
+      recruitEndDate:
+        draftPatch?.recruitEndDate?.trim() || baseDetail.recruitEndDate,
+      location: location || baseDetail.location,
       shareToken: id === 'notion' ? 'notion-auto' : id,
       enrolled,
       capacity: settings.capacity,
       publicOn: settings.publicOn,
       recruitmentClosed: settings.recruitmentClosed,
-      reviewCount: (id === 'notion' ? 2 : 0) + (hasReview ? 1 : 0),
-      rating: id === 'notion' ? classDetail.rating : hasReview ? 5 : 0,
-      completionRate: id === 'notion' ? classDetail.completionRate : 0,
-      applicantTrend: id === 'notion' ? classDetail.applicantTrend : [],
-      curriculum: savedCurriculum.flatMap((section) =>
-        section.lessons.map((lesson) => ({
-          id: lesson.id,
-          title: lesson.title,
-          description: lesson.description,
-          durationText: `${lesson.durationMinutes}분`,
-          published: lesson.published,
-        })),
-      ),
-      sessions: savedCurriculum.reduce((total, section) => total + section.lessons.length, 0),
+      reviewCount: baseDetail.reviewCount + (hasReview ? 1 : 0),
+      rating: hasReview ? 5 : baseDetail.rating,
+      completionRate: baseDetail.completionRate,
+      applicantTrend: baseDetail.applicantTrend,
+      curriculum: savedCurriculum.length
+        ? savedCurriculum.flatMap((section) =>
+            section.lessons.map((lesson) => ({
+              id: lesson.id,
+              title: lesson.title,
+              description: lesson.description,
+              durationText: `${lesson.durationMinutes}분`,
+              published: lesson.published,
+            })),
+          )
+        : baseDetail.curriculum,
+      sessions: savedCurriculum.length
+        ? savedCurriculum.reduce((total, section) => total + section.lessons.length, 0)
+        : baseDetail.sessions,
       recentActivities: enrolled
         ? [
             {

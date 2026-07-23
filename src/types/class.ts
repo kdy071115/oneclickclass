@@ -1,6 +1,16 @@
-export type ClassStatus = '모집중' | '진행중' | '종료';
+export type ClassStatus = '준비중' | '모집중' | '진행중' | '종료';
+export type ClassLifecycleStatus =
+  | 'DRAFT'
+  | 'CURRICULUM'
+  | 'READY'
+  | 'RECRUITING'
+  | 'IN_PROGRESS'
+  | 'ENDED';
 export interface ClassItem {
   id: string;
+  courseMasterSeq?: string;
+  courseActiveSeq?: string;
+  lifecycleStatus?: ClassLifecycleStatus;
   title: string;
   status: ClassStatus;
   type: string;
@@ -87,6 +97,10 @@ export interface ClassDetail extends ClassItem {
 export type LessonContentType = 'video' | 'live' | 'document' | 'assignment';
 export interface CurriculumLesson {
   id: string;
+  organizationSeq?: string;
+  itemSeq?: string;
+  activeElementSeq?: string;
+  contentsSeq?: string;
   title: string;
   description: string;
   contentType: LessonContentType;
@@ -94,6 +108,8 @@ export interface CurriculumLesson {
   durationMinutes: number;
   preview: boolean;
   published: boolean;
+  required?: boolean;
+  sequential?: boolean;
 }
 export interface CurriculumSection {
   id: string;
