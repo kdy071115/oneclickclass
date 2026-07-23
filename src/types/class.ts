@@ -82,6 +82,8 @@ export interface ClassDetail extends ClassItem {
   applicantTrend: number[];
   curriculum: {
     id: string;
+    sectionId?: string;
+    sectionTitle?: string;
     title: string;
     description: string;
     durationText: string;

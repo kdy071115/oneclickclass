@@ -546,6 +546,8 @@ export const detailService = {
         ? savedCurriculum.flatMap((section) =>
             section.lessons.map((lesson) => ({
               id: lesson.id,
+              sectionId: section.id,
+              sectionTitle: section.title,
               title: lesson.title,
               description: lesson.description,
               durationText: `${lesson.durationMinutes}분`,

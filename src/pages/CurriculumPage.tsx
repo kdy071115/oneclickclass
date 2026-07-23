@@ -123,6 +123,7 @@ export function CurriculumPage() {
   const [saving, setSaving] = useState(false);
   const [titleError, setTitleError] = useState('');
   const [contentUrlError, setContentUrlError] = useState('');
+  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   const [markerDraft, setMarkerDraft] = useState(emptyMarker);
   const [markerError, setMarkerError] = useState('');
   const [markerOpen, setMarkerOpen] = useState(false);
@@ -218,6 +219,7 @@ export function CurriculumPage() {
     setMarkerImageError('');
     setMarkerPreviewSeconds(0);
     setVideoDurationSeconds(0);
+    setDiscardConfirmOpen(false);
     setEditor({ sectionId });
   };
 
@@ -234,6 +236,7 @@ export function CurriculumPage() {
     setMarkerImageError('');
     setMarkerPreviewSeconds(0);
     setVideoDurationSeconds(0);
+    setDiscardConfirmOpen(false);
     setEditor({ sectionId, lessonId });
   };
 
@@ -271,10 +274,14 @@ export function CurriculumPage() {
     }
   };
 
-  const closeEditor = () => {
+  const closeEditor = (discard = false) => {
     const changed = JSON.stringify(lesson) !== lessonSnapshot;
-    if (changed && !window.confirm('저장하지 않은 변경 내용이 있어요. 편집을 종료할까요?')) return;
+    if (!discard && changed) {
+      setDiscardConfirmOpen(true);
+      return;
+    }
     setEditor(undefined);
+    setDiscardConfirmOpen(false);
     setTitleError('');
     setContentUrlError('');
   };
@@ -368,10 +375,14 @@ export function CurriculumPage() {
   const applyVideoDuration = (durationSeconds: number) => {
     if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return;
     setVideoDurationSeconds(Math.floor(durationSeconds));
-    setLesson((current) => ({
-      ...current,
-      durationMinutes: Math.max(1, Math.ceil(durationSeconds / 60)),
-    }));
+    setLesson((current) => {
+      const next = {
+        ...current,
+        durationMinutes: Math.max(1, Math.ceil(durationSeconds / 60)),
+      };
+      setLessonSnapshot((snapshot) => snapshot === JSON.stringify(current) ? JSON.stringify(next) : snapshot);
+      return next;
+    });
   };
 
   const totalLessons = sections.reduce((total, section) => total + section.lessons.length, 0);
@@ -560,10 +571,10 @@ export function CurriculumPage() {
         open={!!editor}
         className="curriculum-lesson-dialog"
         title={editor?.lessonId ? '차시 수정' : '새 차시 추가'}
-        onClose={closeEditor}
+        onClose={() => closeEditor()}
         footer={
           <>
-            <Button variant="secondary" onClick={closeEditor}>
+            <Button variant="secondary" onClick={() => closeEditor()}>
               취소
             </Button>
             <Button disabled={saving} onClick={() => void saveLesson()}>
@@ -884,6 +895,18 @@ export function CurriculumPage() {
             />
           </div>
         </div>
+        {discardConfirmOpen && (
+          <div className="lesson-discard-confirm" role="alertdialog" aria-modal="true" aria-labelledby="lesson-discard-title">
+            <section>
+              <h3 id="lesson-discard-title">작성 중인 내용을 버릴까요?</h3>
+              <p>지금 나가면 입력한 내용과 마커가 저장되지 않아요.</p>
+              <div>
+                <Button variant="secondary" onClick={() => setDiscardConfirmOpen(false)}>계속 작성하기</Button>
+                <Button variant="danger" onClick={() => closeEditor(true)}>작성 내용 버리기</Button>
+              </div>
+            </section>
+          </div>
+        )}
       </Modal>
       {toast && (
         <div className="done-toast" aria-live="polite">

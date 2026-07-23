@@ -46,6 +46,8 @@ export type OneClickShare = {
 
 export type OneClickCurriculumItem = {
   lessonId: string;
+  sectionId?: string;
+  sectionTitle?: string;
   organizationSeq?: string;
   itemSeq?: string;
   activeElementSeq?: string;
@@ -108,6 +110,8 @@ export type OneClickEnrollment = {
 
 export type OneClickLesson = {
   lessonId: string;
+  sectionId?: string;
+  sectionTitle?: string;
   organizationSeq?: string;
   itemSeq?: string;
   activeElementSeq?: string;
@@ -423,6 +427,8 @@ const mockCurriculum = (courseActiveSeq: string): OneClickCurriculumItem[] => {
     const saved = localStorage.getItem(`oneclick.curriculum.${courseActiveSeq}`);
     if (saved) {
       const sections = JSON.parse(saved) as Array<{
+        id?: string;
+        title?: string;
         lessons?: Array<{
           id?: string;
           organizationSeq?: string;
@@ -445,6 +451,8 @@ const mockCurriculum = (courseActiveSeq: string): OneClickCurriculumItem[] => {
           .filter((lesson) => lesson.published !== false)
           .map((lesson, index) => ({
             lessonId: lesson.id || String(index + 1),
+            sectionId: section.id,
+            sectionTitle: section.title,
             organizationSeq: lesson.organizationSeq,
             itemSeq: lesson.itemSeq,
             activeElementSeq: lesson.activeElementSeq,
@@ -513,6 +521,8 @@ const normalizeCurriculum = (
         ['lessonId', 'activeElementSeq', 'seq', 'id'],
         String(index + 1),
       ),
+      sectionId: pickString(record, ['sectionId', 'organizationSeq', 'chapterSeq'], '') || undefined,
+      sectionTitle: pickString(record, ['sectionTitle', 'organizationTitle', 'chapterTitle'], '') || undefined,
       title: pickString(record, ['title', 'elementTitle', 'name'], `${index + 1}강`),
       description: pickString(record, ['description', 'summary', 'contents'], ''),
       durationText: pickString(
@@ -781,6 +791,8 @@ const normalizeLessons = (raw: unknown): OneClickLesson[] => {
         ['lessonId', 'activeElementSeq', 'organizationSeq', 'itemSeq', 'seq'],
         String(index + 1),
       ),
+      sectionId: pickString(record, ['sectionId', 'organizationSeq', 'chapterSeq'], '') || undefined,
+      sectionTitle: pickString(record, ['sectionTitle', 'organizationTitle', 'chapterTitle'], '') || undefined,
       organizationSeq: pickString(record, ['organizationSeq'], '') || undefined,
       itemSeq: pickString(record, ['itemSeq'], '') || undefined,
       activeElementSeq: pickString(record, ['activeElementSeq'], '') || undefined,

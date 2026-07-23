@@ -26,6 +26,44 @@ import { getClassThumbnail } from '../utils/classThumbnail';
 import { detailService } from '../api/services';
 import type { ClassDetail } from '../types/class';
 
+const parseDurationMinutes = (durationText: string) => {
+  const hours = durationText.match(/(\d+)\s*시간/)?.[1];
+  const minutes = durationText.match(/(\d+)\s*분/)?.[1];
+  if (hours || minutes) return Number(hours || 0) * 60 + Number(minutes || 0);
+  return Number(durationText.match(/\d+/)?.[0] || 0);
+};
+
+const formatSectionSummary = (count: number, minutes: number) => {
+  if (!minutes) return `${count}개 차시`;
+  if (minutes >= 60) {
+    const hours = Math.floor(minutes / 60);
+    const remainder = minutes % 60;
+    return `${count}개 차시 · ${hours}시간${remainder ? ` ${remainder}분` : ''}`;
+  }
+  return `${count}개 차시 · ${minutes}분`;
+};
+
+const groupCurriculumItems = <
+  T extends { sectionId?: string; sectionTitle?: string; durationText: string },
+>(items: T[]) =>
+  items.reduce<Array<{ key: string; title: string; items: T[]; totalMinutes: number }>>((groups, item, index) => {
+    const title = item.sectionTitle || '커리큘럼';
+    const key = item.sectionId || item.sectionTitle || `default-${index}`;
+    const previous = groups[groups.length - 1];
+    if (previous && previous.key === key) {
+      previous.items.push(item);
+      previous.totalMinutes += parseDurationMinutes(item.durationText);
+      return groups;
+    }
+    groups.push({
+      key,
+      title,
+      items: [item],
+      totalMinutes: parseDurationMinutes(item.durationText),
+    });
+    return groups;
+  }, []);
+
 export function ClassDetailPage() {
   const { id = 'notion' } = useParams();
   const [detail, setDetail] = useState<ClassDetail>();
@@ -44,6 +82,7 @@ export function ClassDetailPage() {
   const publishedLessons = curriculum.filter((item) => item.published).length;
   const readySteps = 1 + Number(publishedLessons > 0) + Number(detail?.publicOn);
   const supportsAttendance = detail?.type !== '온라인';
+  const curriculumGroups = groupCurriculumItems(curriculum);
   const mobileMenus: [string, LucideIcon, string, string][] = [
     ['applicants', Users, '신청자', `${enrolled}명 관리`],
   ];
@@ -253,25 +292,24 @@ export function ClassDetailPage() {
                 <Link to={`/classes/${id}/curriculum`}>강의 구성 수정</Link>
               </div>
               <div className="oc-curriculum-timeline">
-                {curriculum.map((item, index) => (
-                  <div className="oc-curriculum-row reference" key={item.id}>
-                    <span>{index + 1}</span>
-                    <i>
-                      <ClipboardList size={18} />
-                    </i>
-                    <b>
-                      {item.title}
-                      <small>{item.description}</small>
-                    </b>
-                    <em>
-                      <CalendarDays size={16} /> {item.durationText}
-                    </em>
-                    {item.published ? (
-                      <CheckCircle2 className="done" size={20} />
-                    ) : (
-                      <CheckCircle2 size={20} />
-                    )}
-                  </div>
+                {curriculumGroups.map((section, sectionIndex) => (
+                  <section className="oc-curriculum-section-group" key={section.key}>
+                    <header className="curriculum-section-heading">
+                      <span>{String(sectionIndex + 1).padStart(2, '0')}</span>
+                      <b>섹션 {sectionIndex + 1}</b>
+                      <strong>{section.title}</strong>
+                      <small>{formatSectionSummary(section.items.length, section.totalMinutes)}</small>
+                    </header>
+                    {section.items.map((item, lessonIndex) => (
+                      <div className="oc-curriculum-row reference" key={item.id}>
+                        <span>{sectionIndex + 1}-{lessonIndex + 1}</span>
+                        <i><ClipboardList size={18} /></i>
+                        <b>{item.title}<small>{item.description}</small></b>
+                        <em><CalendarDays size={16} /> {item.durationText}</em>
+                        {item.published ? <CheckCircle2 className="done" size={20} /> : <CheckCircle2 size={20} />}
+                      </div>
+                    ))}
+                  </section>
                 ))}
                 {!curriculum.length && (
                   <div className="oc-empty-detail">

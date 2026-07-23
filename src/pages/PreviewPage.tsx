@@ -60,6 +60,42 @@ const formatPlaybackTime = (seconds: number) => {
   return `${minutes}분 ${remainder}초`;
 };
 
+const parseDurationMinutes = (durationText: string) => {
+  const hours = durationText.match(/(\d+)\s*시간/)?.[1];
+  const minutes = durationText.match(/(\d+)\s*분/)?.[1];
+  if (hours || minutes) return Number(hours || 0) * 60 + Number(minutes || 0);
+  return Number(durationText.match(/\d+/)?.[0] || 0);
+};
+
+const formatSectionSummary = (count: number, minutes: number) => {
+  if (!minutes) return `${count}개 차시`;
+  if (minutes >= 60) {
+    const hours = Math.floor(minutes / 60);
+    const remainder = minutes % 60;
+    return `${count}개 차시 · ${hours}시간${remainder ? ` ${remainder}분` : ''}`;
+  }
+  return `${count}개 차시 · ${minutes}분`;
+};
+
+const groupCurriculumItems = <T extends { sectionId?: string; sectionTitle?: string; durationText: string }>(items: T[]) =>
+  items.reduce<Array<{ key: string; title: string; items: T[]; totalMinutes: number }>>((groups, item, index) => {
+    const title = item.sectionTitle || '커리큘럼';
+    const key = item.sectionId || item.sectionTitle || `default-${index}`;
+    const previous = groups[groups.length - 1];
+    if (previous && previous.key === key) {
+      previous.items.push(item);
+      previous.totalMinutes += parseDurationMinutes(item.durationText);
+      return groups;
+    }
+    groups.push({
+      key,
+      title,
+      items: [item],
+      totalMinutes: parseDurationMinutes(item.durationText),
+    });
+    return groups;
+  }, []);
+
 const getVimeoEmbedUrl = (url: string) => {
   const videoId = url.match(/vimeo\.com\/(?:video\/)?(\d+)/)?.[1];
   return videoId ? `https://player.vimeo.com/video/${videoId}` : '';
@@ -218,6 +254,7 @@ export function PublicEnrollmentPage() {
     : `0 / ${draft.capacity}명`;
   const disabled = share ? share.recruitmentStatus !== 'OPEN' || share.remainingSeats <= 0 : false;
   const curriculum = share?.curriculum ?? [];
+  const curriculumGroups = groupCurriculumItems(curriculum);
   const showCurriculum = curriculum.length > 0;
   const resumeCourseActiveSeq = existing?.courseActiveSeq || share?.courseActiveSeq;
   const resumeLearning = async () => {
@@ -395,15 +432,22 @@ export function PublicEnrollmentPage() {
               <p className="curriculum-empty">상세 커리큘럼은 강의자가 준비한 뒤 안내해 드려요.</p>
             ) : (
               <div className="learner-curriculum">
-                {curriculum.map((lesson, index) => (
-                  <article key={lesson.lessonId}>
-                    <i>{index + 1}</i>
-                    <span>
-                      <b>{lesson.title}</b>
-                      <small>{lesson.description}</small>
-                    </span>
-                    <em>{lesson.durationText}</em>
-                  </article>
+                {curriculumGroups.map((section, sectionIndex) => (
+                  <section className="learner-curriculum-group" key={section.key}>
+                    <header className="learner-curriculum-section">
+                      <span>{String(sectionIndex + 1).padStart(2, '0')}</span>
+                      <b>섹션 {sectionIndex + 1}</b>
+                      <strong>{section.title}</strong>
+                      <small>{formatSectionSummary(section.items.length, section.totalMinutes)}</small>
+                    </header>
+                    {section.items.map((lesson, lessonIndex) => (
+                      <article className="learner-curriculum-row" key={lesson.lessonId}>
+                        <i><Play size={14} fill="currentColor" /></i>
+                        <span><b>{sectionIndex + 1}-{lessonIndex + 1} · {lesson.title}</b><small>{lesson.description}</small></span>
+                        <em>{lesson.durationText}</em>
+                      </article>
+                    ))}
+                  </section>
                 ))}
               </div>
             )}
@@ -916,6 +960,7 @@ export function LearnerRoomPage() {
     }
   };
   const lessons = room?.lessons ?? [];
+  const lessonGroups = groupCurriculumItems(lessons);
   const tools = room?.tools ?? { noticeCount: 0, resourceCount: 0, examCount: 0, surveyCount: 0 };
   const pendingAssessmentCount = room?.assessments.filter((item) => !item.completed).length;
   const title = room?.courseTitle || draft.title || '노션으로 시작하는 업무 자동화';
@@ -1656,42 +1701,34 @@ export function LearnerRoomPage() {
             <h2>커리큘럼</h2>
             <small>총 {lessons.length}강</small>
           </div>
-          {lessons.map((lesson, index) => {
-            const done = lesson.completed;
-            const locked = lesson.locked;
-            const unavailable = !locked && (!lesson.playable || !lesson.contentUrl);
-            return (
-              <button
-                className={`learner-lesson ${done ? 'done' : ''} ${locked ? 'locked' : ''} ${unavailable ? 'unavailable' : ''} ${activeLessonIndex === index ? 'active' : ''}`}
-                disabled={locked || unavailable}
-                onClick={() => resumeLesson(index)}
-                key={lesson.lessonId}
-              >
-                <span>{done ? <CheckCircle2 /> : locked ? <LockKeyhole /> : index + 1}</span>
-                <b>
-                  {lesson.title}
-                  <small>
-                    <Clock3 size={14} />
-                    예상 {lesson.durationText}
-                    {lesson.progress > 0 ? ` · 학습 ${lesson.progress}%` : ''}
-                  </small>
-                </b>
-                {locked ? (
-                  <small className="lesson-state">이전 강의 완료 후 열림</small>
-                ) : unavailable ? (
-                  <small className="lesson-state">콘텐츠 준비 중</small>
-                ) : done ? (
-                  <RotateCcw aria-label="처음부터 다시 보기" size={18}>
-                    <title>처음부터 다시 보기</title>
-                  </RotateCcw>
-                ) : ['FILE', 'YOUTUBE', 'VIMEO'].includes(lesson.contentProvider) ? (
-                  <Play size={18} />
-                ) : (
-                  <ExternalLink size={18} />
-                )}
-              </button>
-            );
-          })}
+          {lessonGroups.map((section, sectionIndex) => (
+            <section className="learner-lesson-group" key={section.key}>
+              <div className="learner-lesson-section">
+                <span>{String(sectionIndex + 1).padStart(2, '0')}</span>
+                <b>섹션 {sectionIndex + 1}</b>
+                <strong>{section.title}</strong>
+                <small>{formatSectionSummary(section.items.length, section.totalMinutes)}</small>
+              </div>
+              {section.items.map((lesson, lessonIndex) => {
+                const index = lessons.findIndex((item) => item.lessonId === lesson.lessonId);
+                const done = lesson.completed;
+                const locked = lesson.locked;
+                const unavailable = !locked && (!lesson.playable || !lesson.contentUrl);
+                return (
+                  <button
+                    className={`learner-lesson ${done ? 'done' : ''} ${locked ? 'locked' : ''} ${unavailable ? 'unavailable' : ''} ${activeLessonIndex === index ? 'active' : ''}`}
+                    disabled={locked || unavailable}
+                    key={lesson.lessonId}
+                    onClick={() => resumeLesson(index)}
+                  >
+                    <span>{done ? <CheckCircle2 /> : locked ? <LockKeyhole /> : `${sectionIndex + 1}-${lessonIndex + 1}`}</span>
+                    <b>{lesson.title}<small><Clock3 size={14} /> 예상 {lesson.durationText}{lesson.progress > 0 ? ` · 학습 ${lesson.progress}%` : ''}</small></b>
+                    {locked ? <small className="lesson-state">이전 강의 완료 후 열림</small> : unavailable ? <small className="lesson-state">콘텐츠 준비 중</small> : done ? <RotateCcw aria-label="처음부터 다시 보기" size={18}><title>처음부터 다시 보기</title></RotateCcw> : ['FILE', 'YOUTUBE', 'VIMEO'].includes(lesson.contentProvider) ? <Play size={18} /> : <ExternalLink size={18} />}
+                  </button>
+                );
+              })}
+            </section>
+          ))}
           <div className="learner-room-note">
             <CalendarDays /> 다음 강의 알림은 신청 정보 기준으로 안내돼요.
           </div>
@@ -1861,17 +1898,17 @@ function ClassPublicPage({ preview = false }: { preview?: boolean }) {
                   강의 관리에서 첫 커리큘럼을 추가해 주세요.
                 </p>
               ) : (
-                previewLessons.map((lesson, index) => (
-                  <div className={`student-lesson ${lesson.published ? 'done' : ''}`} key={lesson.id}>
-                    <span>{lesson.published ? <CheckCircle2 /> : index + 1}</span>
-                    <b>
-                      {lesson.title}
-                      <small>
-                        <Clock3 size={14} />
-                        {lesson.durationMinutes}분 · {lesson.published ? '공개' : '비공개'}
-                      </small>
-                    </b>
-                  </div>
+                previewCurriculum.map((section) => (
+                  <section className="student-curriculum-section" key={section.id}>
+                    <header><b>{section.title}</b><small>{section.lessons.length}개 차시</small></header>
+                    {section.lessons.map((lesson) => {
+                      const lessonIndex = previewLessons.findIndex((item) => item.id === lesson.id);
+                      return <div className={`student-lesson ${lesson.published ? 'done' : ''}`} key={lesson.id}>
+                        <span>{lesson.published ? <CheckCircle2 /> : lessonIndex + 1}</span>
+                        <b>{lesson.title}<small><Clock3 size={14} />{lesson.durationMinutes}분 · {lesson.published ? '공개' : '비공개'}</small></b>
+                      </div>;
+                    })}
+                  </section>
                 ))
               )}
             </section>
@@ -1958,13 +1995,16 @@ function ClassPublicPage({ preview = false }: { preview?: boolean }) {
             {!previewLessons.length ? (
               <p className="curriculum-empty">강의 관리에서 첫 커리큘럼을 추가해 주세요.</p>
             ) : (
-              previewLessons.map((lesson, index) => (
-                <div className="curriculum" key={lesson.id}>
-                  <i>{index + 1}</i>
-                  <span>
-                    <b>{lesson.title}</b>
-                    <small>{lesson.description || `${lesson.durationMinutes}분`}</small>
-                  </span>
+              previewCurriculum.map((section) => (
+                <div className="mobile-curriculum-section" key={section.id}>
+                  <strong>{section.title}<small>{section.lessons.length}개 차시</small></strong>
+                  {section.lessons.map((lesson) => {
+                    const lessonIndex = previewLessons.findIndex((item) => item.id === lesson.id);
+                    return <div className="curriculum" key={lesson.id}>
+                      <i>{lessonIndex + 1}</i>
+                      <span><b>{lesson.title}</b><small>{lesson.description || `${lesson.durationMinutes}분`}</small></span>
+                    </div>;
+                  })}
                 </div>
               ))
             )}
