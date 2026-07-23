@@ -2207,6 +2207,49 @@
   display: flex;
   align-items: flex-end;
   overflow: hidden;
+  position: relative;
+}
+.learner-bookmark-button {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 13px;
+  border: 1px solid #ffffff70;
+  border-radius: 12px;
+  background: #ffffff1f;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 900;
+  backdrop-filter: blur(10px);
+}
+.learner-bookmark-button svg {
+  width: 18px;
+  height: 18px;
+}
+.learner-bookmark-button.active {
+  border-color: #fff;
+  background: #fff;
+  color: #e64980;
+}
+.learner-bookmark-button:disabled {
+  opacity: 0.65;
+}
+.learner-bookmark-error {
+  margin: 0;
+  padding: 11px 14px;
+  border-radius: 12px;
+  background: #fff0f0;
+  color: #c92a2a;
+  font-size: 13px;
+  font-weight: 800;
+}
+.learner-bookmark-error.room {
+  width: min(calc(100% - 36px), 1200px);
+  margin: 14px auto 0;
 }
 .learner-hero h1 {
   max-width: 760px;
@@ -2882,6 +2925,86 @@
   background: #101318c9;
   pointer-events: none;
 }
+.learner-marker {
+  position: absolute;
+  inset: 14px;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 10px;
+  padding: 22px;
+  border-radius: 14px;
+  background: rgba(16, 19, 24, 0.96);
+  color: #fff;
+  text-align: left;
+  overflow: auto;
+}
+.learner-marker > small {
+  color: #8bbcff;
+  font-size: 12px;
+  font-weight: 900;
+}
+.learner-marker h2,
+.learner-marker p {
+  margin: 0;
+}
+.learner-marker h2 {
+  font-size: 20px;
+}
+.learner-marker p {
+  color: #dbe4ee;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.learner-marker img {
+  width: 100%;
+  max-height: 160px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #fff;
+}
+.learner-marker-quiz {
+  display: grid;
+  gap: 8px;
+}
+.learner-player .learner-marker-quiz button {
+  width: 100%;
+  height: auto;
+  min-height: 38px;
+  display: flex;
+  justify-content: flex-start;
+  padding: 8px 12px;
+  border: 1px solid #ffffff33;
+  border-radius: 8px;
+  background: #ffffff12;
+  font-size: 13px;
+  text-align: left;
+}
+.learner-player .learner-marker-quiz button.selected {
+  border-color: #8bbcff;
+  background: #3182f633;
+}
+.learner-marker-quiz strong {
+  font-size: 13px;
+}
+.learner-marker-quiz strong.correct {
+  color: #63e6be;
+}
+.learner-marker-quiz strong.incorrect {
+  color: #ff8787;
+}
+.learner-player .learner-marker-close {
+  width: 100%;
+  height: 42px;
+  min-height: 42px;
+  margin-top: 4px;
+  border-radius: 8px;
+  background: #3182f6;
+  font-size: 14px;
+  font-weight: 900;
+}
 .learner-resume-button {
   display: inline-flex;
   align-items: center;
@@ -3211,6 +3334,163 @@
   align-items: center;
   gap: 10px;
 }
+.learner-room-actions a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 10px;
+  color: #6b7684;
+  font-size: 13px;
+  font-weight: 900;
+}
+.learner-room-actions .learner-room-bookmark {
+  width: 38px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+.learner-room-actions .learner-room-bookmark svg {
+  width: 18px;
+  height: 18px;
+}
+.learner-room-actions .learner-room-bookmark.active {
+  background: #fff0f6;
+  color: #e64980;
+}
+
+.learner-favorites-shell {
+  background: #f8f9fb;
+}
+.learner-back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #4e5968;
+  font-weight: 900;
+}
+.learner-back-button svg {
+  width: 19px;
+  height: 19px;
+}
+.learner-favorites-main {
+  width: min(calc(100% - 36px), 1000px);
+  margin: 0 auto;
+  padding: 30px 0 70px;
+}
+.learner-favorites-heading {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.learner-favorites-heading > svg {
+  width: 48px;
+  height: 48px;
+  padding: 12px;
+  border-radius: 14px;
+  background: #fff0f6;
+  color: #e64980;
+}
+.learner-favorites-heading h1 {
+  margin: 0;
+  font-size: 26px;
+}
+.learner-favorites-heading p {
+  margin: 6px 0 0;
+  color: #6b7684;
+}
+.learner-favorites-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.learner-favorites-grid article {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #edf0f3;
+  border-radius: 16px;
+  background: #fff;
+}
+.learner-favorite-cover {
+  height: 150px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 16px;
+  background: linear-gradient(135deg, #4c82f7, #9bbcff);
+  color: #fff;
+}
+.learner-favorite-cover span {
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: #ffffff2e;
+  font-size: 12px;
+  font-weight: 900;
+}
+.learner-favorite-cover button {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff;
+  color: #e64980;
+}
+.learner-favorite-cover button:disabled {
+  opacity: 0.6;
+}
+.learner-favorite-cover svg {
+  width: 22px;
+}
+.learner-favorites-grid article > div:last-child {
+  padding: 18px;
+}
+.learner-favorites-grid h2 {
+  margin: 0;
+  font-size: 19px;
+}
+.learner-favorites-grid p {
+  min-height: 44px;
+  margin: 8px 0;
+  color: #6b7684;
+  line-height: 1.55;
+}
+.learner-favorites-grid small {
+  display: block;
+  color: #8b95a1;
+}
+.learner-favorites-grid a {
+  min-height: 42px;
+  display: grid;
+  place-items: center;
+  margin-top: 16px;
+  border-radius: 11px;
+  background: #3182f6;
+  color: #fff;
+  font-weight: 900;
+}
+.learner-favorites-empty {
+  min-height: 280px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  padding: 30px;
+  border: 1px dashed #d7dce2;
+  border-radius: 16px;
+  background: #fff;
+  text-align: center;
+}
+.learner-favorites-empty svg {
+  color: #b0b8c1;
+}
+.learner-favorites-empty h2 {
+  margin: 14px 0 0;
+  font-size: 19px;
+}
+.learner-favorites-empty p {
+  margin: 7px 0 0;
+  color: #8b95a1;
+}
 .learner-room-actions button {
   min-height: 38px;
   padding: 0 12px;
@@ -3228,6 +3508,23 @@
 @media (max-width: 899px) {
   .learner-continue-card > .primary {
     display: none;
+  }
+  .learner-room-actions > a {
+    display: none;
+  }
+  .learner-bookmark-button span {
+    display: none;
+  }
+  .learner-bookmark-button {
+    width: 42px;
+    padding: 0;
+    justify-content: center;
+  }
+  .learner-favorites-grid {
+    grid-template-columns: 1fr;
+  }
+  .learner-favorites-heading h1 {
+    font-size: 22px;
   }
 }
 

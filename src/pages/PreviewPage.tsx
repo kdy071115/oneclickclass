@@ -9,6 +9,7 @@ import {
   CreditCard,
   ExternalLink,
   FileText,
+  Heart,
   LockKeyhole,
   MapPin,
   Megaphone,
@@ -30,6 +31,7 @@ import {
   shareTokenFromCourseActiveSeq,
   type OneClickEnrollment,
   type OneClickLearnRoom,
+  type OneClickLesson,
   type OneClickReview,
   type OneClickShare,
 } from '../api/oneclick';
@@ -39,6 +41,7 @@ import { classService, curriculumService, detailService } from '../api/services'
 import type { ClassDetail, CurriculumSection } from '../types/class';
 import { YouTubePlayer } from '../components/YouTubePlayer';
 import { getPublishIssues, type PublishIssue } from '../utils/classReadiness';
+import { useCourseBookmark } from '../hooks/useCourseBookmark';
 
 const fallbackLearnerHighlights = [
   '업무 흐름을 기준으로 데이터베이스를 설계해요.',
@@ -102,12 +105,19 @@ export function PublicEnrollmentPage() {
   const [share, setShare] = useState<OneClickShare>();
   const [reviews, setReviews] = useState<OneClickReview[]>([]);
   const [existing, setExisting] = useState<OneClickEnrollment | null>(null);
+  const [existingChecked, setExistingChecked] = useState(false);
   const [showNewApplication, setShowNewApplication] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
   const [verificationHint, setVerificationHint] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const {
+    bookmarked,
+    loading: bookmarkLoading,
+    error: bookmarkError,
+    toggle: toggleBookmark,
+  } = useCourseBookmark(share?.courseActiveSeq, Boolean(existing));
   const [activeSection, setActiveSection] = useState<'learn' | 'curriculum' | 'reviews'>(() => {
     const section = location.hash.slice(1);
     return section === 'curriculum' || section === 'reviews' ? section : 'learn';
@@ -121,7 +131,10 @@ export function PublicEnrollmentPage() {
         setShare(nextShare);
         void oneclickService.reviews(shareToken).then((items) => alive && setReviews(items));
         void oneclickService.enrollment(nextShare.courseActiveSeq).then((enrollment) => {
-          if (alive) setExisting(enrollment);
+          if (alive) {
+            setExisting(enrollment);
+            setExistingChecked(true);
+          }
         });
       })
       .catch(() => alive && setError('신청 링크를 확인하지 못했어요.'));
@@ -294,11 +307,20 @@ export function PublicEnrollmentPage() {
     if (existing && !showNewApplication) return void resumeLearning();
     document.getElementById('learner-application')?.scrollIntoView({ behavior: 'smooth' });
   };
+  const handleBookmark = () => {
+    if (!existing) {
+      setError('관심 클래스 저장은 신청 정보를 확인한 뒤 사용할 수 있어요.');
+      document.getElementById('learner-application')?.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+    void toggleBookmark();
+  };
   return (
     <div className="learner-shell learner-apply">
       <header className="learner-topbar">
         <b>원클릭 클래스</b>
         <nav>
+          <Link to="/favorites">관심 클래스</Link>
           <a className={activeSection === 'curriculum' ? 'active' : ''} href="#curriculum">
             커리큘럼
           </a>
@@ -310,6 +332,17 @@ export function PublicEnrollmentPage() {
       <main className="learner-apply-grid">
         <section className="learner-content learner-public-content">
           <div className="learner-hero">
+            <button
+              className={`learner-bookmark-button ${bookmarked ? 'active' : ''}`}
+              type="button"
+              aria-label={bookmarked ? '관심 클래스 해제' : '관심 클래스 등록'}
+              aria-pressed={bookmarked}
+              disabled={bookmarkLoading || !share || !existingChecked}
+              onClick={handleBookmark}
+            >
+              <Heart fill={bookmarked ? 'currentColor' : 'none'} />
+              <span>{bookmarked ? '관심 저장됨' : '관심 클래스'}</span>
+            </button>
             <div>
               <span className="learner-badge">{disabled ? '모집 마감' : '모집중'}</span>
               <h1>{title}</h1>
@@ -330,6 +363,7 @@ export function PublicEnrollmentPage() {
               </div>
             </div>
           </div>
+          {bookmarkError && <p className="learner-bookmark-error" role="status">{bookmarkError}</p>}
           <button className="learner-mobile-apply-cta" type="button" onClick={moveToApplication}>
             {mobileCtaText}
           </button>
@@ -754,6 +788,12 @@ export function LearnerRoomPage() {
   const [verifying, setVerifying] = useState(false);
   const [room, setRoom] = useState<OneClickLearnRoom | null>();
   const [enrollment, setEnrollment] = useState<OneClickEnrollment | null>();
+  const {
+    bookmarked,
+    loading: bookmarkLoading,
+    error: bookmarkError,
+    toggle: toggleBookmark,
+  } = useCourseBookmark(id, Boolean(enrollment?.canLearn));
   const [error, setError] = useState('');
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [activeTool, setActiveTool] = useState<'notice' | 'resource' | 'assessment' | 'review'>(
@@ -769,8 +809,12 @@ export function LearnerRoomPage() {
   const [activeDurationSeconds, setActiveDurationSeconds] = useState(0);
   const [playbackStartSeconds, setPlaybackStartSeconds] = useState(0);
   const [playbackSession, setPlaybackSession] = useState(0);
+  const [activeMarker, setActiveMarker] = useState<NonNullable<OneClickLesson['markers']>[number]>();
+  const [markerAnswer, setMarkerAnswer] = useState<number>();
   const toolPanelRef = useRef<HTMLElement | null>(null);
   const lastHeartbeatRef = useRef(0);
+  const lastMarkerTimeRef = useRef(0);
+  const shownMarkersRef = useRef(new Set<string>());
   const publishedDraft = loadClassPreview(id, initialClassDraft);
   const draft = publishedDraft.title ? publishedDraft : loadClassDraft(initialClassDraft);
   const invalidCourseId = !isValidCourseId(id);
@@ -1033,6 +1077,17 @@ export function LearnerRoomPage() {
         <header className="learner-room-topbar">
           <b>원클릭 클래스</b>
           <div className="learner-room-actions">
+            <Link to="/favorites">관심 목록</Link>
+            <button
+              className={`learner-room-bookmark ${bookmarked ? 'active' : ''}`}
+              type="button"
+              aria-label={bookmarked ? '관심 클래스 해제' : '관심 클래스 등록'}
+              aria-pressed={bookmarked}
+              disabled={bookmarkLoading}
+              onClick={() => void toggleBookmark()}
+            >
+              <Heart fill={bookmarked ? 'currentColor' : 'none'} />
+            </button>
             <button type="button" onClick={() => nav(`/s/${courseShareToken}`)}>
               강의 정보
             </button>
@@ -1101,6 +1156,26 @@ export function LearnerRoomPage() {
     setPlaybackStartSeconds(lesson.completed ? 0 : (lesson.currentSeconds ?? 0));
     setPlaybackSession((current) => current + 1);
     setPlaying(false);
+    setActiveMarker(undefined);
+    setMarkerAnswer(undefined);
+    shownMarkersRef.current.clear();
+    lastMarkerTimeRef.current = lesson.completed ? 0 : (lesson.currentSeconds ?? 0);
+  };
+  const showMarkerAt = (currentSeconds: number) => {
+    const previousSeconds = lastMarkerTimeRef.current;
+    lastMarkerTimeRef.current = currentSeconds;
+    if (currentSeconds < previousSeconds) return false;
+    const marker = activeLesson.markers?.find(
+      (item) =>
+        !shownMarkersRef.current.has(item.id) &&
+        item.timeSeconds > previousSeconds - 0.75 &&
+        item.timeSeconds <= currentSeconds + 0.75,
+    );
+    if (!marker) return false;
+    shownMarkersRef.current.add(marker.id);
+    setActiveMarker(marker);
+    setMarkerAnswer(undefined);
+    return true;
   };
   const savePlayback = (
     currentSeconds: number,
@@ -1201,12 +1276,24 @@ export function LearnerRoomPage() {
       <header className="learner-room-topbar">
         <b>원클릭 클래스</b>
         <div className="learner-room-actions">
+          <Link to="/favorites">관심 목록</Link>
+          <button
+            className={`learner-room-bookmark ${bookmarked ? 'active' : ''}`}
+            type="button"
+            aria-label={bookmarked ? '관심 클래스 해제' : '관심 클래스 등록'}
+            aria-pressed={bookmarked}
+            disabled={bookmarkLoading}
+            onClick={() => void toggleBookmark()}
+          >
+            <Heart fill={bookmarked ? 'currentColor' : 'none'} />
+          </button>
           <button type="button" onClick={() => nav(`/s/${courseShareToken}`)}>
             강의 정보
           </button>
           <span>{enrollment.learnerName}님</span>
         </div>
       </header>
+      {bookmarkError && <p className="learner-bookmark-error room" role="status">{bookmarkError}</p>}
       <main className="learner-room-grid">
         <section className="learner-room-main">
           <div className={`learner-player ${activeLesson.contentUrl ? 'has-video' : 'is-empty'}`}>
@@ -1239,6 +1326,10 @@ export function LearnerRoomPage() {
                 }
                 onTimeUpdate={(event) => {
                   const seconds = event.currentTarget.currentTime;
+                  if (showMarkerAt(seconds)) {
+                    event.currentTarget.pause();
+                    return;
+                  }
                   if (seconds - lastHeartbeatRef.current < 10) return;
                   lastHeartbeatRef.current = seconds;
                   savePlayback(seconds, true, event.currentTarget.duration);
@@ -1254,6 +1345,7 @@ export function LearnerRoomPage() {
                   setActiveDurationSeconds(durationSeconds);
                   savePlayback(currentSeconds, isPlaying, durationSeconds, ended);
                 }}
+                onTimeChange={showMarkerAt}
               />
             ) : activeLesson.contentProvider === 'VIMEO' && activeLesson.contentUrl ? (
               <iframe
@@ -1275,6 +1367,39 @@ export function LearnerRoomPage() {
                 <CalendarDays />
                 <b>아직 재생할 콘텐츠가 등록되지 않았어요.</b>
               </div>
+            )}
+            {activeMarker && (
+              <section className="learner-marker" role="dialog" aria-modal="true" aria-label={activeMarker.title}>
+                <small>{formatPlaybackTime(activeMarker.timeSeconds)} 마커</small>
+                <h2>{activeMarker.title}</h2>
+                {activeMarker.type === 'IMAGE' && activeMarker.imageUrl ? (
+                  <img src={activeMarker.imageUrl} alt={activeMarker.content || activeMarker.title} />
+                ) : activeMarker.type === 'QUIZ' ? (
+                  <div className="learner-marker-quiz">
+                    <p>{activeMarker.content}</p>
+                    {activeMarker.choices?.map((choice, index) => (
+                      <button
+                        type="button"
+                        className={markerAnswer === index ? 'selected' : ''}
+                        key={choice}
+                        onClick={() => setMarkerAnswer(index)}
+                      >
+                        {index + 1}. {choice}
+                      </button>
+                    ))}
+                    {markerAnswer !== undefined && (
+                      <strong className={markerAnswer === activeMarker.answerIndex ? 'correct' : 'incorrect'}>
+                        {markerAnswer === activeMarker.answerIndex ? '정답이에요.' : '다시 생각해 보세요.'}
+                      </strong>
+                    )}
+                  </div>
+                ) : (
+                  <p>{activeMarker.content}</p>
+                )}
+                <button type="button" className="learner-marker-close" onClick={() => setActiveMarker(undefined)}>
+                  계속 보기
+                </button>
+              </section>
             )}
             <div className="learner-player-meta">
               <small>

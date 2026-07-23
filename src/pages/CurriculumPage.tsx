@@ -4,18 +4,23 @@ import {
   ChevronDown,
   ChevronUp,
   CirclePlay,
+  Clock3,
   FileText,
+  Flag,
+  Image as ImageIcon,
+  ListChecks,
   Pencil,
   Plus,
   Radio,
   Trash2,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { curriculumService, detailService } from '../api/services';
+import { classService, curriculumService, detailService } from '../api/services';
 import {
   Button,
   EmptyState,
+  FileDropzone,
   IconButton,
   Input,
   Modal,
@@ -24,12 +29,31 @@ import {
   Textarea,
   Toggle,
 } from '../components/ui';
-import type { CurriculumLesson, CurriculumSection, LessonContentType } from '../types/class';
+import type {
+  CurriculumLesson,
+  CurriculumSection,
+  LessonContentType,
+  LessonMarker,
+  LessonMarkerType,
+} from '../types/class';
 import {
   contentProviderLabel,
   detectContentProvider,
   validateContentUrl,
 } from '../utils/content';
+import { YouTubePlayer } from '../components/YouTubePlayer';
+
+const getYouTubeVideoId = (url: string) => {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname === 'youtu.be') return parsed.pathname.slice(1).split('/')[0];
+    if (parsed.pathname.startsWith('/embed/') || parsed.pathname.startsWith('/shorts/'))
+      return parsed.pathname.split('/')[2];
+    return parsed.searchParams.get('v') || '';
+  } catch {
+    return '';
+  }
+};
 
 const lessonTypes: Record<
   LessonContentType,
@@ -56,7 +80,27 @@ const emptyLesson = (): Omit<CurriculumLesson, 'id'> => ({
   published: false,
   required: true,
   sequential: false,
+  markers: [],
 });
+
+type MarkerDraft = Omit<LessonMarker, 'id' | 'markerSeq' | 'choices'> & {
+  choices: string[];
+};
+
+const emptyMarker = (): MarkerDraft => ({
+  timeSeconds: 0,
+  type: 'TEXT',
+  title: '',
+  content: '',
+  imageUrl: '',
+  choices: ['', ''],
+  answerIndex: 0,
+});
+
+const formatMarkerTime = (seconds: number) => {
+  const value = Math.max(0, Math.floor(seconds));
+  return `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
+};
 
 type LessonEditor = {
   sectionId: string;
@@ -79,6 +123,15 @@ export function CurriculumPage() {
   const [saving, setSaving] = useState(false);
   const [titleError, setTitleError] = useState('');
   const [contentUrlError, setContentUrlError] = useState('');
+  const [markerDraft, setMarkerDraft] = useState(emptyMarker);
+  const [markerError, setMarkerError] = useState('');
+  const [markerOpen, setMarkerOpen] = useState(false);
+  const [markerImageUploading, setMarkerImageUploading] = useState(false);
+  const [markerImageError, setMarkerImageError] = useState('');
+  const [markerPreviewSeconds, setMarkerPreviewSeconds] = useState(0);
+  const [markerPreviewPlaying, setMarkerPreviewPlaying] = useState(false);
+  const [videoDurationSeconds, setVideoDurationSeconds] = useState(0);
+  const markerVideoRef = useRef<HTMLVideoElement>(null);
   const [toast, setToast] = useState('');
 
   useEffect(() => {
@@ -159,6 +212,12 @@ export function CurriculumPage() {
     setLessonSnapshot(JSON.stringify(value));
     setTitleError('');
     setContentUrlError('');
+    setMarkerDraft(emptyMarker());
+    setMarkerError('');
+    setMarkerOpen(false);
+    setMarkerImageError('');
+    setMarkerPreviewSeconds(0);
+    setVideoDurationSeconds(0);
     setEditor({ sectionId });
   };
 
@@ -169,6 +228,12 @@ export function CurriculumPage() {
     setLessonSnapshot(JSON.stringify(nextValue));
     setTitleError('');
     setContentUrlError('');
+    setMarkerDraft(emptyMarker());
+    setMarkerError('');
+    setMarkerOpen(false);
+    setMarkerImageError('');
+    setMarkerPreviewSeconds(0);
+    setVideoDurationSeconds(0);
     setEditor({ sectionId, lessonId });
   };
 
@@ -218,6 +283,95 @@ export function CurriculumPage() {
     if (!window.confirm(`‘${current.title}’ 차시를 삭제할까요?`)) return;
     setSections(await curriculumService.deleteLesson(id, current.id));
     notify('차시를 삭제했어요');
+  };
+
+  const addMarker = () => {
+    const title = markerDraft.title.trim();
+    const content = markerDraft.content.trim();
+    const choices = markerDraft.choices.map((choice) => choice.trim());
+    if (!title) return setMarkerError('마커 제목을 입력해 주세요.');
+    if (markerDraft.type === 'TEXT' && !content)
+      return setMarkerError('수강생에게 보여줄 내용을 입력해 주세요.');
+    if (markerDraft.type === 'IMAGE' && !markerDraft.imageUrl?.trim())
+      return setMarkerError('마커에 표시할 이미지를 업로드해 주세요.');
+    if (markerDraft.type === 'QUIZ' && (!content || choices.length < 2 || choices.some((choice) => !choice)))
+      return setMarkerError('퀴즈 질문과 두 개 이상의 선택지를 모두 입력해 주세요.');
+    const marker: LessonMarker = {
+      id: crypto.randomUUID(),
+      timeSeconds: Math.max(0, Math.floor(markerDraft.timeSeconds)),
+      type: markerDraft.type,
+      title,
+      content,
+      imageUrl: markerDraft.type === 'IMAGE' ? markerDraft.imageUrl?.trim() : undefined,
+      choices: markerDraft.type === 'QUIZ' ? choices : undefined,
+      answerIndex:
+        markerDraft.type === 'QUIZ'
+          ? Math.min(Math.max(0, markerDraft.answerIndex ?? 0), choices.length - 1)
+          : undefined,
+    };
+    setLesson({
+      ...lesson,
+      markers: [...(lesson.markers ?? []), marker].sort((a, b) => a.timeSeconds - b.timeSeconds),
+    });
+    setMarkerDraft(emptyMarker());
+    setMarkerError('');
+  };
+
+  const removeMarker = (markerId: string) =>
+    setLesson({ ...lesson, markers: (lesson.markers ?? []).filter((marker) => marker.id !== markerId) });
+
+  const uploadMarkerImage = async (file: File) => {
+    setMarkerImageUploading(true);
+    setMarkerImageError('');
+    try {
+      const { url } = await classService.uploadImage(file);
+      setMarkerDraft((current) => ({ ...current, imageUrl: url }));
+    } catch {
+      setMarkerImageError('이미지를 업로드하지 못했어요. 다시 시도해 주세요.');
+    } finally {
+      setMarkerImageUploading(false);
+    }
+  };
+
+  const updateMarkerChoice = (index: number, value: string) => {
+    setMarkerDraft((current) => ({
+      ...current,
+      choices: current.choices.map((choice, choiceIndex) => choiceIndex === index ? value : choice),
+    }));
+    setMarkerError('');
+  };
+
+  const removeMarkerChoice = (index: number) => {
+    setMarkerDraft((current) => {
+      if (current.choices.length <= 2) return current;
+      const choices = current.choices.filter((_, choiceIndex) => choiceIndex !== index);
+      const answerIndex = current.answerIndex === index
+        ? 0
+        : Math.max(0, (current.answerIndex ?? 0) - (index < (current.answerIndex ?? 0) ? 1 : 0));
+      return { ...current, choices, answerIndex };
+    });
+  };
+
+  const setMarkerTimePart = (part: 'hours' | 'minutes' | 'seconds', value: number) => {
+    const current = Math.max(0, Math.floor(markerDraft.timeSeconds));
+    const hours = Math.floor(current / 3600);
+    const minutes = Math.floor((current % 3600) / 60);
+    const seconds = current % 60;
+    const next = {
+      hours: part === 'hours' ? Math.max(0, value) : hours,
+      minutes: part === 'minutes' ? Math.min(59, Math.max(0, value)) : minutes,
+      seconds: part === 'seconds' ? Math.min(59, Math.max(0, value)) : seconds,
+    };
+    setMarkerDraft({ ...markerDraft, timeSeconds: next.hours * 3600 + next.minutes * 60 + next.seconds });
+  };
+
+  const applyVideoDuration = (durationSeconds: number) => {
+    if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return;
+    setVideoDurationSeconds(Math.floor(durationSeconds));
+    setLesson((current) => ({
+      ...current,
+      durationMinutes: Math.max(1, Math.ceil(durationSeconds / 60)),
+    }));
   };
 
   const totalLessons = sections.reduce((total, section) => total + section.lessons.length, 0);
@@ -344,6 +498,7 @@ export function CurriculumPage() {
                         <b>{item.title}</b>
                         <small>
                           {type.label} · {item.durationMinutes}분{item.required === false ? '' : ' · 필수'}{item.sequential ? ' · 순차 학습' : ''}{item.preview ? ' · 미리보기' : ''}
+                          {item.markers?.length ? ` · 마커 ${item.markers.length}개` : ''}
                         </small>
                       </div>
                       <em className={item.published ? 'published' : ''}>
@@ -403,6 +558,7 @@ export function CurriculumPage() {
 
       <Modal
         open={!!editor}
+        className="curriculum-lesson-dialog"
         title={editor?.lessonId ? '차시 수정' : '새 차시 추가'}
         onClose={closeEditor}
         footer={
@@ -455,6 +611,7 @@ export function CurriculumPage() {
             onChange={(event) => {
               setLesson({ ...lesson, contentUrl: event.target.value });
               setContentUrlError('');
+              setVideoDurationSeconds(0);
             }}
             placeholder="https://"
             hint={lessonTypes[lesson.contentType].urlHint}
@@ -464,15 +621,224 @@ export function CurriculumPage() {
               자동 확인 · {contentProviderLabel[detectedProvider]}
             </div>
           )}
-          <Input
-            label="예상 학습 시간(분)"
-            type="number"
-            min={0}
-            value={lesson.durationMinutes}
-            onChange={(event) =>
-              setLesson({ ...lesson, durationMinutes: Number(event.target.value) || 0 })
-            }
-          />
+          {lesson.contentType === 'video' && lesson.contentUrl.trim() && (
+            <section className={`lesson-marker-editor ${markerOpen ? 'is-open' : ''}`}>
+              <button
+                type="button"
+                className="lesson-marker-toggle"
+                aria-expanded={markerOpen}
+                onClick={() => setMarkerOpen((open) => !open)}
+              >
+                <span>
+                  <i><Flag size={18} /></i>
+                  <span>
+                    <b>영상 마커</b>
+                    <small>{lesson.markers?.length ? `등록된 마커 ${lesson.markers.length}개` : '필요한 시점에 설명·이미지·퀴즈를 추가하세요.'}</small>
+                  </span>
+                </span>
+                <span><em>{lesson.markers?.length ?? 0}개</em><ChevronDown size={18} /></span>
+              </button>
+              <div className="lesson-marker-content" hidden={!markerOpen}>
+                <div className="lesson-marker-preview">
+                {detectedProvider === 'FILE' ? (
+                  <video
+                    ref={markerVideoRef}
+                    controls
+                    src={lesson.contentUrl}
+                    onPlay={() => setMarkerPreviewPlaying(true)}
+                    onPause={() => setMarkerPreviewPlaying(false)}
+                    onTimeUpdate={(event) => setMarkerPreviewSeconds(event.currentTarget.currentTime)}
+                    onLoadedMetadata={(event) => applyVideoDuration(event.currentTarget.duration)}
+                  />
+                ) : detectedProvider === 'YOUTUBE' ? (
+                  <YouTubePlayer
+                    videoId={getYouTubeVideoId(lesson.contentUrl)}
+                    onPlayingChange={setMarkerPreviewPlaying}
+                    onProgress={(seconds) => setMarkerPreviewSeconds(seconds)}
+                    onTimeChange={(seconds) => {
+                      setMarkerPreviewSeconds(seconds);
+                      return false;
+                    }}
+                    onDuration={applyVideoDuration}
+                  />
+                ) : (
+                  <div className="lesson-marker-preview-empty">
+                    Vimeo·외부 영상은 재생 화면에서 시간을 확인한 뒤 직접 입력해 주세요.
+                  </div>
+                )}
+                <div>
+                  <span><b>{formatMarkerTime(markerPreviewSeconds)}</b><small>{markerPreviewPlaying ? '재생 중' : '현재 위치'}</small></span>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setMarkerDraft({ ...markerDraft, timeSeconds: Math.floor(markerPreviewSeconds) })}
+                  >
+                    <Clock3 size={17} /> 현재 시간 가져오기
+                  </Button>
+                </div>
+                </div>
+                {!!lesson.markers?.length && (
+                  <div className="lesson-marker-list">
+                  {lesson.markers.map((marker) => (
+                    <article key={marker.id}>
+                      <span>{formatMarkerTime(marker.timeSeconds)}</span>
+                      <i>
+                        {marker.type === 'IMAGE' ? <ImageIcon /> : marker.type === 'QUIZ' ? <ListChecks /> : <Flag />}
+                      </i>
+                      <div><b>{marker.title}</b><small>{marker.type === 'TEXT' ? '텍스트' : marker.type === 'IMAGE' ? '이미지' : '퀴즈'}</small></div>
+                      <IconButton label={`${marker.title} 마커 삭제`} onClick={() => removeMarker(marker.id)}>
+                        <Trash2 size={16} />
+                      </IconButton>
+                    </article>
+                  ))}
+                  </div>
+                )}
+                <div className="lesson-marker-form">
+                <fieldset className="marker-time-fields">
+                  <legend>노출 시간</legend>
+                  <div>
+                    <label>
+                      <input
+                        className="ui-input"
+                        type="number"
+                        min={0}
+                        aria-label="노출 시간"
+                        value={Math.floor(markerDraft.timeSeconds / 3600)}
+                        onChange={(event) => setMarkerTimePart('hours', Number(event.target.value) || 0)}
+                      />
+                      <span>시간</span>
+                    </label>
+                    <label>
+                      <input
+                        className="ui-input"
+                        type="number"
+                        min={0}
+                        max={59}
+                        aria-label="노출 분"
+                        value={Math.floor((markerDraft.timeSeconds % 3600) / 60)}
+                        onChange={(event) => setMarkerTimePart('minutes', Number(event.target.value) || 0)}
+                      />
+                      <span>분</span>
+                    </label>
+                    <label>
+                      <input
+                        className="ui-input"
+                        type="number"
+                        min={0}
+                        max={59}
+                        aria-label="노출 초"
+                        value={Math.floor(markerDraft.timeSeconds % 60)}
+                        onChange={(event) => setMarkerTimePart('seconds', Number(event.target.value) || 0)}
+                      />
+                      <span>초</span>
+                    </label>
+                  </div>
+                  <small>{formatMarkerTime(markerDraft.timeSeconds)}에 표시</small>
+                </fieldset>
+                <Select
+                  label="마커 유형"
+                  value={markerDraft.type}
+                  onChange={(event) => {
+                    setMarkerDraft({ ...markerDraft, type: event.target.value as LessonMarkerType });
+                    setMarkerError('');
+                    setMarkerImageError('');
+                  }}
+                >
+                  <option value="TEXT">텍스트</option>
+                  <option value="IMAGE">이미지</option>
+                  <option value="QUIZ">퀴즈</option>
+                </Select>
+                <Input
+                  label="마커 제목"
+                  value={markerDraft.title}
+                  onChange={(event) => setMarkerDraft({ ...markerDraft, title: event.target.value })}
+                  placeholder="예) 여기서 잠깐 확인해 보세요"
+                />
+                {markerDraft.type === 'IMAGE' ? (
+                  <div className="marker-image-field">
+                    <strong>표시할 이미지</strong>
+                    {markerDraft.imageUrl && (
+                      <div className="marker-image-preview">
+                        <img src={markerDraft.imageUrl} alt="업로드한 마커 미리보기" />
+                        <IconButton
+                          label="업로드한 이미지 제거"
+                          onClick={() => setMarkerDraft({ ...markerDraft, imageUrl: '' })}
+                        >
+                          <Trash2 size={16} />
+                        </IconButton>
+                      </div>
+                    )}
+                    <FileDropzone onFile={(file) => void uploadMarkerImage(file)} />
+                    {markerImageUploading && <small role="status">이미지를 업로드하고 있어요...</small>}
+                    {markerImageError && <p className="form-error">{markerImageError}</p>}
+                  </div>
+                ) : (
+                  <Textarea
+                    label={markerDraft.type === 'QUIZ' ? '질문' : '내용'}
+                    value={markerDraft.content}
+                    onChange={(event) => setMarkerDraft({ ...markerDraft, content: event.target.value })}
+                    placeholder={markerDraft.type === 'QUIZ' ? '영상 내용을 확인하는 질문을 입력해 주세요.' : '수강생에게 보여줄 설명을 입력해 주세요.'}
+                  />
+                )}
+                {markerDraft.type === 'QUIZ' && (
+                  <fieldset className="marker-quiz-builder">
+                    <legend>선택지와 정답</legend>
+                    <small>왼쪽 원을 눌러 정답을 지정하세요.</small>
+                    <div>
+                      {markerDraft.choices.map((choice, index) => (
+                        <div className="marker-quiz-choice" key={index}>
+                          <label title={`${index + 1}번을 정답으로 지정`}>
+                            <input
+                              type="radio"
+                              name="marker-answer"
+                              checked={(markerDraft.answerIndex ?? 0) === index}
+                              onChange={() => setMarkerDraft({ ...markerDraft, answerIndex: index })}
+                            />
+                            <span>{index + 1}</span>
+                          </label>
+                          <input
+                            className="ui-input"
+                            aria-label={`${index + 1}번 선택지`}
+                            value={choice}
+                            onChange={(event) => updateMarkerChoice(index, event.target.value)}
+                            placeholder={`${index + 1}번 선택지`}
+                          />
+                          <IconButton
+                            label={`${index + 1}번 선택지 삭제`}
+                            disabled={markerDraft.choices.length <= 2}
+                            onClick={() => removeMarkerChoice(index)}
+                          >
+                            <Trash2 size={16} />
+                          </IconButton>
+                        </div>
+                      ))}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      disabled={markerDraft.choices.length >= 6}
+                      onClick={() => setMarkerDraft({ ...markerDraft, choices: [...markerDraft.choices, ''] })}
+                    >
+                      <Plus size={16} /> 선택지 추가
+                    </Button>
+                  </fieldset>
+                )}
+                {markerError && <p className="form-error">{markerError}</p>}
+                <Button variant="secondary" disabled={markerImageUploading} onClick={addMarker}><Plus size={17} /> 마커 추가</Button>
+                </div>
+              </div>
+            </section>
+          )}
+          <div className="lesson-duration-field">
+            <Input
+              label="예상 학습 시간(분)"
+              type="number"
+              min={0}
+              value={lesson.durationMinutes}
+              onChange={(event) =>
+                setLesson({ ...lesson, durationMinutes: Number(event.target.value) || 0 })
+              }
+              hint={videoDurationSeconds > 0 ? `영상 길이 ${formatMarkerTime(videoDurationSeconds)}를 자동 반영했어요.` : undefined}
+            />
+          </div>
           <div className="curriculum-toggle-row">
             <span>
               <b>무료 미리보기</b>

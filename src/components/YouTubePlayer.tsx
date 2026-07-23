@@ -5,6 +5,7 @@ type YouTubePlayerApi = {
   getCurrentTime: () => number;
   getDuration: () => number;
   seekTo: (seconds: number, allowSeekAhead: boolean) => void;
+  pauseVideo: () => void;
 };
 
 type YouTubeNamespace = {
@@ -60,6 +61,8 @@ type YouTubePlayerProps = {
     playing: boolean,
     ended: boolean,
   ) => void;
+  onTimeChange?: (currentSeconds: number) => boolean;
+  onDuration?: (durationSeconds: number) => void;
 };
 
 export function YouTubePlayer({
@@ -67,16 +70,23 @@ export function YouTubePlayer({
   startSeconds = 0,
   onPlayingChange,
   onProgress,
+  onTimeChange,
+  onDuration,
 }: YouTubePlayerProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const onPlayingChangeRef = useRef(onPlayingChange);
   const onProgressRef = useRef(onProgress);
+  const onTimeChangeRef = useRef(onTimeChange);
+  const onDurationRef = useRef(onDuration);
   onPlayingChangeRef.current = onPlayingChange;
   onProgressRef.current = onProgress;
+  onTimeChangeRef.current = onTimeChange;
+  onDurationRef.current = onDuration;
 
   useEffect(() => {
     let player: YouTubePlayerApi | undefined;
-    let timer: number | undefined;
+    let progressTimer: number | undefined;
+    let timeTimer: number | undefined;
     let active = true;
     const wrapper = wrapperRef.current;
     const report = (target: YouTubePlayerApi, playing: boolean, ended = false) =>
@@ -97,13 +107,19 @@ export function YouTubePlayer({
         events: {
           onReady: ({ target }) => {
             if (startSeconds > 0) target.seekTo(startSeconds, true);
+            const duration = target.getDuration();
+            if (duration > 0) onDurationRef.current?.(duration);
           },
           onStateChange: ({ data, target }) => {
-            if (timer) window.clearInterval(timer);
+            if (progressTimer) window.clearInterval(progressTimer);
+            if (timeTimer) window.clearInterval(timeTimer);
             const playing = data === YT.PlayerState.PLAYING;
             onPlayingChangeRef.current(playing);
             if (playing) {
-              timer = window.setInterval(() => report(target, true), 10000);
+              progressTimer = window.setInterval(() => report(target, true), 10000);
+              timeTimer = window.setInterval(() => {
+                if (onTimeChangeRef.current?.(target.getCurrentTime())) target.pauseVideo();
+              }, 500);
             } else if (data === YT.PlayerState.PAUSED || data === YT.PlayerState.ENDED) {
               report(target, false, data === YT.PlayerState.ENDED);
             }
@@ -114,7 +130,8 @@ export function YouTubePlayer({
 
     return () => {
       active = false;
-      if (timer) window.clearInterval(timer);
+      if (progressTimer) window.clearInterval(progressTimer);
+      if (timeTimer) window.clearInterval(timeTimer);
       player?.destroy();
     };
   }, [startSeconds, videoId]);

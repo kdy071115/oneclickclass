@@ -64,6 +64,64 @@ test('공개 신청 페이지에서 필수 신청 정보를 검증한다', async
   await expect(page.getByRole('button', { name: '신청하고 결제하기' })).toBeVisible();
 });
 
+test('수강생이 관심 클래스를 저장하고 목록에서 다시 연다', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      'oneclick.enrollment.bookmark-e2e',
+      JSON.stringify({
+        memberSeq: 'member-bookmark',
+        courseApplySeq: 'apply-bookmark',
+        courseActiveSeq: 'bookmark-e2e',
+        learnerName: '관심 수강생',
+        applyStatusCd: 'APPLY_STATUS::002',
+        applicationStatus: 'APPROVED',
+        paymentStatus: 'NOT_REQUIRED',
+        enrollmentStatus: 'AVAILABLE',
+        canLearn: true,
+        accessReason: 'AVAILABLE',
+        progress: 0,
+        lastPosition: '1강 0분 0초',
+      }),
+    );
+    localStorage.setItem(
+      'oneclick-class-preview:bookmark-e2e',
+      JSON.stringify({
+        _schemaVersion: 2,
+        type: 'online',
+        title: '관심 클래스 E2E',
+        summary: '저장 후 다시 찾는 클래스',
+        payment: 'free',
+        capacity: 20,
+      }),
+    );
+  });
+
+  await page.goto('/s/bookmark-e2e');
+  const bookmark = page.getByRole('button', { name: '관심 클래스 등록' });
+  await expect(bookmark).toBeVisible();
+  await bookmark.click();
+  await expect(page.getByRole('button', { name: '관심 클래스 해제' })).toBeVisible();
+
+  await page.goto('/favorites');
+  await expect(page.getByRole('heading', { name: '관심 클래스 E2E' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+  await page.getByRole('link', { name: '강의 정보 보기' }).click();
+  await expect(page).toHaveURL('/s/bookmark-e2e');
+  await expect(page.getByRole('button', { name: '관심 클래스 해제' })).toBeVisible();
+});
+
+test('관심 목록에서 클래스를 해제하면 빈 상태로 전환한다', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('oneclick.course-bookmark.notion', 'Y');
+  });
+  await page.goto('/favorites');
+  await expect(page.getByRole('heading', { name: '노션으로 시작하는 업무 자동화' })).toBeVisible();
+  await page.getByRole('button', { name: '노션으로 시작하는 업무 자동화 관심 클래스 해제' }).click();
+  await expect(page.getByRole('heading', { name: '아직 관심 클래스가 없어요.' })).toBeVisible();
+});
+
 test('수강생 신청 페이지와 강의실이 모바일에서 가로로 깨지지 않는다', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'mobile');
   await page.addInitScript(() => {
@@ -199,10 +257,10 @@ test('클래스 출석·설문·수료증 관리 흐름을 처리한다', async 
   test.skip(testInfo.project.name !== 'desktop');
   await login(page);
 
-  await page.goto('/classes/calligraphy/attendance');
+  await page.goto('/classes/notion/attendance');
   await expect(page.locator('.oc-real-qr img')).toBeVisible();
-  await page.getByRole('button', { name: /이준호.*출석/ }).click();
-  await expect(page.getByRole('button', { name: /이준호.*지각/ })).toBeVisible();
+  await page.getByRole('button', { name: /김서연.*출석/ }).click();
+  await expect(page.getByRole('button', { name: /김서연.*지각/ })).toBeVisible();
 
   await page.goto('/classes/notion/survey');
   await page.getByRole('button', { name: '새 항목 만들기' }).click();
@@ -226,12 +284,12 @@ test('클래스 출석·설문·수료증 관리 흐름을 처리한다', async 
 test('모바일 수료증이 데스크톱과 같은 발급 상태를 사용한다', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'mobile');
   await login(page);
-  await page.goto('/classes/calligraphy/certificates');
+  await page.goto('/classes/notion/certificates');
   const mobileCertificate = page.locator('.original-operations');
   const pendingRows = mobileCertificate.locator('.check-row:not(:disabled)');
-  await expect(pendingRows).toHaveCount(1);
+  await expect(pendingRows).toHaveCount(2);
   await pendingRows.first().click();
-  await expect(mobileCertificate.locator('.cert-issue-stats')).toContainText('발급 대기0명');
+  await expect(mobileCertificate.locator('.cert-issue-stats')).toContainText('발급 대기1명');
   await expect(mobileCertificate.locator('.cert-issue-stats')).toContainText('발급 완료1명');
   await page.reload();
   await expect(mobileCertificate.locator('.cert-issue-stats')).toContainText('발급 완료1명');

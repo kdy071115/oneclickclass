@@ -154,7 +154,7 @@ test('강의자 운영 화면의 주요 액션이 실제 상태를 바꾼다', a
   await page.locator('.operation-table .oc-table-row').first().click();
   await expect(page).toHaveURL(`${baseUrl}/applicants/1?classId=notion`);
 
-  await page.goto(`${baseUrl}/classes/calligraphy/attendance`);
+  await page.goto(`${baseUrl}/classes/notion/attendance`);
   await expect(page.getByAltText('출석 QR 코드')).toBeVisible();
   const firstAttendance = page.locator('.attendance-edit-row').first();
   await expect(firstAttendance).toContainText('출석');
