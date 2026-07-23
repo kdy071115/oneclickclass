@@ -105,7 +105,7 @@ export function NotificationsPage() {
               const unread = n.unread && !read;
               return (
                 <Link className={`notice-row ${unread ? 'unread' : ''}`} to={n.target} key={n.id}>
-                  <i className={n.type}><Icon /></i>
+                  <i className={`notification-type-${n.type}`}><Icon /></i>
                   <span><b>{n.title}{unread && <em />}</b><small>{n.message}</small></span>
                   <time>{n.time}</time>
                 </Link>

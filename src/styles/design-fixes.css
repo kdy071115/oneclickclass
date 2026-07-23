@@ -1375,20 +1375,20 @@
   flex: none;
   font-style: normal;
 }
-.notice-row i.apply {
+.notice-row i.notification-type-apply {
   background: #eff6ff;
   color: var(--blue);
 }
-.notice-row i.pay,
-.notice-row i.settle {
+.notice-row i.notification-type-pay,
+.notice-row i.notification-type-settle {
   background: #e6f9f1;
   color: #0ca678;
 }
-.notice-row i.review {
+.notice-row i.notification-type-review {
   background: #fff9db;
   color: #f08c00;
 }
-.notice-row i.notice {
+.notice-row i.notification-type-notice {
   background: #edebff;
   color: #6741d9;
 }
@@ -1397,6 +1397,7 @@
 }
 .notice-row span {
   flex: 1;
+  min-width: 0;
 }
 .notice-row b,
 .notice-row small {
@@ -1420,6 +1421,7 @@
   margin-top: 3px;
 }
 .notice-row time {
+  flex: none;
   color: #adb5bd;
   font-size: 12px;
   font-weight: 600;
