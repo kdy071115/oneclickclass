@@ -992,7 +992,7 @@ a {
     opacity: 0;
   }
 }
-@media (max-width: 500px) {
+@media (max-width: 899px) {
   .stage,
   .standalone {
     height: 100dvh;
@@ -1028,6 +1028,21 @@ a {
   }
   .home {
     padding-top: 20px;
+  }
+}
+
+@media (min-width: 501px) and (max-width: 899px) {
+  .stage,
+  .standalone {
+    background: #f7f8fa;
+  }
+
+  .phone,
+  .standalone > section,
+  .standalone > form,
+  .standalone > div {
+    width: min(100vw, 520px);
+    margin-inline: auto;
   }
 }
 
