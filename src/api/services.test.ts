@@ -43,55 +43,42 @@ describe('instructor mock services', () => {
       expect.objectContaining({ id: 'recovered-course' }),
     );
     await expect(detailService.getClass('recovered-course')).resolves.toMatchObject({
+      title: '제목 없는 클래스',
+      rating: 0,
+      reviewCount: 0,
       sessions: 1,
       curriculum: [expect.objectContaining({ id: 'lesson-1', title: '첫 강의' })],
     });
   });
 
+  it('does not substitute another applicant when an id is missing', async () => {
+    await expect(applicantService.get('missing-applicant')).rejects.toThrow(
+      'applicant not found',
+    );
+  });
+
   it('keeps applicants scoped to their course', async () => {
     await expect(applicantService.listByClass('notion')).resolves.toHaveLength(2);
-    await expect(applicantService.listByClass('calligraphy')).resolves.toHaveLength(1);
+    await expect(applicantService.listByClass('unknown-course')).resolves.toEqual([]);
   });
 
-  it('keeps each course detail content scoped to that course', async () => {
-    await expect(detailService.getClass('calligraphy')).resolves.toMatchObject({
-      title: '주말 원데이 캘리그라피 클래스',
-      summary: expect.stringContaining('손글씨'),
-      location: '서울 마포구 연남로 12',
-    });
-    await expect(detailService.getClass('photo')).resolves.toMatchObject({
-      title: '스마트폰 사진 보정 클래스',
-      summary: expect.stringContaining('사진'),
-    });
-  });
-
-  it('does not let a partial saved draft replace canonical course detail', async () => {
+  it('applies saved detail only to its own course', async () => {
     localStorage.setItem(
-      'oneclick-class-preview:calligraphy',
-      JSON.stringify({ title: '수정 중인 제목' }),
-    );
-
-    await expect(detailService.getClass('calligraphy')).resolves.toMatchObject({
-      summary: expect.stringContaining('손글씨'),
-      location: '서울 마포구 연남로 12',
-      recruitEndDate: '8월 7일',
-    });
-  });
-
-  it('applies a current saved draft to canonical course detail', async () => {
-    localStorage.setItem(
-      'oneclick-class-preview:calligraphy',
+      'oneclick-class-preview:custom-course',
       JSON.stringify({
         _schemaVersion: 2,
         type: 'offline',
-        summary: '수정한 캘리그라피 소개',
+        title: '직접 만든 강의',
+        summary: '직접 입력한 소개',
         address: '서울 마포구 새 주소 1',
       }),
     );
 
-    await expect(detailService.getClass('calligraphy')).resolves.toMatchObject({
-      summary: '수정한 캘리그라피 소개',
+    await expect(detailService.getClass('custom-course')).resolves.toMatchObject({
+      title: '직접 만든 강의',
+      summary: '직접 입력한 소개',
       location: '서울 마포구 새 주소 1',
+      rating: 0,
     });
   });
 
@@ -174,12 +161,8 @@ describe('instructor mock services', () => {
   });
 
   it('uses only the selected course applicants for attendance and certificates', async () => {
-    await expect(attendanceService.checkins('calligraphy')).resolves.toEqual([
-      expect.objectContaining({ name: '이준호' }),
-    ]);
+    await expect(attendanceService.checkins('unknown-course')).resolves.toEqual([]);
     await expect(certificateService.recipients('notion')).resolves.toHaveLength(2);
-    await expect(certificateService.recipients('calligraphy')).resolves.toEqual([
-      expect.objectContaining({ name: '이준호' }),
-    ]);
+    await expect(certificateService.recipients('unknown-course')).resolves.toEqual([]);
   });
 });

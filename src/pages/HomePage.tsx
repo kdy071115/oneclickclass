@@ -30,9 +30,7 @@ const memberTrend = [
   { label: '7월', value: 12 },
 ];
 const todaySchedule = [
-  ['10:00', '오전', 'UX 리서치 실무 4주 · 2주차', '수강생 20명', '라이브'],
-  ['14:00', '오후', '주말 원데이 캘리그라피', '강남 스튜디오', '오프라인'],
-  ['20:00', '오후', '실전 유튜브 편집 8주 · 3주차', '수강생 20명', '라이브'],
+  ['20:00', '오후', '노션으로 시작하는 업무 자동화 · 2주차', '수강생 24명', '온라인'],
 ];
 const classColumns: TableColumn<ClassItem>[] = [
   { key: 'title', header: '클래스명', render: (item) => <Link to={`/classes/${item.id}`}><b>{item.title}</b></Link> },

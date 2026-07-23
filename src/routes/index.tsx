@@ -26,6 +26,7 @@ import { CreateClassPage } from '../pages/CreateClassPage';
 import { CurriculumPage } from '../pages/CurriculumPage';
 import { HomePage } from '../pages/HomePage';
 import { LoginPage } from '../pages/LoginPage';
+import { LearnerFavoritesPage } from '../pages/LearnerFavoritesPage';
 import { MyPage } from '../pages/MyPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import {
@@ -98,6 +99,7 @@ export const router = createBrowserRouter([
   { path: '/s/:shareToken', element: <PublicEnrollmentPage /> },
   { path: '/s/:shareToken/complete', element: <EnrollmentCompletePage /> },
   { path: '/learn/:id', element: <LearnerRoomPage /> },
+  { path: '/favorites', element: <LearnerFavoritesPage /> },
   { path: '/learn/survey/take', element: <SurveyTakePage /> },
   { path: '/learn/survey/done', element: <SurveyDonePage /> },
   { path: '/learn/exam/take', element: <ExamTakePage /> },

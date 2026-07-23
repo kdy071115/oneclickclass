@@ -13,7 +13,6 @@ import {
   applicants,
   certificates,
   classDetail,
-  classDetailOverrides,
   classes,
   dashboard,
   examQuestions,
@@ -52,6 +51,14 @@ import {
 const mock = import.meta.env.VITE_USE_MOCK !== 'false';
 const delay = <T>(data: T) => new Promise<T>((resolve) => setTimeout(() => resolve(data), 350));
 const MOCK_CLASSES_KEY = 'oneclick.mock.classes';
+const LEGACY_MOCK_CLASS_IDS = new Set([
+  'calligraphy',
+  'branding',
+  'photo',
+  'policy-flow-test',
+  'c40517c1-70ba-4b94-87db-980493423599',
+  'c4a5efd9-5661-47ea-a9d6-67c6d69eb443',
+]);
 const mockSettingsKey = (classId: string) => `oneclick.class-settings.${classId}`;
 const curriculumKey = (classId: string) => `oneclick.curriculum.${classId}`;
 const surveyKey = (classId: string) => `oneclick.surveys.${classId}`;
@@ -67,7 +74,11 @@ const savedMockClasses = (): ClassItem[] => {
       localStorage.getItem(MOCK_CLASSES_KEY) || sessionStorage.getItem(MOCK_CLASSES_KEY) || '[]';
     if (saved !== '[]' && !localStorage.getItem(MOCK_CLASSES_KEY))
       localStorage.setItem(MOCK_CLASSES_KEY, saved);
-    return JSON.parse(saved) as ClassItem[];
+    const items = JSON.parse(saved) as ClassItem[];
+    const filtered = items.filter((item) => !LEGACY_MOCK_CLASS_IDS.has(item.id));
+    if (filtered.length !== items.length)
+      localStorage.setItem(MOCK_CLASSES_KEY, JSON.stringify(filtered));
+    return filtered;
   } catch {
     return [];
   }
@@ -97,7 +108,7 @@ const previewClassItem = (id: string): ClassItem => {
       : hasPublishedLesson
         ? 'READY'
         : 'CURRICULUM',
-    title: draft.title || enrollmentTitle || classDetail.title,
+    title: draft.title || enrollmentTitle || '제목 없는 클래스',
     status: settings.publicOn ? '모집중' : '준비중',
     type: classTypeLabel[draft.type],
     date: draft.startDate || '일정 미정',
@@ -111,6 +122,7 @@ const mockClasses = () => {
   const saved = savedMockClasses();
   const combined = [...saved, ...classes.filter((item) => !saved.some((row) => row.id === item.id))];
   for (const id of listClassPreviewIds()) {
+    if (LEGACY_MOCK_CLASS_IDS.has(id)) continue;
     if (!combined.some((item) => item.id === id)) combined.unshift(previewClassItem(id));
   }
   return combined;
@@ -207,6 +219,7 @@ const mockApplicantsByClass = (classId: string) => {
 const allMockApplicants = () => {
   const rows = [...applicants];
   for (const classId of listClassPreviewIds()) {
+    if (LEGACY_MOCK_CLASS_IDS.has(classId)) continue;
     const enrollment = enrollmentApplicant(classId);
     if (enrollment && !rows.some((item) => item.id === enrollment.id)) rows.unshift(enrollment);
   }
@@ -406,10 +419,14 @@ export const applicantService = {
       : apiClient.get<Applicant[]>(`/classes/${classId}/applicants`).then((r) => r.data),
   get: (id: string, classId?: string): Promise<Applicant> =>
     mock
-      ? delay(
-          (classId ? mockApplicantsByClass(classId) : allMockApplicants()).find((a) => a.id === id) ??
-            applicants[0],
-        )
+      ? (() => {
+          const applicant = (classId ? mockApplicantsByClass(classId) : allMockApplicants()).find(
+            (item) => item.id === id,
+          );
+          return applicant
+            ? delay(applicant)
+            : Promise.reject(new Error('applicant not found'));
+        })()
       : apiClient.get<Applicant>(`/applicants/${id}`).then((r) => r.data),
   updatePayment: (id: string, update: ApplicantUpdate, classId?: string): Promise<Applicant> => {
     if (!mock)
@@ -449,13 +466,40 @@ export const detailService = {
     const savedCurriculum = mockCurriculum(id);
     const settings = mockSettings(id, item?.capacity || draft.capacity);
     const enrolled = Math.max(item?.enrolled || 0, mockApplicantsByClass(id).length);
-    const baseDetail = { ...classDetail, ...classDetailOverrides[id] };
+    const canonicalDetail = id === classDetail.id;
+    const baseDetail: ClassDetail = canonicalDetail
+      ? classDetail
+      : {
+          id,
+          courseMasterSeq: item?.courseMasterSeq || id,
+          courseActiveSeq: item?.courseActiveSeq || id,
+          lifecycleStatus: item?.lifecycleStatus || 'DRAFT',
+          title: item?.title || draft.title || '제목 없는 클래스',
+          status: item?.status || '준비중',
+          type: item?.type || classTypeLabel[draft.type],
+          date: item?.date || draft.startDate || '일정 미정',
+          enrolled: item?.enrolled || 0,
+          capacity: item?.capacity || draft.capacity,
+          color: item?.color || '#3182f6',
+          thumbnail: item?.thumbnail,
+          summary: '강의 소개를 준비하고 있어요.',
+          description: '강의 상세 내용을 입력해 주세요.',
+          instructor: '김지훈',
+          price: 0,
+          recruitEndDate: draft.recruitEndDate || '미정',
+          sessions: 0,
+          location: '온라인 · 차시별 영상',
+          rating: 0,
+          reviewCount: 0,
+          completionRate: 0,
+          shareToken: id,
+          applicantTrend: [],
+          curriculum: [],
+          recentActivities: [],
+        };
     const hasDraft = hasClassPreview(id);
     const savedDraftPatch = loadClassPreviewPatch(id);
-    const draftPatch =
-      classDetailOverrides[id] && savedDraftPatch?._schemaVersion !== 2
-        ? undefined
-        : savedDraftPatch;
+    const draftPatch = savedDraftPatch;
     const draftType = draftPatch?.type;
     const location = draftType
       ? draftType === 'offline' || draftType === 'hybrid'

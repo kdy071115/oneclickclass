@@ -95,6 +95,18 @@ export interface ClassDetail extends ClassItem {
   }[];
 }
 export type LessonContentType = 'video' | 'live' | 'document' | 'assignment';
+export type LessonMarkerType = 'TEXT' | 'IMAGE' | 'QUIZ';
+export interface LessonMarker {
+  id: string;
+  markerSeq?: string;
+  timeSeconds: number;
+  type: LessonMarkerType;
+  title: string;
+  content: string;
+  imageUrl?: string;
+  choices?: string[];
+  answerIndex?: number;
+}
 export interface CurriculumLesson {
   id: string;
   organizationSeq?: string;
@@ -110,6 +122,7 @@ export interface CurriculumLesson {
   published: boolean;
   required?: boolean;
   sequential?: boolean;
+  markers?: LessonMarker[];
 }
 export interface CurriculumSection {
   id: string;

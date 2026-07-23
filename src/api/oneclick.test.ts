@@ -58,7 +58,17 @@ describe('oneclick learner service', () => {
   });
 
   it('keeps paid applications pending until payment completes', async () => {
-    const enrollment = await verifiedApply('calligraphy', {
+    localStorage.setItem(
+      'oneclick-class-preview:paid-course',
+      JSON.stringify({
+        _schemaVersion: 2,
+        title: '유료 테스트 강의',
+        payment: 'paid',
+        price: 45000,
+        capacity: 20,
+      }),
+    );
+    const enrollment = await verifiedApply('paid-course', {
       name: '김수강',
       phone: '010-1234-5678',
       privacyConsent: true,
@@ -83,23 +93,28 @@ describe('oneclick learner service', () => {
     });
   });
 
-  it('keeps canonical course information in the learner share', async () => {
+  it('uses only the saved information for a newly created learner share', async () => {
     localStorage.setItem(
-      'oneclick-class-preview:calligraphy',
+      'oneclick-class-preview:custom-course',
       JSON.stringify({
+        _schemaVersion: 2,
+        title: '직접 만든 강의',
         type: 'online',
-        summary: '오래된 기본 소개',
-        payment: 'free',
+        summary: '직접 입력한 강의 소개',
+        payment: 'paid',
+        price: 30000,
+        capacity: 10,
+        startDate: '2026-08-09',
       }),
     );
 
-    await expect(oneclickService.share('calligraphy')).resolves.toMatchObject({
-      title: '주말 원데이 캘리그라피 클래스',
-      summary: expect.stringContaining('손글씨'),
-      price: 45000,
+    await expect(oneclickService.share('custom-course')).resolves.toMatchObject({
+      title: '직접 만든 강의',
+      summary: '직접 입력한 강의 소개',
+      price: 30000,
       paymentType: 'PAID',
-      scheduleText: '8월 9일 · 토',
-      locationText: '서울 마포구 연남로 12',
+      scheduleText: '2026-08-09',
+      capacity: 10,
     });
   });
 
@@ -174,9 +189,13 @@ describe('oneclick learner service', () => {
     await expect(oneclickService.courseBookmark('bookmark-course')).resolves.toMatchObject({
       bookmarked: true,
     });
+    await expect(oneclickService.courseBookmarks()).resolves.toEqual([
+      expect.objectContaining({ courseActiveSeq: 'bookmark-course' }),
+    ]);
     await expect(oneclickService.removeCourseBookmark('bookmark-course')).resolves.toMatchObject({
       bookmarked: false,
     });
+    await expect(oneclickService.courseBookmarks()).resolves.toEqual([]);
   });
 
   it('requires the verification code before restoring a learner session', async () => {
@@ -216,6 +235,15 @@ describe('oneclick learner service', () => {
               durationMinutes: 15,
               published: true,
               contentUrl: 'https://example.com/lesson.mp4',
+              markers: [
+                {
+                  id: 'marker-1',
+                  timeSeconds: 15,
+                  type: 'TEXT',
+                  title: '핵심 개념',
+                  content: '이 부분을 기억해 주세요.',
+                },
+              ],
             },
           ],
         },
@@ -236,6 +264,34 @@ describe('oneclick learner service', () => {
     expect(room?.lessons[0]).toMatchObject({
       lessonId: 'lesson-1',
       contentUrl: 'https://example.com/lesson.mp4',
+      markers: [expect.objectContaining({ id: 'marker-1', timeSeconds: 15, type: 'TEXT' })],
+    });
+  });
+
+  it('maps the notion public token to the instructor course curriculum', async () => {
+    localStorage.setItem(
+      'oneclick.curriculum.notion',
+      JSON.stringify([
+        {
+          id: 'section-1',
+          title: '공개 과정',
+          lessons: [
+            {
+              id: 'saved-lesson',
+              title: '강의자가 저장한 차시',
+              durationMinutes: 20,
+              published: true,
+              contentType: 'video',
+              contentUrl: 'https://example.com/saved.mp4',
+            },
+          ],
+        },
+      ]),
+    );
+
+    await expect(oneclickService.share('notion-auto')).resolves.toMatchObject({
+      courseActiveSeq: 'notion',
+      curriculum: [expect.objectContaining({ lessonId: 'saved-lesson' })],
     });
   });
 

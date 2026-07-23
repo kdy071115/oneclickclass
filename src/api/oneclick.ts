@@ -1,14 +1,13 @@
 import { apiClient } from './client';
 import {
   classDetail,
-  classDetailOverrides,
   classes,
   examQuestions,
   surveyQuestions,
 } from '../constants/mockData';
 import { initialClassDraft } from '../constants/classDraft';
 import { loadClassPreviewPatch } from '../utils/classDraft';
-import type { ExamQuestion, SurveyQuestion } from '../types/class';
+import type { ExamQuestion, LessonMarker, SurveyQuestion } from '../types/class';
 import {
   detectContentProvider,
   type ContentProvider,
@@ -58,6 +57,7 @@ export type OneClickCurriculumItem = {
   contentProvider: OneClickContentProvider;
   required?: boolean;
   sequential?: boolean;
+  markers?: LessonMarker[];
 };
 
 export type OneClickContentProvider = ContentProvider;
@@ -128,6 +128,7 @@ export type OneClickLesson = {
   contentProvider: OneClickContentProvider;
   required?: boolean;
   sequential?: boolean;
+  markers?: LessonMarker[];
 };
 
 export type OneClickToolItem = {
@@ -271,6 +272,7 @@ const oneclickLessonProgressKey = (courseActiveSeq: string, lessonId: string) =>
   `oneclick.lesson-progress.${courseActiveSeq}.${lessonId}`;
 const oneclickCourseBookmarkKey = (courseActiveSeq: string) =>
   `oneclick.course-bookmark.${courseActiveSeq}`;
+const oneclickCourseBookmarkPrefix = 'oneclick.course-bookmark.';
 export const shareTokenFromCourseActiveSeq = (courseActiveSeq: string) =>
   courseActiveSeq === '104' ? '7KpX92Lm' : courseActiveSeq;
 
@@ -362,20 +364,21 @@ const mockShare = (shareToken: string): OneClickShare => {
     shareToken === '7KpX92Lm' ? '104' : shareToken === 'notion-auto' ? 'notion' : shareToken;
   const sourceId = courseActiveSeq === '104' ? 'notion' : courseActiveSeq;
   const canonicalItem = classes.find((item) => item.id === sourceId);
-  const classItem = canonicalItem || classes[0];
   const savedDraft =
     loadClassPreviewPatch(courseActiveSeq) || loadClassPreviewPatch(shareToken);
   const draftPatch = canonicalItem && savedDraft?._schemaVersion !== 2 ? undefined : savedDraft;
   const draft = { ...initialClassDraft, ...draftPatch };
   const baseDetail = canonicalItem
-    ? { ...classDetail, ...classDetailOverrides[canonicalItem.id] }
+    ? classDetail
     : undefined;
   const price = draftPatch?.payment
     ? draft.payment === 'paid'
       ? draft.price
       : 0
     : baseDetail?.price || 0;
-  const curriculum = mockCurriculum(shareToken);
+  const curriculum = mockCurriculum(courseActiveSeq);
+  const capacity = draftPatch?.capacity ?? canonicalItem?.capacity ?? initialClassDraft.capacity;
+  const enrolled = canonicalItem?.enrolled ?? 0;
   const location = draftPatch?.type
     ? draft.type === 'offline' || draft.type === 'hybrid'
       ? [draft.address, draft.detailedAddress].filter(Boolean).join(' ')
@@ -387,24 +390,24 @@ const mockShare = (shareToken: string): OneClickShare => {
     shareToken,
     courseActiveSeq,
     courseMasterSeq: canonicalItem?.courseMasterSeq || `${sourceId}-master`,
-    title: draftPatch?.title?.trim() || classItem.title,
+    title: draftPatch?.title?.trim() || canonicalItem?.title || '제목 없는 클래스',
     summary: draftPatch?.summary?.trim() || baseDetail?.summary || '강의 소개를 준비하고 있어요.',
     description:
       draftPatch?.description?.trim() || baseDetail?.description || '상세 강의 소개를 준비하고 있어요.',
     price,
-    capacity: draftPatch?.capacity ?? classItem.capacity,
-    enrolled: canonicalItem ? classItem.enrolled : 0,
-    confirmedCount: canonicalItem ? classItem.enrolled : 0,
+    capacity,
+    enrolled,
+    confirmedCount: enrolled,
     heldCount: 0,
     remainingSeats: Math.max(
       0,
-      (draftPatch?.capacity ?? classItem.capacity) - (canonicalItem ? classItem.enrolled : 0),
+      capacity - enrolled,
     ),
     recruitmentStatus: 'OPEN',
     applyStatus: 'OPEN',
     paymentType: price > 0 ? 'PAID' : 'FREE',
     instructorName: baseDetail?.instructor || '이지훈',
-    scheduleText: draftPatch?.startDate || classItem.date || '일정 미정',
+    scheduleText: draftPatch?.startDate || canonicalItem?.date || '일정 미정',
     locationText: location,
     requiresApproval: false,
     difficulty: '초급',
@@ -434,6 +437,7 @@ const mockCurriculum = (courseActiveSeq: string): OneClickCurriculumItem[] => {
           contentType?: string;
           required?: boolean;
           sequential?: boolean;
+          markers?: LessonMarker[];
         }>;
       }>;
       return sections.flatMap((section) =>
@@ -452,6 +456,7 @@ const mockCurriculum = (courseActiveSeq: string): OneClickCurriculumItem[] => {
             contentProvider: detectContentProvider(lesson.contentUrl, lesson.contentType),
             required: lesson.required ?? true,
             sequential: lesson.sequential ?? false,
+            markers: lesson.markers ?? [],
           })),
       );
     }
@@ -471,6 +476,28 @@ const mockCurriculum = (courseActiveSeq: string): OneClickCurriculumItem[] => {
       )
     : [];
 };
+
+const normalizeMarkers = (source: Record<string, unknown>): LessonMarker[] =>
+  firstArray(source, ['markers', 'markerList', 'listMarker']).map((item, index) => {
+    const marker = asRecord(item);
+    const choices = firstArray(marker, ['choices', 'options', 'answerList']).map((choice) =>
+      typeof choice === 'string'
+        ? choice
+        : pickString(asRecord(choice), ['label', 'text', 'title'], ''),
+    );
+    const rawType = pickString(marker, ['type', 'markerType'], 'TEXT').toUpperCase();
+    return {
+      id: pickString(marker, ['id', 'markerSeq', 'seq'], `marker-${index + 1}`),
+      markerSeq: pickString(marker, ['markerSeq'], '') || undefined,
+      timeSeconds: pickNumber(marker, ['timeSeconds', 'time', 'playTime'], 0),
+      type: rawType.includes('QUIZ') ? 'QUIZ' : rawType.includes('IMAGE') ? 'IMAGE' : 'TEXT',
+      title: pickString(marker, ['title', 'markerTitle'], `마커 ${index + 1}`),
+      content: pickString(marker, ['content', 'text', 'contents', 'question'], ''),
+      imageUrl: pickString(marker, ['imageUrl', 'filePath', 'imagePath'], '') || undefined,
+      choices: choices.length ? choices : undefined,
+      answerIndex: pickNumber(marker, ['answerIndex', 'correctIndex'], 0),
+    } satisfies LessonMarker;
+  });
 
 const normalizeCurriculum = (
   source: Record<string, unknown>,
@@ -500,6 +527,7 @@ const normalizeCurriculum = (
       ),
       required: pickBoolean(record, ['required', 'requiredYn', 'mandatoryYn'], true),
       sequential: pickBoolean(record, ['sequential', 'sequentialYn', 'orderLearningYn'], false),
+      markers: normalizeMarkers(record),
     };
   });
 };
@@ -780,6 +808,7 @@ const normalizeLessons = (raw: unknown): OneClickLesson[] => {
         (pickString(record, ['completionReason'], '') as OneClickLesson['completionReason']) || null,
       contentUrl,
       contentProvider,
+      markers: normalizeMarkers(record),
     };
   });
 };
@@ -1312,6 +1341,17 @@ export const oneclickService = {
       courseActiveSeq,
       bookmarked: localStorage.getItem(oneclickCourseBookmarkKey(courseActiveSeq)) === 'Y',
     });
+  },
+  courseBookmarks: (): Promise<OneClickShare[]> => {
+    if (!mock)
+      return apiClient.get<OneClickShare[]>('/oneclick/bookmarks').then((r) => r.data);
+    const courseActiveSeqs = Array.from({ length: localStorage.length }, (_, index) =>
+      localStorage.key(index),
+    )
+      .filter((key): key is string => Boolean(key?.startsWith(oneclickCourseBookmarkPrefix)))
+      .filter((key) => localStorage.getItem(key) === 'Y')
+      .map((key) => key.slice(oneclickCourseBookmarkPrefix.length));
+    return delay(courseActiveSeqs.map((courseActiveSeq) => mockShare(courseActiveSeq)));
   },
   saveCourseBookmark: (courseActiveSeq: string): Promise<OneClickCourseBookmark> => {
     if (!mock)
