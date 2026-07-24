@@ -380,15 +380,15 @@ recruitmentStatus: PRIVATE | OPEN | CLOSED | FULL
 
 ## 9. API 연동 요약
 
-상세 요청·응답 형식은 [`oneclick-lx2-api.md`](./oneclick-lx2-api.md)를 기준으로 한다.
+상세 요청·응답 형식은 [`oneclick-lx2-api.md`](./oneclick-lx2-api.md)를 기준으로 한다. 백엔드 구현 순서와 연동 점검은 [`BACKEND_INTEGRATION_CHECKLIST.md`](./BACKEND_INTEGRATION_CHECKLIST.md)를 따른다.
 
 | 도메인 | 핵심 API | 프론트 계약·화면 | 실제 백엔드 연동 |
 |---|---|---|---|
 | 강의 | `/classes`, `/classes/{courseActiveSeq}/detail`, `/publish` | 준비됨 | LX2 래퍼 필요 |
-| 커리큘럼 | `/classes/{courseActiveSeq}/curriculum/**` | 준비됨 | 차시·LCMS 매핑 필요 |
+| 커리큘럼 | `/classes/{courseActiveSeq}/curriculum/**`, `/classes/files` | 준비됨 | 차시·자료 파일·LCMS 매핑 필요 |
 | 신청 | `/oneclick/shares/{shareToken}`, `/apply` | 준비됨 | 회원·수강신청·세션 필요 |
-| 강의실 | `/oneclick/learn/{courseActiveSeq}/room` | 준비됨 | 권한·목록 조합 필요 |
-| 진도 | `/oneclick/learn/{courseActiveSeq}/heartbeat` | 준비됨 | LCMS 이력 저장 필요 |
+| 강의실 | `/oneclick/learn/{courseActiveSeq}/room` | 준비됨 | 권한·영상·자료 목록 조합 필요 |
+| 진도 | `/oneclick/learn/{courseActiveSeq}/heartbeat` | 준비됨 | 영상 시청·자료 열람 이력 저장 필요 |
 | 새 기기 | `/verification-codes`, `/continue` | 준비됨 | SMS·세션 필요 |
 | 후기 | `/reviews`, `/review` | 준비됨 | 소유권·마스킹 필요 |
 | 운영 | 신청자·출석·설문·수료증·설정 API | 일부 준비 | LX2 서비스 연결 필요 |

@@ -20,7 +20,14 @@ export function getPublishIssues(draft: ClassDraft, sections: CurriculumSection[
   const published = sections.flatMap((section) => section.lessons).filter((lesson) => lesson.published);
   if (!published.length)
     issues.push({ id: 'lesson', label: '공개할 차시를 1개 이상 만들어 주세요.', area: 'curriculum' });
-  else if (published.some((lesson) => !lesson.contentUrl.trim() || validateContentUrl(lesson.contentUrl, lesson.contentType)))
+  else if (
+    published.some((lesson) => {
+      const hasDocumentResource =
+        lesson.contentType === 'document' && Boolean(lesson.resources?.length);
+      if (!lesson.contentUrl.trim()) return !hasDocumentResource;
+      return Boolean(validateContentUrl(lesson.contentUrl, lesson.contentType));
+    })
+  )
     issues.push({ id: 'content', label: '공개 차시의 콘텐츠 주소를 확인해 주세요.', area: 'curriculum' });
   return issues;
 }

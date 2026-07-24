@@ -68,6 +68,76 @@ src/pages/PreviewPage.tsx
 
 상태 전이, 좌석, 결제 멱등성, 수강권 회수, 완료 기준은 [`ONECLICK_STATE_POLICY.md`](./ONECLICK_STATE_POLICY.md)를 따른다. `APPLY_STATUS`는 LX2 호환 코드이며 원클릭 응답은 신청·결제·수강권 상태와 서버 계산 접근값을 함께 반환한다.
 
+### 공통 차시 콘텐츠 모델
+
+프론트는 강의자 커리큘럼과 수강생 강의실에서 같은 차시 모델을 사용한다. 백엔드는 LX2의 과정 차시, 콘텐츠, 자료 파일, 마커 정보를 아래 형태로 감싸서 내려준다.
+
+```json
+{
+  "lessonId": "38",
+  "sectionId": "410",
+  "sectionTitle": "1주차",
+  "organizationSeq": "410",
+  "itemSeq": "411",
+  "activeElementSeq": "38",
+  "contentsSeq": "205",
+  "title": "업무 구조 잡기",
+  "description": "흩어진 업무를 수강생 상황에 맞게 정리합니다.",
+  "contentType": "video",
+  "contentUrl": "https://cdn.example.com/course/38/master.m3u8",
+  "durationMinutes": 42,
+  "durationText": "42분",
+  "preview": false,
+  "published": true,
+  "required": true,
+  "sequential": false,
+  "markers": [],
+  "resources": []
+}
+```
+
+`contentType`은 프론트 내부 값 기준으로 `video`, `live`, `document`, `assignment`를 사용한다. LX2 코드값을 그대로 노출해야 한다면 wrapper에서 이 값으로 변환한다.
+
+차시별 학습 자료는 `contentType=document`와 `resources` 배열을 사용한다. PDF, Office 문서, 이미지, ZIP 등 다운로드·새 창 열람이 가능한 파일을 여러 개 포함할 수 있다.
+
+```json
+{
+  "lessonId": "52",
+  "sectionId": "410",
+  "sectionTitle": "1주차",
+  "title": "실습 자료 내려받기",
+  "description": "강의 전에 예제 파일과 체크리스트를 확인해 주세요.",
+  "contentType": "document",
+  "contentUrl": "",
+  "durationMinutes": 10,
+  "durationText": "10분",
+  "preview": false,
+  "published": true,
+  "required": true,
+  "sequential": false,
+  "resources": [
+    {
+      "id": "file-901",
+      "name": "업무 구조 체크리스트.pdf",
+      "url": "https://cdn.example.com/resources/file-901.pdf",
+      "type": "application/pdf",
+      "size": 248120
+    },
+    {
+      "id": "file-902",
+      "name": "실습 예제.zip",
+      "url": "https://cdn.example.com/resources/file-902.zip",
+      "type": "application/zip",
+      "size": 1053182
+    }
+  ]
+}
+```
+
+자료 차시는 `contentUrl`이 없어도 `resources`가 1개 이상이면 공개 가능한 차시로 본다. 수강생이 자료 링크를 열면 프론트는 `heartbeat`를 한 번 전송해 해당 차시를 완료 처리하도록 요청한다. 서버는 자료 차시의 완료 기준을 `completionReason=MANUAL` 또는 `DOCUMENT_OPENED` 같은 서버 내부 값으로 저장해도 되지만, 원클릭 응답에는 기존 `completed`, `progress`, `completedAt`을 일관되게 반환한다.
+
+프론트 정규화는 백엔드 응답에서 `resources`, `resourceList`, `fileList`, `attachments` 필드를 차시 자료 파일로 인식한다. 그래도 신규 백엔드는 `resources`를 표준으로 사용한다.
+
 ### `POST /classes/{classId}/publish`
 
 강의 공개 상태를 저장하고 신청 페이지용 비예측 `shareToken`을 발급한다. 같은 강의를 다시 공개할 때는 활성 토큰을 재사용하거나 기존 토큰을 폐기한 뒤 새 토큰을 반환한다.
@@ -129,11 +199,119 @@ LX2 매핑 기준:
       "provider": "DIRECT",
       "title": "업무 구조 잡기",
       "description": "흩어진 업무를 수강생 상황에 맞게 정리합니다.",
-      "durationText": "42분"
+      "durationText": "42분",
+      "resources": []
     }
   ]
 }
 ```
+
+공개 신청 페이지의 커리큘럼은 수강 전 안내용이므로 `contentUrl`은 내려주지 않아도 된다. 무료 미리보기 차시를 지원할 경우에만 `preview=true`와 미리보기 가능한 콘텐츠 정보를 함께 반환한다. 자료 차시는 파일명 정도는 노출 가능하지만, 유료/비공개 자료 URL은 수강실 응답에서만 내려준다.
+
+### 강의자 커리큘럼 API
+
+강의자 커리큘럼 화면은 아래 API를 호출한다. 백엔드는 응답을 항상 전체 `CurriculumSection[]`으로 반환하면 프론트가 별도 병합 로직 없이 바로 화면을 갱신한다.
+
+```text
+GET    /classes/{classId}/curriculum
+POST   /classes/{classId}/curriculum/sections
+PATCH  /classes/{classId}/curriculum/sections/{sectionId}
+DELETE /classes/{classId}/curriculum/sections/{sectionId}
+POST   /classes/{classId}/curriculum/lessons
+PATCH  /classes/{classId}/curriculum/lessons/{lessonId}
+DELETE /classes/{classId}/curriculum/lessons/{lessonId}
+PUT    /classes/{classId}/curriculum/order
+```
+
+섹션 응답:
+
+```json
+[
+  {
+    "id": "section-410",
+    "title": "1주차",
+    "lessons": [
+      {
+        "id": "lesson-38",
+        "organizationSeq": "410",
+        "itemSeq": "411",
+        "activeElementSeq": "38",
+        "contentsSeq": "205",
+        "title": "업무 구조 잡기",
+        "description": "흩어진 업무를 정리합니다.",
+        "contentType": "video",
+        "contentUrl": "https://www.youtube.com/watch?v=M7lc1UVf-VE",
+        "durationMinutes": 42,
+        "preview": false,
+        "published": true,
+        "required": true,
+        "sequential": false,
+        "markers": [],
+        "resources": []
+      }
+    ]
+  }
+]
+```
+
+차시 생성 요청은 `sectionId`와 차시 필드를 함께 보낸다.
+
+```json
+{
+  "sectionId": "section-410",
+  "title": "실습 자료 내려받기",
+  "description": "예제 파일을 확인해 주세요.",
+  "contentType": "document",
+  "contentUrl": "",
+  "durationMinutes": 10,
+  "preview": false,
+  "published": true,
+  "required": true,
+  "sequential": false,
+  "markers": [],
+  "resources": [
+    {
+      "id": "file-901",
+      "name": "업무 구조 체크리스트.pdf",
+      "url": "https://cdn.example.com/resources/file-901.pdf",
+      "type": "application/pdf",
+      "size": 248120
+    }
+  ]
+}
+```
+
+백엔드는 `published=true` 저장 시 서버에서도 콘텐츠 유효성을 재검증한다.
+
+- `video`: `contentUrl` 필수. YouTube, Vimeo, 직접 MP4/HLS 등 허용 정책을 서버에서 검증한다.
+- `live`: `contentUrl` 필수.
+- `document`: `contentUrl` 또는 `resources` 1개 이상 필요.
+- `assignment`: `contentUrl` 필수 또는 추후 과제 본문 모델이 생기면 본문 필수.
+
+### 파일 업로드 API
+
+강의자 화면은 썸네일/마커 이미지와 학습 자료 파일 업로드를 분리해서 호출한다.
+
+```text
+POST /classes/images
+POST /classes/files
+```
+
+둘 다 `multipart/form-data`로 `file` 필드를 보낸다.
+
+자료 파일 업로드 권장 응답:
+
+```json
+{
+  "id": "file-901",
+  "name": "업무 구조 체크리스트.pdf",
+  "url": "https://cdn.example.com/resources/file-901.pdf",
+  "type": "application/pdf",
+  "size": 248120
+}
+```
+
+현재 프론트는 최소 `{ "url": "..." }`만 있어도 동작하지만, `name`, `type`, `size`를 내려주면 강의자 편집 화면과 수강생 자료 화면에 그대로 표시한다. 파일 접근 권한이 필요한 경우 `url`은 공개 URL이 아니라 인증 쿠키로 접근 가능한 다운로드 URL이어야 한다.
 
 ### `POST /oneclick/shares/{shareToken}/apply`
 
@@ -265,7 +443,33 @@ POST /oneclick/applications/{courseApplySeq}/refunds
       "playable": true,
       "currentSeconds": 2520,
       "durationSeconds": 2700,
-      "contentUrl": "https://cdn.example.com/course/38/master.m3u8"
+      "contentUrl": "https://cdn.example.com/course/38/master.m3u8",
+      "contentProvider": "FILE",
+      "resources": []
+    },
+    {
+      "lessonId": "52",
+      "sectionId": "410",
+      "sectionTitle": "1주차",
+      "title": "실습 자료 내려받기",
+      "description": "예제 파일과 체크리스트를 확인해 주세요.",
+      "durationText": "10분",
+      "progress": 0,
+      "progressPercent": 0,
+      "locked": false,
+      "completed": false,
+      "playable": true,
+      "contentProvider": "DOCUMENT",
+      "contentUrl": "",
+      "resources": [
+        {
+          "id": "file-901",
+          "name": "업무 구조 체크리스트.pdf",
+          "url": "https://cdn.example.com/resources/file-901.pdf",
+          "type": "application/pdf",
+          "size": 248120
+        }
+      ]
     }
   ],
   "tools": {
@@ -306,7 +510,7 @@ POST /oneclick/applications/{courseApplySeq}/refunds
 }
 ```
 
-카운트와 목록은 같은 데이터에서 계산해 서로 다르지 않게 반환한다. `contentUrl`은 재생 가능한 콘텐츠에만 포함하며, URL이 없으면 프론트는 재생 버튼 대신 준비 중 상태를 표시한다.
+카운트와 목록은 같은 데이터에서 계산해 서로 다르지 않게 반환한다. `contentUrl`은 재생 가능한 콘텐츠에 포함한다. 자료 차시는 `contentUrl` 없이 `resources`만 내려줘도 프론트가 자료 카드로 표시한다. `contentUrl`과 `resources`가 모두 없으면 프론트는 준비 중 상태를 표시한다.
 
 `lessonId`는 프론트 라우팅과 상태 갱신에 사용하는 wrapper ID다. LX2 학습 이력 조회·저장에는 응답에 포함된 `organizationSeq`, `itemSeq`, `activeElementSeq`, `contentsSeq`를 사용한다. LX2의 `learnerDatamodel.progressMeasure`는 `0~1` 비율이므로 wrapper가 `progressPercent(0~100)`로 변환한다.
 
@@ -351,6 +555,21 @@ POST /oneclick/applications/{courseApplySeq}/refunds
   "playing": true
 }
 ```
+
+자료 차시를 열었을 때도 같은 endpoint를 사용한다. 이 경우 클라이언트는 `currentSeconds=1`, `durationSeconds=1`, `ended=true`, `playing=false`로 한 번 전송한다.
+
+```json
+{
+  "courseApplySeq": "8301",
+  "lessonId": "52",
+  "currentSeconds": 1,
+  "durationSeconds": 1,
+  "ended": true,
+  "playing": false
+}
+```
+
+서버는 차시의 `contentProvider` 또는 `contentType`이 자료형인지 확인하고, 자료 접근 권한과 현재 세션 소유권이 맞으면 완료로 처리한다. 클라이언트가 보낸 `ended=true`만으로 다른 유형의 차시를 완료 처리하지 않는다.
 
 클라이언트는 LX2 식별자를 heartbeat payload에 다시 보내지 않는다. 서버는 현재 `courseActiveSeq + lessonId`의 커리큘럼 매핑에서 `organizationSeq`, `itemSeq`, `activeElementSeq`를 조회해 저장한다. 이 방식으로 다른 강의의 식별자를 주입하는 요청을 막는다.
 

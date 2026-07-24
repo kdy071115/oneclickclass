@@ -60,9 +60,18 @@ export type OneClickCurriculumItem = {
   required?: boolean;
   sequential?: boolean;
   markers?: LessonMarker[];
+  resources?: OneClickLessonResource[];
 };
 
 export type OneClickContentProvider = ContentProvider;
+
+export type OneClickLessonResource = {
+  id: string;
+  name: string;
+  url: string;
+  type?: string;
+  size?: number;
+};
 
 export type OneClickApplicationStatus = 'APPLIED' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
 export type OneClickPaymentStatus =
@@ -133,6 +142,7 @@ export type OneClickLesson = {
   required?: boolean;
   sequential?: boolean;
   markers?: LessonMarker[];
+  resources?: OneClickLessonResource[];
 };
 
 export type OneClickToolItem = {
@@ -357,6 +367,33 @@ const stringArray = (source: Record<string, unknown>, keys: string[]) =>
     )
     .filter(Boolean);
 
+const normalizeLessonResources = (
+  raw: unknown,
+  fallbackUrl = '',
+): OneClickLessonResource[] => {
+  const items = Array.isArray(raw) ? raw : [];
+  const resources = items
+    .map((item, index): OneClickLessonResource | null => {
+      const record = asRecord(item);
+      const url = pickString(record, ['url', 'fileUrl', 'downloadUrl', 'contentUrl'], '');
+      if (!url) return null;
+      const type = pickString(record, ['type', 'mimeType', 'fileType'], '');
+      const size = pickNumber(record, ['size', 'fileSize'], 0);
+      return {
+        id: pickString(record, ['id', 'fileSeq', 'resourceSeq', 'seq'], `resource-${index + 1}`),
+        name: pickString(record, ['name', 'fileName', 'title', 'label'], `자료 ${index + 1}`),
+        url,
+        ...(type ? { type } : {}),
+        ...(size ? { size } : {}),
+      };
+    })
+    .filter((item): item is OneClickLessonResource => Boolean(item));
+  if (!resources.length && fallbackUrl) {
+    return [{ id: 'resource-1', name: '학습 자료', url: fallbackUrl }];
+  }
+  return resources;
+};
+
 const normalizeApplyStatus = (value: string): OneClickShare['applyStatus'] =>
   value === 'CLOSED' || value === 'N' || value.includes('CLOSE') ? 'CLOSED' : 'OPEN';
 
@@ -488,28 +525,37 @@ const mockCurriculum = (courseActiveSeq: string): OneClickCurriculumItem[] => {
           required?: boolean;
           sequential?: boolean;
           markers?: LessonMarker[];
+          resources?: OneClickLessonResource[];
         }>;
       }>;
       return sections.flatMap((section) =>
         (section.lessons ?? [])
           .filter((lesson) => lesson.published !== false)
-          .map((lesson, index) => ({
-            lessonId: lesson.id || String(index + 1),
-            sectionId: section.id,
-            sectionTitle: section.title,
-            organizationSeq: lesson.organizationSeq,
-            itemSeq: lesson.itemSeq,
-            activeElementSeq: lesson.activeElementSeq,
-            contentsSeq: lesson.contentsSeq,
-            title: lesson.title || `${index + 1}강`,
-            description: lesson.description || '',
-            durationText: `${lesson.durationMinutes || 0}분`,
-            contentUrl: lesson.contentUrl || '',
-            contentProvider: detectContentProvider(lesson.contentUrl, lesson.contentType),
-            required: lesson.required ?? true,
-            sequential: lesson.sequential ?? false,
-            markers: lesson.markers ?? [],
-          })),
+          .map((lesson, index) => {
+            const resources = normalizeLessonResources(
+              lesson.resources,
+              lesson.contentType === 'document' ? lesson.contentUrl : '',
+            );
+            const contentUrl = lesson.contentUrl || resources[0]?.url || '';
+            return {
+              lessonId: lesson.id || String(index + 1),
+              sectionId: section.id,
+              sectionTitle: section.title,
+              organizationSeq: lesson.organizationSeq,
+              itemSeq: lesson.itemSeq,
+              activeElementSeq: lesson.activeElementSeq,
+              contentsSeq: lesson.contentsSeq,
+              title: lesson.title || `${index + 1}강`,
+              description: lesson.description || '',
+              durationText: `${lesson.durationMinutes || 0}분`,
+              contentUrl,
+              contentProvider: detectContentProvider(contentUrl, lesson.contentType),
+              required: lesson.required ?? true,
+              sequential: lesson.sequential ?? false,
+              markers: lesson.markers ?? [],
+              resources,
+            };
+          }),
       );
     }
   } catch {
@@ -827,10 +873,16 @@ const normalizeLessons = (raw: unknown): OneClickLesson[] => {
     const locked =
       pickBoolean(record, ['locked', 'lockYn'], false) ||
       pickString(record, ['useYn', 'playableYn'], 'Y') === 'N';
+    const contentType = pickString(record, ['contentProvider', 'contentType', 'elementType'], 'video');
     const contentUrl = pickString(record, ['contentUrl', 'videoUrl', 'mediaUrl', 'url'], '');
+    const resources = normalizeLessonResources(
+      firstArray(record, ['resources', 'resourceList', 'fileList', 'attachments']),
+      detectContentProvider(contentUrl, contentType) === 'DOCUMENT' ? contentUrl : '',
+    );
+    const primaryContentUrl = contentUrl || resources[0]?.url || '';
     const contentProvider = detectContentProvider(
-      contentUrl,
-      pickString(record, ['contentProvider', 'contentType', 'elementType'], 'video'),
+      primaryContentUrl,
+      contentType,
     );
     return {
       lessonId: pickString(
@@ -864,16 +916,17 @@ const normalizeLessons = (raw: unknown): OneClickLesson[] => {
       progress,
       locked,
       completed: pickBoolean(record, ['completed', 'completeYn'], progress >= 90),
-      playable: !locked && Boolean(contentUrl),
+      playable: !locked && Boolean(primaryContentUrl || resources.length),
       currentSeconds: pickNumber(record, ['currentSeconds', 'lastSeconds'], 0),
       durationSeconds: pickNumber(record, ['durationSeconds', 'totalSeconds'], 0),
       progressPercent: progress,
       completedAt: pickString(record, ['completedAt', 'completeDate'], '') || null,
       completionReason:
         (pickString(record, ['completionReason'], '') as OneClickLesson['completionReason']) || null,
-      contentUrl,
+      contentUrl: primaryContentUrl,
       contentProvider,
       markers: normalizeMarkers(record),
+      resources,
     };
   });
 };

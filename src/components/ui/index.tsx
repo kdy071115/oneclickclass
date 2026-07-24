@@ -196,12 +196,48 @@ export function BarChart({ data, label }: { data: readonly { label: string; valu
   );
 }
 
-export function FileDropzone({ onFile, accept = 'image/png,image/jpeg,image/webp', maxSize = 5 * 1024 * 1024 }: { onFile: (file: File) => void; accept?: string; maxSize?: number }) {
+export function FileDropzone({
+  onFile,
+  onFiles,
+  accept = 'image/png,image/jpeg,image/webp',
+  maxSize = 5 * 1024 * 1024,
+  multiple = false,
+  description,
+}: {
+  onFile?: (file: File) => void;
+  onFiles?: (files: File[]) => void;
+  accept?: string;
+  maxSize?: number;
+  multiple?: boolean;
+  description?: string;
+}) {
   const [error, setError] = useState('');
   const [dragging, setDragging] = useState(false);
   const id = useId();
-  const handleFile = (file?: File) => { if (!file) return; if (file.size > maxSize) { setError(`파일은 ${Math.round(maxSize / 1024 / 1024)}MB 이하여야 해요.`); return; } if (accept && !accept.split(',').includes(file.type)) { setError('지원하지 않는 파일 형식이에요.'); return; } setError(''); onFile(file); };
-  return <div className={`ui-dropzone ${dragging ? 'is-dragging' : ''}`} onDragOver={(event) => { event.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); handleFile(event.dataTransfer.files[0]); }}><label htmlFor={id}><UploadCloud size={24} /><strong>파일을 선택하거나 여기에 놓으세요</strong><small>JPG, PNG, WEBP · 최대 {Math.round(maxSize / 1024 / 1024)}MB</small><input id={id} type="file" accept={accept} onChange={(event) => handleFile(event.target.files?.[0])} /></label>{error && <p role="alert">{error}</p>}</div>;
+  const acceptRules = accept.split(',').map((item) => item.trim()).filter(Boolean);
+  const isAccepted = (file: File) =>
+    !acceptRules.length ||
+    acceptRules.some((rule) => {
+      if (rule.startsWith('.')) return file.name.toLowerCase().endsWith(rule.toLowerCase());
+      if (rule.endsWith('/*')) return file.type.startsWith(rule.slice(0, -1));
+      return file.type === rule;
+    });
+  const handleFiles = (fileList?: FileList | File[]) => {
+    const files = Array.from(fileList ?? []);
+    if (!files.length) return;
+    if (files.some((file) => file.size > maxSize)) {
+      setError(`파일은 ${Math.round(maxSize / 1024 / 1024)}MB 이하여야 해요.`);
+      return;
+    }
+    if (files.some((file) => !isAccepted(file))) {
+      setError('지원하지 않는 파일 형식이에요.');
+      return;
+    }
+    setError('');
+    if (multiple) onFiles?.(files);
+    else onFile?.(files[0]);
+  };
+  return <div className={`ui-dropzone ${dragging ? 'is-dragging' : ''}`} onDragOver={(event) => { event.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); handleFiles(multiple ? event.dataTransfer.files : [event.dataTransfer.files[0]].filter(Boolean) as File[]); }}><label htmlFor={id}><UploadCloud size={24} /><strong>파일을 선택하거나 여기에 놓으세요</strong><small>{description ?? `JPG, PNG, WEBP · 최대 ${Math.round(maxSize / 1024 / 1024)}MB`}</small><input id={id} type="file" accept={accept} multiple={multiple} onChange={(event) => handleFiles(event.target.files ?? undefined)} /></label>{error && <p role="alert">{error}</p>}</div>;
 }
 
 export function Stepper({ current, steps }: { current: number; steps: readonly string[] }) {

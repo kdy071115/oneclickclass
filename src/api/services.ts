@@ -404,6 +404,16 @@ export const classService = {
       })
       .then((r) => r.data);
   },
+  uploadFile: (file: File): Promise<{ url: string; name?: string; type?: string; size?: number }> => {
+    if (mock) return delay({ url: URL.createObjectURL(file), name: file.name, type: file.type, size: file.size });
+    const form = new FormData();
+    form.append('file', file);
+    return apiClient
+      .post<{ url: string; name?: string; type?: string; size?: number }>('/classes/files', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((r) => r.data);
+  },
 };
 export const applicantService = {
   list: (): Promise<Applicant[]> =>

@@ -29,6 +29,7 @@ import {
   isPaymentPending,
   oneclickService,
   shareTokenFromCourseActiveSeq,
+  type OneClickContentProvider,
   type OneClickEnrollment,
   type OneClickLearnRoom,
   type OneClickLesson,
@@ -59,6 +60,12 @@ const formatPlaybackTime = (seconds: number) => {
   const minutes = Math.floor(seconds / 60);
   const remainder = Math.floor(seconds % 60);
   return `${minutes}분 ${remainder}초`;
+};
+
+const formatFileSize = (size?: number) => {
+  if (!size) return '';
+  if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))}KB`;
+  return `${(size / 1024 / 1024).toFixed(size >= 10 * 1024 * 1024 ? 0 : 1)}MB`;
 };
 
 const parseDurationMinutes = (durationText: string) => {
@@ -106,6 +113,41 @@ const getYouTubeVideoId = (url: string) => {
     return parsed.searchParams.get('v') || '';
   } catch {
     return '';
+  }
+};
+
+const getLinkedLessonView = (provider: OneClickContentProvider) => {
+  switch (provider) {
+    case 'DOCUMENT':
+      return {
+        label: '학습 자료',
+        title: '자료를 확인해 주세요.',
+        description: '강의자가 등록한 학습 자료를 새 창에서 열어 볼 수 있어요.',
+        action: '자료 열기',
+      };
+    case 'ASSIGNMENT':
+      return {
+        label: '과제',
+        title: '과제 안내를 확인해 주세요.',
+        description: '제출 방법과 과제 설명을 확인한 뒤 진행해 주세요.',
+        action: '과제 보기',
+      };
+    case 'LIVE':
+      return {
+        label: '라이브',
+        title: '라이브 수업에 입장해 주세요.',
+        description: '정해진 시간에 참여 링크로 입장할 수 있어요.',
+        action: '라이브 입장',
+      };
+    case 'EXTERNAL':
+      return {
+        label: '외부 콘텐츠',
+        title: '연결된 콘텐츠를 확인해 주세요.',
+        description: '강의자가 등록한 링크를 새 창에서 열어 학습을 이어갈 수 있어요.',
+        action: '콘텐츠 열기',
+      };
+    default:
+      return null;
   }
 };
 
@@ -1250,6 +1292,14 @@ export function LearnerRoomPage() {
   }
   const activeLesson = lessons[activeLessonIndex] ?? lessons[0];
   const activeProgress = activeLesson.progress ?? enrollment.progress;
+  const linkedLessonView = getLinkedLessonView(activeLesson.contentProvider);
+  const activeLessonResources =
+    activeLesson.resources?.length
+      ? activeLesson.resources
+      : activeLesson.contentUrl && linkedLessonView
+        ? [{ id: 'primary-resource', name: activeLesson.title, url: activeLesson.contentUrl }]
+        : [];
+  const hasActiveLessonContent = Boolean(activeLesson.contentUrl || activeLessonResources.length);
   const openTool = (tool: 'notice' | 'resource' | 'assessment' | 'review') => {
     setActiveTool(tool);
     setToolMessage('');
@@ -1282,7 +1332,7 @@ export function LearnerRoomPage() {
   };
   const resumeLesson = (index = defaultResumeLessonIndex) => {
     const lesson = lessons[index];
-    if (!lesson || lesson.locked || !lesson.playable || !lesson.contentUrl) return;
+    if (!lesson || lesson.locked || !lesson.playable || !(lesson.contentUrl || lesson.resources?.length)) return;
     setActiveLessonIndex(index);
     setActiveDurationSeconds(0);
     setPlaybackStartSeconds(lesson.completed ? 0 : (lesson.currentSeconds ?? 0));
@@ -1429,7 +1479,43 @@ export function LearnerRoomPage() {
       {bookmarkError && <p className="learner-bookmark-error room" role="status">{bookmarkError}</p>}
       <main className="learner-room-grid">
         <section className="learner-room-main">
-          <div className={`learner-player ${activeLesson.contentUrl ? 'has-video' : 'is-empty'}`}>
+          {linkedLessonView && activeLessonResources.length ? (
+            <section className="learner-material-stage">
+              <div className="learner-material-stage-head">
+                <span><FileText size={18} /> {linkedLessonView.label}</span>
+                <small>{activeLessonIndex + 1}강</small>
+              </div>
+              <h2>{activeLesson.title}</h2>
+              <p>{activeLesson.description || linkedLessonView.description}</p>
+              <div className="learner-material-files">
+                {activeLessonResources.map((resource, index) => (
+                  <a
+                    href={resource.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    key={resource.id}
+                    onClick={() => savePlayback(1, false, 1, true)}
+                  >
+                    <span>
+                      <FileText size={18} />
+                      <span>
+                        <b>{resource.name || `${linkedLessonView.action} ${index + 1}`}</b>
+                        <small>{[formatFileSize(resource.size), resource.type].filter(Boolean).join(' · ') || linkedLessonView.action}</small>
+                      </span>
+                    </span>
+                    <strong>
+                      {linkedLessonView.action}
+                      <ExternalLink size={15} />
+                    </strong>
+                  </a>
+                ))}
+              </div>
+              <small className="learner-material-stage-note">
+                자료를 열면 이 차시는 학습한 것으로 기록돼요.
+              </small>
+            </section>
+          ) : (
+          <div className={`learner-player ${hasActiveLessonContent ? 'has-video' : 'is-empty'}`}>
             {activeLesson.contentProvider === 'FILE' && activeLesson.contentUrl ? (
               <video
                 key={`${activeLesson.lessonId}-${playbackSession}`}
@@ -1492,8 +1578,8 @@ export function LearnerRoomPage() {
             ) : activeLesson.contentUrl ? (
               <div className="learner-player-empty protected-external-content">
                 <ExternalLink />
-                <b>외부 링크 콘텐츠는 열 수 없어요.</b>
-                <p>강의 공유를 막기 위해 수강 페이지 안에서 재생 가능한 콘텐츠만 보여줘요.</p>
+                <b>지원 준비 중인 콘텐츠예요.</b>
+                <p>이 차시는 수강 페이지 안에서 바로 열 수 있는 방식으로 등록이 필요해요.</p>
               </div>
             ) : (
               <div className="learner-player-empty">
@@ -1536,10 +1622,12 @@ export function LearnerRoomPage() {
             )}
             <div className="learner-player-meta">
               <small>
-                {activeLesson.contentUrl
+                {hasActiveLessonContent
                   ? playing
                     ? '재생 중'
-                    : '이어보기 대기'
+                    : linkedLessonView
+                      ? '자료 열람'
+                      : '이어보기 대기'
                   : '콘텐츠 준비 중'}
               </small>
               <b>
@@ -1553,6 +1641,7 @@ export function LearnerRoomPage() {
               </span>
             </div>
           </div>
+          )}
           <section className="learner-section learner-progress-card">
             <span>수강 중</span>
             <h1>{title}</h1>
@@ -1801,7 +1890,8 @@ export function LearnerRoomPage() {
                 const index = lessons.findIndex((item) => item.lessonId === lesson.lessonId);
                 const done = lesson.completed;
                 const locked = lesson.locked;
-                const unavailable = !locked && (!lesson.playable || !lesson.contentUrl);
+                const hasLessonContent = Boolean(lesson.contentUrl || lesson.resources?.length);
+                const unavailable = !locked && (!lesson.playable || !hasLessonContent);
                 const lessonNumber = `${sectionIndex + 1}-${lessonIndex + 1}`;
                 const lessonStatus = locked
                   ? '이전 강의 완료 후 열림'

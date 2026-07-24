@@ -109,6 +109,13 @@ export interface LessonMarker {
   choices?: string[];
   answerIndex?: number;
 }
+export interface LessonResource {
+  id: string;
+  name: string;
+  url: string;
+  type?: string;
+  size?: number;
+}
 export interface CurriculumLesson {
   id: string;
   organizationSeq?: string;
@@ -125,6 +132,7 @@ export interface CurriculumLesson {
   required?: boolean;
   sequential?: boolean;
   markers?: LessonMarker[];
+  resources?: LessonResource[];
 }
 export interface CurriculumSection {
   id: string;

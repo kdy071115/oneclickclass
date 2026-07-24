@@ -2862,6 +2862,231 @@
   width: 100%;
   height: 100%;
 }
+.lesson-resource-panel {
+  grid-column: 1 / -1;
+  padding: 14px;
+  border: 1px solid #e5eaf2;
+  border-radius: 14px;
+  background: #f8fafc;
+  display: grid;
+  gap: 12px;
+}
+.lesson-resource-panel > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+.lesson-resource-panel > div:first-child b {
+  color: #1f2937;
+  font-size: 14px;
+  font-weight: 900;
+}
+.lesson-resource-panel > div:first-child small,
+.resource-upload-status {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+.lesson-resource-list {
+  display: grid;
+  gap: 8px;
+}
+.lesson-resource-list article {
+  min-height: 56px;
+  padding: 10px 12px;
+  border: 1px solid #e5eaf2;
+  border-radius: 12px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.lesson-resource-list article > span {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.lesson-resource-list article > span > svg {
+  flex: 0 0 auto;
+  padding: 8px;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #3182f6;
+  box-sizing: content-box;
+}
+.lesson-resource-list article > span span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+.lesson-resource-list article b {
+  overflow: hidden;
+  color: #1f2937;
+  font-size: 13px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lesson-resource-list article small {
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 800;
+}
+.lesson-resource-list article > div {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.lesson-resource-list article a {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid #dbe6f5;
+  border-radius: 10px;
+  color: #2563eb;
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 900;
+  text-decoration: none;
+}
+.learner-material-stage {
+  min-height: 300px;
+  padding: 28px;
+  border: 1px solid #e6edf7;
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(239, 246, 255, 0.9), rgba(255, 255, 255, 0.96) 42%),
+    #fff;
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+.learner-material-stage-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.learner-material-stage-head span {
+  min-height: 32px;
+  padding: 0 11px;
+  border-radius: 999px;
+  background: #eaf3ff;
+  color: #2563eb;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 900;
+}
+.learner-material-stage-head small {
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 900;
+}
+.learner-material-stage h2 {
+  margin: 2px 0 0;
+  color: #111827;
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1.28;
+}
+.learner-material-stage > p {
+  max-width: 560px;
+  margin: 0;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.65;
+}
+.learner-material-files {
+  width: 100%;
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+.learner-material-files a {
+  min-height: 68px;
+  padding: 12px 14px;
+  border: 1px solid #dbe8fb;
+  border-radius: 14px;
+  background: #fff;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+  font-weight: 900;
+  text-decoration: none;
+  text-align: left;
+}
+.learner-material-files a:hover {
+  border-color: #93c5fd;
+  background: #f8fbff;
+}
+.learner-material-files a > span {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.learner-material-files a > span > svg {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  padding: 10px;
+  border-radius: 12px;
+  background: #eff6ff;
+  color: #3182f6;
+  box-sizing: content-box;
+}
+.learner-material-files a > span > span {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+.learner-material-files a b {
+  margin: 0;
+  overflow: hidden;
+  color: #111827;
+  font-size: 14px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.learner-material-files a small {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 800;
+}
+.learner-material-files a strong {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 11px;
+  background: #3182f6;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 900;
+}
+.learner-material-files a strong svg {
+  width: 15px;
+  height: 15px;
+}
+.learner-material-stage-note {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
 .learner-player-empty {
   display: grid;
   place-items: center;

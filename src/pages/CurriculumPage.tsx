@@ -36,6 +36,7 @@ import type {
   LessonContentType,
   LessonMarker,
   LessonMarkerType,
+  LessonResource,
 } from '../types/class';
 import {
   contentProviderLabel,
@@ -67,7 +68,7 @@ const lessonTypes: Record<
     urlHint: '이어보기는 영상 제공자의 재생 위치 연동이 지원되는 경우 저장돼요.',
   },
   live: { label: '라이브', Icon: Radio, urlLabel: '참여 URL', urlHint: '수강생이 바로 입장할 수 있는 주소를 입력해 주세요.' },
-  document: { label: '학습 자료', Icon: FileText, urlLabel: '자료 URL', urlHint: '수강생이 열람할 수 있는 공개 주소를 입력해 주세요.' },
+  document: { label: '학습 자료', Icon: FileText, urlLabel: '자료 URL', urlHint: 'PDF나 문서 파일을 올리거나, 외부 자료 주소를 입력해 주세요.' },
   assignment: { label: '과제', Icon: BookOpen, urlLabel: '제출 안내 URL', urlHint: '과제 설명이나 제출 화면 주소를 입력해 주세요.' },
 };
 
@@ -82,6 +83,7 @@ const emptyLesson = (): Omit<CurriculumLesson, 'id'> => ({
   required: true,
   sequential: false,
   markers: [],
+  resources: [],
 });
 
 type MarkerDraft = Omit<LessonMarker, 'id' | 'markerSeq' | 'choices'> & {
@@ -101,6 +103,12 @@ const emptyMarker = (): MarkerDraft => ({
 const formatMarkerTime = (seconds: number) => {
   const value = Math.max(0, Math.floor(seconds));
   return `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
+};
+
+const formatFileSize = (size?: number) => {
+  if (!size) return '';
+  if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))}KB`;
+  return `${(size / 1024 / 1024).toFixed(size >= 10 * 1024 * 1024 ? 0 : 1)}MB`;
 };
 
 type LessonEditor = {
@@ -132,6 +140,7 @@ export function CurriculumPage() {
   const [markerOpen, setMarkerOpen] = useState(false);
   const [markerImageUploading, setMarkerImageUploading] = useState(false);
   const [markerImageError, setMarkerImageError] = useState('');
+  const [resourceUploading, setResourceUploading] = useState(false);
   const [markerPreviewSeconds, setMarkerPreviewSeconds] = useState(0);
   const [markerPreviewPlaying, setMarkerPreviewPlaying] = useState(false);
   const [videoDurationSeconds, setVideoDurationSeconds] = useState(0);
@@ -281,13 +290,21 @@ export function CurriculumPage() {
       setTitleError('차시 제목을 입력해 주세요.');
       return;
     }
-    if (lesson.published && !lesson.contentUrl.trim()) {
+    const lessonResources = lesson.resources ?? [];
+    const hasContent =
+      Boolean(lesson.contentUrl.trim()) ||
+      (lesson.contentType === 'document' && lessonResources.length > 0);
+    if (lesson.published && !hasContent) {
       setContentUrlError(
-        `공개하려면 ${lessonTypes[lesson.contentType].urlLabel}을 입력해 주세요.`,
+        lesson.contentType === 'document'
+          ? '공개하려면 자료 파일을 올리거나 자료 URL을 입력해 주세요.'
+          : `공개하려면 ${lessonTypes[lesson.contentType].urlLabel}을 입력해 주세요.`,
       );
       return;
     }
-    const urlError = validateContentUrl(lesson.contentUrl, lesson.contentType);
+    const urlError = lesson.contentUrl.trim()
+      ? validateContentUrl(lesson.contentUrl, lesson.contentType)
+      : '';
     if (urlError) {
       setContentUrlError(urlError);
       return;
@@ -296,8 +313,11 @@ export function CurriculumPage() {
     try {
       const value = {
         ...lesson,
+        contentUrl: lesson.contentUrl.trim(),
         title: lesson.title.trim(),
         durationMinutes: Math.max(0, lesson.durationMinutes),
+        markers: lesson.contentType === 'video' ? lesson.markers : [],
+        resources: lesson.contentType === 'document' ? lessonResources : [],
       };
       const next = editor.lessonId
         ? await curriculumService.updateLesson(id, editor.lessonId, value)
@@ -372,6 +392,39 @@ export function CurriculumPage() {
     } finally {
       setMarkerImageUploading(false);
     }
+  };
+
+  const uploadLessonResources = async (files: File[]) => {
+    if (!files.length) return;
+    setResourceUploading(true);
+    setContentUrlError('');
+    try {
+      const uploaded = await Promise.all(files.map((file) => classService.uploadFile(file)));
+      const resources: LessonResource[] = uploaded.map((item, index) => ({
+        id: crypto.randomUUID(),
+        name: item.name || files[index].name,
+        url: item.url,
+        type: item.type || files[index].type,
+        size: item.size ?? files[index].size,
+      }));
+      const nextResources = [...(lesson.resources ?? []), ...resources];
+      setLesson({
+        ...lesson,
+        resources: nextResources,
+      });
+    } catch {
+      setContentUrlError('자료 파일을 업로드하지 못했어요. 다시 시도해 주세요.');
+    } finally {
+      setResourceUploading(false);
+    }
+  };
+
+  const removeLessonResource = (resourceId: string) => {
+    const nextResources = (lesson.resources ?? []).filter((resource) => resource.id !== resourceId);
+    setLesson({
+      ...lesson,
+      resources: nextResources,
+    });
   };
 
   const updateMarkerChoice = (index: number, value: string) => {
@@ -645,7 +698,7 @@ export function CurriculumPage() {
             ))}
           </Select>
           <Input
-            label={lessonTypes[lesson.contentType].urlLabel}
+            label={lesson.contentType === 'document' ? '자료 URL (선택)' : lessonTypes[lesson.contentType].urlLabel}
             type="url"
             value={lesson.contentUrl}
             error={contentUrlError}
@@ -671,6 +724,43 @@ export function CurriculumPage() {
                 원본 공유를 완전히 차단할 수는 없어요.
               </div>
             )}
+          {lesson.contentType === 'document' && (
+            <section className="lesson-resource-panel">
+              <div>
+                <b>자료 파일</b>
+                <small>PDF, 문서, 이미지, 압축 파일을 여러 개 올릴 수 있어요.</small>
+              </div>
+              <FileDropzone
+                accept="application/pdf,.pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.zip,image/*,text/plain"
+                description="PDF, Office, 이미지, ZIP · 파일당 최대 50MB"
+                maxSize={50 * 1024 * 1024}
+                multiple
+                onFiles={(files) => void uploadLessonResources(files)}
+              />
+              {!!lesson.resources?.length && (
+                <div className="lesson-resource-list">
+                  {lesson.resources.map((resource) => (
+                    <article key={resource.id}>
+                      <span>
+                        <FileText size={18} />
+                        <span>
+                          <b>{resource.name}</b>
+                          <small>{[formatFileSize(resource.size), resource.type].filter(Boolean).join(' · ') || '학습 자료'}</small>
+                        </span>
+                      </span>
+                      <div>
+                        <a href={resource.url} target="_blank" rel="noreferrer">보기</a>
+                        <IconButton label={`${resource.name} 삭제`} onClick={() => removeLessonResource(resource.id)}>
+                          <Trash2 />
+                        </IconButton>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+              {resourceUploading && <p className="resource-upload-status" role="status">자료를 업로드하고 있어요.</p>}
+            </section>
+          )}
           {lesson.contentType === 'video' && lesson.contentUrl.trim() && (
             <section className={`lesson-marker-editor ${markerOpen ? 'is-open' : ''}`}>
               <button
