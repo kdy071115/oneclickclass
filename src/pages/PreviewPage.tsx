@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useRef, useState } from 'react';
+import { FormEvent, type RefObject, useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   CalendarDays,
@@ -39,9 +39,10 @@ import { initialClassDraft } from '../constants/classDraft';
 import { loadClassDraft, loadClassPreview } from '../utils/classDraft';
 import { classService, curriculumService, detailService } from '../api/services';
 import type { ClassDetail, CurriculumSection } from '../types/class';
-import { YouTubePlayer } from '../components/YouTubePlayer';
 import { getPublishIssues, type PublishIssue } from '../utils/classReadiness';
 import { useCourseBookmark } from '../hooks/useCourseBookmark';
+import { ConfirmDialog } from '../components/ui';
+import { YouTubePlayer } from '../components/YouTubePlayer';
 
 const fallbackLearnerHighlights = [
   '업무 흐름을 기준으로 데이터베이스를 설계해요.',
@@ -96,11 +97,6 @@ const groupCurriculumItems = <T extends { sectionId?: string; sectionTitle?: str
     return groups;
   }, []);
 
-const getVimeoEmbedUrl = (url: string) => {
-  const videoId = url.match(/vimeo\.com\/(?:video\/)?(\d+)/)?.[1];
-  return videoId ? `https://player.vimeo.com/video/${videoId}` : '';
-};
-
 const getYouTubeVideoId = (url: string) => {
   try {
     const parsed = new URL(url);
@@ -147,7 +143,14 @@ export function PublicEnrollmentPage() {
   const [verificationCode, setVerificationCode] = useState('');
   const [verificationHint, setVerificationHint] = useState('');
   const [error, setError] = useState('');
+  const [errorTarget, setErrorTarget] = useState<'name' | 'phone' | 'privacy' | 'payment' | 'verification' | ''>('');
   const [submitting, setSubmitting] = useState(false);
+  const [applicationFocus, setApplicationFocus] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const phoneInputRef = useRef<HTMLInputElement>(null);
+  const verificationInputRef = useRef<HTMLInputElement>(null);
+  const privacyInputRef = useRef<HTMLInputElement>(null);
+  const paymentInputRef = useRef<HTMLInputElement>(null);
   const {
     bookmarked,
     loading: bookmarkLoading,
@@ -194,17 +197,32 @@ export function PublicEnrollmentPage() {
     window.addEventListener('scroll', updateActiveSection, { passive: true });
     return () => window.removeEventListener('scroll', updateActiveSection);
   }, []);
+  const setFormError = (
+    message: string,
+    target: typeof errorTarget,
+    inputRef?: RefObject<HTMLInputElement | null>,
+  ) => {
+    setError(message);
+    setErrorTarget(target);
+    window.setTimeout(() => inputRef?.current?.focus(), 0);
+  };
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!share) return setError('신청 링크를 확인하는 중이에요.');
-    if (!form.name.trim()) return setError('이름을 입력해 주세요.');
+    if (!share) return setFormError('신청 링크를 확인하는 중이에요.', '');
+    if (!form.name.trim()) return setFormError('이름을 입력해 주세요.', 'name', nameInputRef);
     if (form.phone.replace(/\D/g, '').length < 10)
-      return setError('휴대전화 번호를 확인해 주세요.');
-    if (!form.privacyConsent) return setError('개인정보 수집 및 수강 안내 발송에 동의해 주세요.');
+      return setFormError('휴대전화 번호를 확인해 주세요.', 'phone', phoneInputRef);
+    if (!form.privacyConsent)
+      return setFormError(
+        '개인정보 수집 및 수강 안내 발송에 동의해 주세요.',
+        'privacy',
+        privacyInputRef,
+      );
     if (share.paymentType === 'PAID' && !form.paymentConsent)
-      return setError('결제 및 환불 안내를 확인해 주세요.');
+      return setFormError('결제 및 환불 안내를 확인해 주세요.', 'payment', paymentInputRef);
     setSubmitting(true);
     setError('');
+    setErrorTarget('');
     try {
       if (!verificationSent) {
         const verification = await oneclickService.requestVerification(
@@ -220,7 +238,7 @@ export function PublicEnrollmentPage() {
         return;
       }
       if (verificationCode.replace(/\D/g, '').length !== 6) {
-        setError('문자로 받은 6자리 인증번호를 입력해 주세요.');
+        setFormError('문자로 받은 6자리 인증번호를 입력해 주세요.', 'verification', verificationInputRef);
         return;
       }
       const enrollment = await oneclickService.apply(shareToken, {
@@ -333,16 +351,27 @@ export function PublicEnrollmentPage() {
     : '0.0';
   const highlights = share?.highlights?.length ? share.highlights : fallbackLearnerHighlights;
   const remainingSeats = share?.remainingSeats ?? draft.capacity;
-  const mobileCtaText = canEnterLearnerRoom(existing)
+  const mobileCtaText = !share || !existingChecked
+    ? '신청 정보 확인 중...'
+    : canEnterLearnerRoom(existing)
     ? showCurriculum
       ? '바로 이어보기'
       : '강의 준비 상태 확인'
-    : share?.paymentType === 'PAID'
-      ? `${priceText} 결제하고 신청`
-      : `무료로 신청 · 잔여 ${remainingSeats}명`;
+    : existing
+      ? '신청 상태 확인하기'
+      : share?.paymentType === 'PAID'
+        ? `${priceText} 결제하고 신청`
+        : `무료로 신청 · 잔여 ${remainingSeats}명`;
+  const mobileCtaDisabled = !share || !existingChecked;
   const moveToApplication = () => {
-    if (existing && !showNewApplication) return void resumeLearning();
-    document.getElementById('learner-application')?.scrollIntoView({ behavior: 'smooth' });
+    if (existing && !showNewApplication) {
+      if (canEnterLearnerRoom(existing)) return void resumeLearning();
+      document.getElementById('learner-application')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    setApplicationFocus(true);
+    document.getElementById('learner-application')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    window.setTimeout(() => setApplicationFocus(false), 1400);
   };
   const handleBookmark = () => {
     if (!existing) {
@@ -401,7 +430,12 @@ export function PublicEnrollmentPage() {
             </div>
           </div>
           {bookmarkError && <p className="learner-bookmark-error" role="status">{bookmarkError}</p>}
-          <button className="learner-mobile-apply-cta" type="button" onClick={moveToApplication}>
+          <button
+            className="learner-mobile-apply-cta"
+            type="button"
+            disabled={mobileCtaDisabled}
+            onClick={moveToApplication}
+          >
             {mobileCtaText}
           </button>
           <div className="learner-tabs" aria-label="강의 정보">
@@ -504,7 +538,7 @@ export function PublicEnrollmentPage() {
               )}
               <h2>{existingTitle}</h2>
               <p>{existingDescription}</p>
-              {error && <p className="form-error">{error}</p>}
+              {error && <p className="form-error" role="alert">{error}</p>}
               <button className="primary" onClick={() => void resumeLearning()}>
                 {canEnterLearnerRoom(existing)
                   ? showCurriculum
@@ -515,13 +549,27 @@ export function PublicEnrollmentPage() {
               <button
                 className="secondary"
                 type="button"
-                onClick={() => setShowNewApplication(true)}
+                onClick={() => {
+                  setShowNewApplication(true);
+                  setApplicationFocus(true);
+                  window.setTimeout(() => {
+                    document.getElementById('learner-application')?.scrollIntoView({
+                      behavior: 'smooth',
+                      block: 'center',
+                    });
+                    nameInputRef.current?.focus();
+                  }, 0);
+                  window.setTimeout(() => setApplicationFocus(false), 1400);
+                }}
               >
                 다른 정보로 신청하기
               </button>
             </section>
           ) : (
-            <form className="learner-card learner-apply-card" onSubmit={submit}>
+            <form
+              className={`learner-card learner-apply-card ${applicationFocus ? 'is-focused' : ''}`}
+              onSubmit={submit}
+            >
               <div className="learner-card-head">
                 <span>{disabled ? '모집 마감' : '수강 신청'}</span>
                 <b>{priceText}</b>
@@ -530,18 +578,32 @@ export function PublicEnrollmentPage() {
               <label>
                 이름
                 <input
+                  ref={nameInputRef}
+                  aria-invalid={errorTarget === 'name'}
                   value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  onChange={(e) => {
+                    setForm({ ...form, name: e.target.value });
+                    if (errorTarget === 'name') {
+                      setError('');
+                      setErrorTarget('');
+                    }
+                  }}
                   placeholder="이름을 입력하세요"
                 />
               </label>
               <label>
                 휴대전화 번호
                 <input
+                  ref={phoneInputRef}
+                  aria-invalid={errorTarget === 'phone'}
                   inputMode="tel"
                   value={form.phone}
                   onChange={(e) => {
                     setForm({ ...form, phone: e.target.value });
+                    if (errorTarget === 'phone') {
+                      setError('');
+                      setErrorTarget('');
+                    }
                     setVerificationSent(false);
                     setVerificationCode('');
                     setVerificationHint('');
@@ -554,11 +616,19 @@ export function PublicEnrollmentPage() {
                 <label>
                   인증번호
                   <input
+                    ref={verificationInputRef}
+                    aria-invalid={errorTarget === 'verification'}
                     inputMode="numeric"
                     autoComplete="one-time-code"
                     maxLength={6}
                     value={verificationCode}
-                    onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                    onChange={(e) => {
+                      setVerificationCode(e.target.value.replace(/\D/g, ''));
+                      if (errorTarget === 'verification') {
+                        setError('');
+                        setErrorTarget('');
+                      }
+                    }}
                     placeholder="6자리 인증번호"
                   />
                   <small className="verify-help">{verificationHint}</small>
@@ -575,18 +645,34 @@ export function PublicEnrollmentPage() {
               </label>
               <label className="learner-check">
                 <input
+                  ref={privacyInputRef}
+                  aria-invalid={errorTarget === 'privacy'}
                   type="checkbox"
                   checked={form.privacyConsent}
-                  onChange={(e) => setForm({ ...form, privacyConsent: e.target.checked })}
+                  onChange={(e) => {
+                    setForm({ ...form, privacyConsent: e.target.checked });
+                    if (errorTarget === 'privacy') {
+                      setError('');
+                      setErrorTarget('');
+                    }
+                  }}
                 />{' '}
                 개인정보 수집 및 수강 안내 발송에 동의해요
               </label>
               {share?.paymentType === 'PAID' && (
                 <label className="learner-check">
                   <input
+                    ref={paymentInputRef}
+                    aria-invalid={errorTarget === 'payment'}
                     type="checkbox"
                     checked={form.paymentConsent}
-                    onChange={(e) => setForm({ ...form, paymentConsent: e.target.checked })}
+                    onChange={(e) => {
+                      setForm({ ...form, paymentConsent: e.target.checked });
+                      if (errorTarget === 'payment') {
+                        setError('');
+                        setErrorTarget('');
+                      }
+                    }}
                   />{' '}
                   결제 및 환불 안내를 확인했어요
                 </label>
@@ -594,7 +680,7 @@ export function PublicEnrollmentPage() {
               <div className="entry-note">
                 <LockKeyhole /> {applyGuide}
               </div>
-              {error && <p className="form-error">{error}</p>}
+              {error && <p className="form-error" role="alert">{error}</p>}
               <button className="primary" disabled={submitting || disabled}>
                 {applyButtonText}
               </button>
@@ -848,6 +934,7 @@ export function LearnerRoomPage() {
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewContent, setReviewContent] = useState('');
   const [reviewSaving, setReviewSaving] = useState(false);
+  const [reviewDeleteOpen, setReviewDeleteOpen] = useState(false);
   const [activeLessonIndex, setActiveLessonIndex] = useState(defaultResumeLessonIndex);
   const [playing, setPlaying] = useState(false);
   const [activeDurationSeconds, setActiveDurationSeconds] = useState(0);
@@ -1302,13 +1389,13 @@ export function LearnerRoomPage() {
     }
   };
   const removeReview = async () => {
-    if (!window.confirm('작성한 후기를 삭제할까요?')) return;
     setReviewSaving(true);
     try {
       await oneclickService.removeReview(id);
       setReview(null);
       setReviewRating(0);
       setReviewContent('');
+      setReviewDeleteOpen(false);
       setToolMessage('후기를 삭제했어요.');
     } catch {
       setToolMessage('후기를 삭제하지 못했어요.');
@@ -1317,6 +1404,7 @@ export function LearnerRoomPage() {
     }
   };
   return (
+    <>
     <div className="learner-shell learner-room-shell">
       <header className="learner-room-topbar">
         <b>원클릭 클래스</b>
@@ -1346,7 +1434,10 @@ export function LearnerRoomPage() {
               <video
                 key={`${activeLesson.lessonId}-${playbackSession}`}
                 controls
+                controlsList="nodownload noremoteplayback"
+                disablePictureInPicture
                 src={activeLesson.contentUrl}
+                onContextMenu={(event) => event.preventDefault()}
                 onPlay={() => setPlaying(true)}
                 onLoadedMetadata={(event) => {
                   setActiveDurationSeconds(event.currentTarget.duration);
@@ -1393,19 +1484,16 @@ export function LearnerRoomPage() {
                 onTimeChange={showMarkerAt}
               />
             ) : activeLesson.contentProvider === 'VIMEO' && activeLesson.contentUrl ? (
-              <iframe
-                src={getVimeoEmbedUrl(activeLesson.contentUrl)}
-                title={`${activeLesson.title} Vimeo 영상`}
-                allow="autoplay; fullscreen; picture-in-picture"
-                allowFullScreen
-              />
-            ) : activeLesson.contentUrl ? (
-              <div className="learner-player-empty external-content">
+              <div className="learner-player-empty protected-external-content">
                 <ExternalLink />
-                <b>외부 콘텐츠에서 학습을 진행해요.</b>
-                <a href={activeLesson.contentUrl} target="_blank" rel="noreferrer">
-                  콘텐츠 열기
-                </a>
+                <b>Vimeo 재생은 준비 중이에요.</b>
+                <p>YouTube 강의는 수강실 안에서 바로 재생할 수 있어요.</p>
+              </div>
+            ) : activeLesson.contentUrl ? (
+              <div className="learner-player-empty protected-external-content">
+                <ExternalLink />
+                <b>외부 링크 콘텐츠는 열 수 없어요.</b>
+                <p>강의 공유를 막기 위해 수강 페이지 안에서 재생 가능한 콘텐츠만 보여줘요.</p>
               </div>
             ) : (
               <div className="learner-player-empty">
@@ -1677,7 +1765,7 @@ export function LearnerRoomPage() {
                       type="button"
                       className="review-delete"
                       disabled={reviewSaving}
-                      onClick={() => void removeReview()}
+                      onClick={() => setReviewDeleteOpen(true)}
                     >
                       <Trash2 />
                       삭제
@@ -1714,6 +1802,16 @@ export function LearnerRoomPage() {
                 const done = lesson.completed;
                 const locked = lesson.locked;
                 const unavailable = !locked && (!lesson.playable || !lesson.contentUrl);
+                const lessonNumber = `${sectionIndex + 1}-${lessonIndex + 1}`;
+                const lessonStatus = locked
+                  ? '이전 강의 완료 후 열림'
+                  : unavailable
+                    ? '콘텐츠 준비 중'
+                    : done
+                      ? '처음부터 다시 보기'
+                      : ['FILE', 'YOUTUBE', 'VIMEO'].includes(lesson.contentProvider)
+                        ? '재생'
+                        : '열기';
                 return (
                   <button
                     className={`learner-lesson ${done ? 'done' : ''} ${locked ? 'locked' : ''} ${unavailable ? 'unavailable' : ''} ${activeLessonIndex === index ? 'active' : ''}`}
@@ -1721,9 +1819,28 @@ export function LearnerRoomPage() {
                     key={lesson.lessonId}
                     onClick={() => resumeLesson(index)}
                   >
-                    <span>{done ? <CheckCircle2 /> : locked ? <LockKeyhole /> : `${sectionIndex + 1}-${lessonIndex + 1}`}</span>
-                    <b>{lesson.title}<small><Clock3 size={14} /> 예상 {lesson.durationText}{lesson.progress > 0 ? ` · 학습 ${lesson.progress}%` : ''}</small></b>
-                    {locked ? <small className="lesson-state">이전 강의 완료 후 열림</small> : unavailable ? <small className="lesson-state">콘텐츠 준비 중</small> : done ? <RotateCcw aria-label="처음부터 다시 보기" size={18}><title>처음부터 다시 보기</title></RotateCcw> : ['FILE', 'YOUTUBE', 'VIMEO'].includes(lesson.contentProvider) ? <Play size={18} /> : <ExternalLink size={18} />}
+                    <span className="learner-lesson-index">
+                      {done ? <CheckCircle2 /> : locked ? <LockKeyhole /> : lessonNumber}
+                    </span>
+                    <span className="learner-lesson-copy">
+                      <b>{lesson.title}</b>
+                      <small>
+                        <Clock3 size={14} />
+                        예상 {lesson.durationText}
+                        {lesson.progress > 0 ? ` · 학습 ${lesson.progress}%` : ''}
+                      </small>
+                    </span>
+                    <span className="learner-lesson-action" aria-label={lessonStatus}>
+                      {locked || unavailable ? (
+                        <small className="lesson-state">{lessonStatus}</small>
+                      ) : done ? (
+                        <RotateCcw size={18} />
+                      ) : ['FILE', 'YOUTUBE', 'VIMEO'].includes(lesson.contentProvider) ? (
+                        <Play size={18} />
+                      ) : (
+                        <ExternalLink size={18} />
+                      )}
+                    </span>
                   </button>
                 );
               })}
@@ -1735,6 +1852,16 @@ export function LearnerRoomPage() {
         </aside>
       </main>
     </div>
+    <ConfirmDialog
+      open={reviewDeleteOpen}
+      title="후기를 삭제할까요?"
+      description="작성한 후기가 수강생 후기 영역에서 사라져요. 삭제한 후기는 다시 복구할 수 없어요."
+      confirmText="삭제하기"
+      loading={reviewSaving}
+      onCancel={() => setReviewDeleteOpen(false)}
+      onConfirm={() => void removeReview()}
+    />
+    </>
   );
 }
 

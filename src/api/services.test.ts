@@ -43,7 +43,7 @@ describe('instructor mock services', () => {
       expect.objectContaining({ id: 'recovered-course' }),
     );
     await expect(detailService.getClass('recovered-course')).resolves.toMatchObject({
-      title: '제목 없는 클래스',
+      title: '강의 정보 준비 중',
       rating: 0,
       reviewCount: 0,
       sessions: 1,

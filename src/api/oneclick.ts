@@ -363,6 +363,39 @@ const normalizeApplyStatus = (value: string): OneClickShare['applyStatus'] =>
 const normalizePaymentType = (price: number, value: string): OneClickShare['paymentType'] =>
   price > 0 || value === 'PAID' || value.includes('PAY') ? 'PAID' : 'FREE';
 
+const isPlaceholderText = (value?: string) => {
+  const text = value?.trim() || '';
+  return (
+    !text ||
+    text.includes('제목 없는') ||
+    text.includes('준비하고 있어요') ||
+    text.includes('테스트 커리큘럼') ||
+    text.includes('테스트 영상') ||
+    text.includes('테스트 차시')
+  );
+};
+
+const displayText = (value: string | undefined, fallback: string) =>
+  isPlaceholderText(value) ? fallback : value!.trim();
+
+const publicCurriculum = (items: OneClickCurriculumItem[], courseTitle: string) =>
+  items.map((item, index) => ({
+    ...item,
+    sectionTitle: isPlaceholderText(item.sectionTitle)
+      ? index === 0
+        ? '전체 과정'
+        : item.sectionTitle
+      : item.sectionTitle,
+    title: isPlaceholderText(item.title)
+      ? index === 0
+        ? `${courseTitle} 시작하기`
+        : `핵심 차시 ${index + 1}`
+      : item.title,
+    description: isPlaceholderText(item.description)
+      ? '강의의 핵심 흐름을 차근차근 따라가며 학습합니다.'
+      : item.description,
+  }));
+
 const mockShare = (shareToken: string): OneClickShare => {
   const courseActiveSeq =
     shareToken === '7KpX92Lm' ? '104' : shareToken === 'notion-auto' ? 'notion' : shareToken;
@@ -390,14 +423,25 @@ const mockShare = (shareToken: string): OneClickShare => {
         ? '라이브 · 차시별 참여 링크'
         : '온라인 · 차시별 영상'
     : baseDetail?.location || '온라인 강의실';
+  const displayTitle = displayText(
+    draftPatch?.title?.trim() || canonicalItem?.title || baseDetail?.title,
+    classDetail.title,
+  );
+  const displaySummary = displayText(
+    draftPatch?.summary?.trim() || baseDetail?.summary,
+    classDetail.summary || '핵심 내용을 실습으로 익히는 온라인 과정',
+  );
+  const displayDescription = displayText(
+    draftPatch?.description?.trim() || baseDetail?.description,
+    classDetail.description || displaySummary,
+  );
   return {
     shareToken,
     courseActiveSeq,
     courseMasterSeq: canonicalItem?.courseMasterSeq || `${sourceId}-master`,
-    title: draftPatch?.title?.trim() || canonicalItem?.title || '제목 없는 클래스',
-    summary: draftPatch?.summary?.trim() || baseDetail?.summary || '강의 소개를 준비하고 있어요.',
-    description:
-      draftPatch?.description?.trim() || baseDetail?.description || '상세 강의 소개를 준비하고 있어요.',
+    title: displayTitle,
+    summary: displaySummary,
+    description: displayDescription,
     price,
     capacity,
     enrolled,
@@ -415,10 +459,10 @@ const mockShare = (shareToken: string): OneClickShare => {
     locationText: location,
     requiresApproval: false,
     difficulty: '초급',
-    highlights: baseDetail?.description
-      ? [baseDetail.description]
-      : ['강의에서 다룰 핵심 내용을 준비하고 있어요.'],
-    curriculum,
+    highlights: isPlaceholderText(baseDetail?.description)
+      ? fallbackLessons(0).slice(0, 3).map((lesson) => lesson.description || lesson.title)
+      : [baseDetail?.description || displayDescription],
+    curriculum: publicCurriculum(curriculum, displayTitle),
   };
 };
 
@@ -522,7 +566,10 @@ const normalizeCurriculum = (
         String(index + 1),
       ),
       sectionId: pickString(record, ['sectionId', 'organizationSeq', 'chapterSeq'], '') || undefined,
-      sectionTitle: pickString(record, ['sectionTitle', 'organizationTitle', 'chapterTitle'], '') || undefined,
+      sectionTitle: displayText(
+        pickString(record, ['sectionTitle', 'organizationTitle', 'chapterTitle'], ''),
+        '전체 과정',
+      ),
       title: pickString(record, ['title', 'elementTitle', 'name'], `${index + 1}강`),
       description: pickString(record, ['description', 'summary', 'contents'], ''),
       durationText: pickString(
@@ -797,12 +844,18 @@ const normalizeLessons = (raw: unknown): OneClickLesson[] => {
       itemSeq: pickString(record, ['itemSeq'], '') || undefined,
       activeElementSeq: pickString(record, ['activeElementSeq'], '') || undefined,
       contentsSeq: pickString(record, ['contentsSeq', 'contentSeq'], '') || undefined,
-      title: pickString(
-        record,
-        ['title', 'elementTitle', 'organizationTitle', 'itemTitle', 'name'],
+      title: displayText(
+        pickString(
+          record,
+          ['title', 'elementTitle', 'organizationTitle', 'itemTitle', 'name'],
+          `${index + 1}강`,
+        ),
         `${index + 1}강`,
       ),
-      description: pickString(record, ['description', 'summary', 'contents'], ''),
+      description: displayText(
+        pickString(record, ['description', 'summary', 'contents'], ''),
+        '강의 내용을 차례대로 학습합니다.',
+      ),
       durationText: pickString(
         record,
         ['durationText', 'studyTimeText', 'learningTimeText'],

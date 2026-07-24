@@ -13,6 +13,7 @@ type YouTubeNamespace = {
     element: HTMLElement,
     options: {
       videoId: string;
+      host?: string;
       playerVars: Record<string, string | number>;
       events: {
         onReady: (event: { target: YouTubePlayerApi }) => void;
@@ -98,8 +99,14 @@ export function YouTubePlayer({
       wrapper.replaceChildren(mount);
       player = new YT.Player(mount, {
         videoId,
+        host: 'https://www.youtube-nocookie.com',
         playerVars: {
+          cc_load_policy: 0,
+          controls: 1,
           enablejsapi: 1,
+          fs: 1,
+          iv_load_policy: 3,
+          modestbranding: 1,
           origin: window.location.origin,
           playsinline: 1,
           rel: 0,
@@ -136,5 +143,5 @@ export function YouTubePlayer({
     };
   }, [startSeconds, videoId]);
 
-  return <div className="youtube-player" ref={wrapperRef} />;
+  return <div className="youtube-player" ref={wrapperRef} onContextMenu={(event) => event.preventDefault()} />;
 }

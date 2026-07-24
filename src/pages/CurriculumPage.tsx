@@ -15,10 +15,11 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { classService, curriculumService, detailService } from '../api/services';
 import {
   Button,
+  ConfirmDialog,
   EmptyState,
   FileDropzone,
   IconButton,
@@ -107,10 +108,12 @@ type LessonEditor = {
   lessonId?: string;
 };
 
+type DeleteConfirm =
+  | { type: 'section'; section: CurriculumSection }
+  | { type: 'lesson'; lesson: CurriculumLesson };
+
 export function CurriculumPage() {
   const { id = 'notion' } = useParams();
-  const [searchParams] = useSearchParams();
-  const setup = searchParams.get('setup') === '1';
   const [classTitle, setClassTitle] = useState('');
   const [sections, setSections] = useState<CurriculumSection[]>([]);
   const [loading, setLoading] = useState(true);
@@ -133,7 +136,21 @@ export function CurriculumPage() {
   const [markerPreviewPlaying, setMarkerPreviewPlaying] = useState(false);
   const [videoDurationSeconds, setVideoDurationSeconds] = useState(0);
   const markerVideoRef = useRef<HTMLVideoElement>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirm>();
+  const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState('');
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has('setup')) return;
+    params.delete('setup');
+    const query = params.toString();
+    window.history.replaceState(
+      null,
+      '',
+      `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`,
+    );
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -172,17 +189,36 @@ export function CurriculumPage() {
     notify('섹션 이름을 저장했어요');
   };
 
-  const removeSection = async (section: CurriculumSection) => {
-    if (
-      !window.confirm(
-        section.lessons.length
-          ? `‘${section.title}’ 섹션과 차시 ${section.lessons.length}개를 삭제할까요?`
-          : `‘${section.title}’ 섹션을 삭제할까요?`,
-      )
-    )
-      return;
-    setSections(await curriculumService.deleteSection(id, section.id));
-    notify('섹션을 삭제했어요');
+  const removeSection = (section: CurriculumSection) => {
+    setDeleteConfirm({ type: 'section', section });
+  };
+
+  const getDeleteDescription = () => {
+    if (!deleteConfirm) return '';
+    if (deleteConfirm.type === 'section') {
+      const { section } = deleteConfirm;
+      return section.lessons.length
+        ? `‘${section.title}’ 섹션과 포함된 차시 ${section.lessons.length}개가 삭제돼요. 삭제한 내용은 다시 복구할 수 없어요.`
+        : `‘${section.title}’ 섹션이 삭제돼요. 삭제한 내용은 다시 복구할 수 없어요.`;
+    }
+    return `‘${deleteConfirm.lesson.title}’ 차시가 삭제돼요. 삭제한 내용은 다시 복구할 수 없어요.`;
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm) return;
+    setDeleting(true);
+    try {
+      if (deleteConfirm.type === 'section') {
+        setSections(await curriculumService.deleteSection(id, deleteConfirm.section.id));
+        notify('섹션을 삭제했어요');
+      } else {
+        setSections(await curriculumService.deleteLesson(id, deleteConfirm.lesson.id));
+        notify('차시를 삭제했어요');
+      }
+      setDeleteConfirm(undefined);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const moveSection = async (index: number, direction: -1 | 1) => {
@@ -286,10 +322,8 @@ export function CurriculumPage() {
     setContentUrlError('');
   };
 
-  const removeLesson = async (current: CurriculumLesson) => {
-    if (!window.confirm(`‘${current.title}’ 차시를 삭제할까요?`)) return;
-    setSections(await curriculumService.deleteLesson(id, current.id));
-    notify('차시를 삭제했어요');
+  const removeLesson = (current: CurriculumLesson) => {
+    setDeleteConfirm({ type: 'lesson', lesson: current });
   };
 
   const addMarker = () => {
@@ -403,28 +437,24 @@ export function CurriculumPage() {
           <h1>커리큘럼 관리</h1>
           <p>섹션과 차시를 수강생이 학습할 순서대로 구성하세요.</p>
         </div>
-        {!setup && (
-          <Link className="curriculum-preview-link" to={`/classes/${id}/preview`}>
-            수강생 화면 보기
-          </Link>
-        )}
+        <Link className="curriculum-preview-link" to={`/learn/${id}`}>
+          수강생 강의실 보기
+        </Link>
       </header>
 
-      {setup && (
-        <section className="curriculum-setup-guide" aria-label="강의 공개 준비">
-          <div>
-            <small>강의 공개 준비</small>
-            <h2>{publishedLessons ? '신청 페이지를 확인할 차례예요' : '첫 차시를 만들어 주세요'}</h2>
-            <p>{publishedLessons ? '수강생 화면을 확인한 뒤 공개하면 신청 링크가 만들어져요.' : '섹션을 추가하고 영상·라이브·자료를 차시에 연결해 주세요.'}</p>
-          </div>
-          <ol>
-            <li className="complete"><b>1</b><span>기본 정보<small>저장 완료</small></span></li>
-            <li className={publishedLessons ? 'complete' : 'active'}><b>2</b><span>커리큘럼<small>{publishedLessons ? `공개 차시 ${publishedLessons}개` : '첫 차시 등록'}</small></span></li>
-            <li className={publishedLessons ? 'active' : ''}><b>3</b><span>미리보기·공개<small>신청 링크 만들기</small></span></li>
-          </ol>
-          {publishedLessons > 0 && <Link to={`/classes/${id}/preview`}>신청 페이지 미리보기</Link>}
-        </section>
-      )}
+      <section className="curriculum-setup-guide" aria-label="강의 공개 준비">
+        <div>
+          <small>강의 공개 준비</small>
+          <h2>{publishedLessons ? '신청 페이지를 확인할 차례예요' : '첫 차시를 만들어 주세요'}</h2>
+          <p>{publishedLessons ? '신청자가 보게 될 페이지를 확인한 뒤 공개하면 신청 링크가 만들어져요.' : '섹션을 추가하고 영상·라이브·자료를 차시에 연결해 주세요.'}</p>
+        </div>
+        <ol>
+          <li className="complete"><b>1</b><span>기본 정보<small>저장 완료</small></span></li>
+          <li className={publishedLessons ? 'complete' : 'active'}><b>2</b><span>커리큘럼<small>{publishedLessons ? `공개 차시 ${publishedLessons}개` : '첫 차시 등록'}</small></span></li>
+          <li className={publishedLessons ? 'active' : ''}><b>3</b><span>미리보기·공개<small>신청 링크 만들기</small></span></li>
+        </ol>
+        {publishedLessons > 0 && <Link to={`/classes/${id}/preview`}>신청 페이지 미리보기</Link>}
+      </section>
 
       <div className="curriculum-summary" aria-label="커리큘럼 현황">
         <span>
@@ -632,6 +662,15 @@ export function CurriculumPage() {
               자동 확인 · {contentProviderLabel[detectedProvider]}
             </div>
           )}
+          {lesson.contentType === 'video' &&
+            lesson.contentUrl.trim() &&
+            !contentUrlError &&
+            detectedProvider === 'YOUTUBE' && (
+              <div className="content-source-warning" role="status">
+                YouTube 영상은 수강실 안에서 재생되도록 최소 컨트롤로 보여줘요. 단, YouTube 정책상
+                원본 공유를 완전히 차단할 수는 없어요.
+              </div>
+            )}
           {lesson.contentType === 'video' && lesson.contentUrl.trim() && (
             <section className={`lesson-marker-editor ${markerOpen ? 'is-open' : ''}`}>
               <button
@@ -908,6 +947,15 @@ export function CurriculumPage() {
           </div>
         )}
       </Modal>
+      <ConfirmDialog
+        open={Boolean(deleteConfirm)}
+        title={deleteConfirm?.type === 'section' ? '섹션을 삭제할까요?' : '차시를 삭제할까요?'}
+        description={getDeleteDescription()}
+        confirmText="삭제하기"
+        loading={deleting}
+        onCancel={() => setDeleteConfirm(undefined)}
+        onConfirm={() => void confirmDelete()}
+      />
       {toast && (
         <div className="done-toast" aria-live="polite">
           {toast}

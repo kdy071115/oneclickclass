@@ -68,6 +68,7 @@ const classTypeLabel: Record<ClassDraft['type'], string> = {
   offline: '오프라인',
   hybrid: '혼합형',
 };
+const untitledClassLabel = '강의 정보 준비 중';
 const savedMockClasses = (): ClassItem[] => {
   try {
     const saved =
@@ -108,7 +109,7 @@ const previewClassItem = (id: string): ClassItem => {
       : hasPublishedLesson
         ? 'READY'
         : 'CURRICULUM',
-    title: draft.title || enrollmentTitle || '제목 없는 클래스',
+    title: draft.title || enrollmentTitle || untitledClassLabel,
     status: settings.publicOn ? '모집중' : '준비중',
     type: classTypeLabel[draft.type],
     date: draft.startDate || '일정 미정',
@@ -474,7 +475,7 @@ export const detailService = {
           courseMasterSeq: item?.courseMasterSeq || id,
           courseActiveSeq: item?.courseActiveSeq || id,
           lifecycleStatus: item?.lifecycleStatus || 'DRAFT',
-          title: item?.title || draft.title || '제목 없는 클래스',
+          title: item?.title || draft.title || untitledClassLabel,
           status: item?.status || '준비중',
           type: item?.type || classTypeLabel[draft.type],
           date: item?.date || draft.startDate || '일정 미정',

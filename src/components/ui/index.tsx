@@ -108,10 +108,54 @@ export function Table<T>({ columns, rows, rowKey, loading = false, emptyText = '
   return <div className="ui-table-wrap"><table className="ui-table"><thead><tr>{columns.map((column) => <th key={column.key}>{column.sortable ? <button type="button" onClick={() => onSort?.(column.key)}>{column.header}{sortKey === column.key ? (sortDirection === 'asc' ? ' ↑' : ' ↓') : ''}</button> : column.header}</th>)}</tr></thead><tbody>{!loading && rows.map((row) => <tr key={rowKey(row)}>{columns.map((column) => <td key={column.key}>{column.render(row)}</td>)}</tr>)}</tbody></table>{loading ? <Skeleton lines={4} /> : rows.length === 0 ? <EmptyState title={emptyText} /> : null}</div>;
 }
 
-export function Modal({ open, title, onClose, children, footer, className = '' }: { open: boolean; title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; className?: string }) {
+export function Modal({ open, title, onClose, children, footer, className = '', showClose = true }: { open: boolean; title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; className?: string; showClose?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => { const dialog = ref.current; if (!dialog) return; if (open && !dialog.open) dialog.showModal(); if (!open && dialog.open) dialog.close(); }, [open]);
-  return <dialog className={`ui-dialog ${className}`.trim()} ref={ref} onClose={onClose} onCancel={(event) => { event.preventDefault(); onClose(); }}><header><h2>{title}</h2><IconButton label="닫기" onClick={onClose}><X size={20} /></IconButton></header><div className="ui-dialog-body">{children}</div>{footer && <footer>{footer}</footer>}</dialog>;
+  return <dialog className={`ui-dialog ${className}`.trim()} ref={ref} onClose={onClose} onCancel={(event) => { event.preventDefault(); onClose(); }}><header><h2>{title}</h2>{showClose && <IconButton label="닫기" onClick={onClose}><X size={20} /></IconButton>}</header><div className="ui-dialog-body">{children}</div>{footer && <footer>{footer}</footer>}</dialog>;
+}
+
+export function ConfirmDialog({
+  open,
+  title,
+  description,
+  confirmText = '확인',
+  cancelText = '취소',
+  tone = 'danger',
+  loading = false,
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean;
+  title: string;
+  description?: ReactNode;
+  confirmText?: string;
+  cancelText?: string;
+  tone?: ButtonVariant;
+  loading?: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <Modal
+      className="ui-confirm-dialog"
+      open={open}
+      showClose={false}
+      title={title}
+      onClose={loading ? () => undefined : onCancel}
+      footer={(
+        <>
+          <Button variant="secondary" autoFocus disabled={loading} onClick={onCancel}>
+            {cancelText}
+          </Button>
+          <Button variant={tone} disabled={loading} onClick={onConfirm}>
+            {loading ? '처리 중' : confirmText}
+          </Button>
+        </>
+      )}
+    >
+      {description && <p>{description}</p>}
+    </Modal>
+  );
 }
 
 export function Drawer(props: Parameters<typeof Modal>[0]) {
