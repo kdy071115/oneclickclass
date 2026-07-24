@@ -349,7 +349,8 @@ POST /classes/files
   "canLearn": true,
   "accessReason": "AVAILABLE",
   "progress": 0,
-  "lastPosition": "1강 0분 0초"
+  "lastPosition": "1-1차시 0분 0초",
+  "resumeLessonId": "38"
 }
 ```
 
@@ -421,7 +422,8 @@ POST /oneclick/applications/{courseApplySeq}/refunds
   "canLearn": true,
   "accessReason": "AVAILABLE",
   "progress": 62,
-  "lastPosition": "3강 14분 27초",
+  "lastPosition": "2-1차시 14분 27초",
+  "resumeLessonId": "52",
   "courseTitle": "노션으로 시작하는 업무 자동화",
   "courseSummary": "반복 업무를 자동화하는 실전 4주 과정",
   "lessons": [
@@ -509,6 +511,9 @@ POST /oneclick/applications/{courseApplySeq}/refunds
   ]
 }
 ```
+
+`resumeLessonId`는 마지막으로 학습한 차시의 `lessonId`다. 프론트는 이 값을 우선 사용해
+이어보기 차시를 선택하고, 구버전 응답에서 값이 없을 때만 `lastPosition`을 보조값으로 사용한다.
 
 카운트와 목록은 같은 데이터에서 계산해 서로 다르지 않게 반환한다. `contentUrl`은 재생 가능한 콘텐츠에 포함한다. 자료 차시는 `contentUrl` 없이 `resources`만 내려줘도 프론트가 자료 카드로 표시한다. `contentUrl`과 `resources`가 모두 없으면 프론트는 준비 중 상태를 표시한다.
 

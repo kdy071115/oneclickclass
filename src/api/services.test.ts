@@ -52,9 +52,7 @@ describe('instructor mock services', () => {
   });
 
   it('does not substitute another applicant when an id is missing', async () => {
-    await expect(applicantService.get('missing-applicant')).rejects.toThrow(
-      'applicant not found',
-    );
+    await expect(applicantService.get('missing-applicant')).rejects.toThrow('applicant not found');
   });
 
   it('keeps applicants scoped to their course', async () => {
@@ -117,7 +115,31 @@ describe('instructor mock services', () => {
     await expect(detailService.getClass(created.id)).resolves.toMatchObject({
       publicOn: true,
       status: '모집중',
-      lifecycleStatus: 'RECRUITING',
+      lifecycleStatus: 'READY',
+    });
+  });
+
+  it('keeps lifecycle and recruitment changes in sync across list and detail', async () => {
+    await classService.updateSettings('notion', {
+      lifecycleStatus: 'IN_PROGRESS',
+      recruitmentStatus: 'CLOSED',
+    });
+
+    await expect(classService.get('notion')).resolves.toMatchObject({
+      lifecycleStatus: 'IN_PROGRESS',
+      status: '모집 마감',
+    });
+    await expect(detailService.getClass('notion')).resolves.toMatchObject({
+      lifecycleStatus: 'IN_PROGRESS',
+      recruitmentStatus: 'CLOSED',
+      recruitmentClosed: true,
+      status: '모집 마감',
+    });
+
+    await classService.updateSettings('notion', { lifecycleStatus: 'ENDED' });
+    await expect(detailService.getClass('notion')).resolves.toMatchObject({
+      lifecycleStatus: 'ENDED',
+      status: '종료',
     });
   });
 
@@ -138,9 +160,9 @@ describe('instructor mock services', () => {
     );
 
     expect(updated.payment).toBe('결제완료');
-    expect(JSON.parse(localStorage.getItem('oneclick.enrollment.enrolled-course') || '{}')).toMatchObject(
-      { applyStatusCd: 'APPLY_STATUS::002' },
-    );
+    expect(
+      JSON.parse(localStorage.getItem('oneclick.enrollment.enrolled-course') || '{}'),
+    ).toMatchObject({ applyStatusCd: 'APPLY_STATUS::002' });
   });
 
   it('keeps surveys and exams scoped to the course that created them', async () => {

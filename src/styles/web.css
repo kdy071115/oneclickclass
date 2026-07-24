@@ -1536,7 +1536,9 @@
     padding: 20px;
     border-radius: 14px;
     color: #191f28;
-    transition: box-shadow 0.18s, transform 0.18s;
+    transition:
+      box-shadow 0.18s,
+      transform 0.18s;
   }
 
   .oc-tint-card:hover,
@@ -2286,6 +2288,23 @@
     font-size: 12px;
     font-weight: 600;
     margin-top: 2px;
+  }
+
+  .oc-setting-select {
+    min-width: 112px;
+    height: 38px;
+    padding: 0 32px 0 12px;
+    border: 1px solid #dfe3e8;
+    border-radius: 8px;
+    background: #fff;
+    color: #333d4b;
+    font: inherit;
+    font-weight: 700;
+  }
+
+  .oc-settings-panel button:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
   }
 
   .oc-settings-panel em {
@@ -3069,9 +3088,20 @@
   .student-lesson > svg {
     color: var(--color-primary);
   }
-  .student-curriculum-section + .student-curriculum-section { margin-top: 18px; }
-  .student-curriculum-section > header { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0 6px; }
-  .student-curriculum-section > header small { color: var(--color-text-secondary); font-size: 12px; font-weight: 800; }
+  .student-curriculum-section + .student-curriculum-section {
+    margin-top: 18px;
+  }
+  .student-curriculum-section > header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 0 6px;
+  }
+  .student-curriculum-section > header small {
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    font-weight: 800;
+  }
   .student-intro h2,
   .student-schedule h2 {
     margin: 0 0 18px;
@@ -4061,8 +4091,12 @@
     background: linear-gradient(90deg, #eef6ff 0%, #f7fbff 100%);
   }
 
-  .curriculum-section-heading:first-child { margin-top: 0; }
-  .curriculum-section-heading::before { display: none; }
+  .curriculum-section-heading:first-child {
+    margin-top: 0;
+  }
+  .curriculum-section-heading::before {
+    display: none;
+  }
   .curriculum-section-heading > span {
     width: 28px;
     height: 28px;
@@ -4089,7 +4123,11 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .curriculum-section-heading small { color: var(--color-text-secondary); font-size: 12px; font-weight: 800; }
+  .curriculum-section-heading small {
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    font-weight: 800;
+  }
 
   .oc-curriculum-section-group {
     overflow: hidden;

@@ -1,16 +1,15 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import {
-  detectContentProvider,
-  lx2ProgressMeasureToPercent,
-  oneclickService,
-} from './oneclick';
+import { detectContentProvider, lx2ProgressMeasureToPercent, oneclickService } from './oneclick';
 
 const verifiedApply = async (
   shareToken: string,
   input: Omit<Parameters<typeof oneclickService.apply>[1], 'verificationCode'>,
 ) => {
   const share = await oneclickService.share(shareToken);
-  const verification = await oneclickService.requestVerification(share.courseActiveSeq, input.phone);
+  const verification = await oneclickService.requestVerification(
+    share.courseActiveSeq,
+    input.phone,
+  );
   return oneclickService.apply(shareToken, {
     ...input,
     verificationCode: verification.debugCode ?? '',
@@ -55,6 +54,27 @@ describe('oneclick learner service', () => {
       canLearn: true,
       accessReason: 'AVAILABLE',
     });
+  });
+
+  it('closes the learner application page when recruitment is closed', async () => {
+    localStorage.setItem(
+      'oneclick.class-settings.closed-course',
+      JSON.stringify({ recruitmentStatus: 'CLOSED', capacity: 20 }),
+    );
+
+    const share = await oneclickService.share('closed-course');
+    expect(share).toMatchObject({
+      recruitmentStatus: 'CLOSED',
+      applyStatus: 'CLOSED',
+    });
+    await expect(
+      oneclickService.apply('closed-course', {
+        name: '김수강',
+        phone: '010-1234-5678',
+        privacyConsent: true,
+        verificationCode: '000000',
+      }),
+    ).rejects.toThrow('applications are closed');
   });
 
   it('keeps paid applications pending until payment completes', async () => {
@@ -380,9 +400,11 @@ describe('oneclick learner service', () => {
     await expect(oneclickService.enrollment('heartbeat-course')).resolves.toMatchObject({
       lastPosition: '1강 1분 27초',
       progress: 29,
+      resumeLessonId: 'lesson-1',
     });
     await expect(oneclickService.learnRoom('heartbeat-course')).resolves.toMatchObject({
       progress: 29,
+      resumeLessonId: 'lesson-1',
       lessons: [expect.objectContaining({ progress: 29, currentSeconds: 87 })],
     });
 
@@ -447,7 +469,10 @@ describe('oneclick learner service', () => {
     });
 
     await expect(oneclickService.learnRoom('sequential-course')).resolves.toMatchObject({
-      lessons: [expect.objectContaining({ locked: false }), expect.objectContaining({ locked: true })],
+      lessons: [
+        expect.objectContaining({ locked: false }),
+        expect.objectContaining({ locked: true }),
+      ],
     });
 
     await oneclickService.heartbeat('sequential-course', {
