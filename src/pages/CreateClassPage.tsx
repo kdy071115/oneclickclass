@@ -15,11 +15,12 @@ import {
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { StatusBar } from '../components/common/StatusBar';
-import { FileDropzone, Stepper } from '../components/ui';
-import { classService } from '../api/services';
+import { Button, EmptyState, FileDropzone, Skeleton, Stepper } from '../components/ui';
+import { classService, detailService } from '../api/services';
 import { addressSuggestions, initialClassDraft } from '../constants/classDraft';
-import { clearClassDraft, loadClassDraft, loadClassPreview, saveClassDraft, saveClassPreview } from '../utils/classDraft';
+import { clearClassDraft, hasClassPreview, loadClassDraft, loadClassPreview, saveClassDraft, saveClassPreview } from '../utils/classDraft';
 import { getClassThumbnail, saveClassThumbnail } from '../utils/classThumbnail';
+import type { ClassDetail, ClassDraft, ClassItem } from '../types/class';
 
 const types = [
   ['online', Video, '온라인', '녹화 영상으로 진행'],
@@ -29,12 +30,39 @@ const types = [
 ] as const;
 const labels = [
   ['어떤 강의인지\n알려주세요', '제목과 소개만 있어도 시작할 수 있어요'],
-  ['어떻게\n진행하나요?', '장소나 참여 링크를 함께 정해요'],
+  ['어떻게\n진행하나요?', '수강 방식과 필요한 장소만 정해요'],
   ['일정과 가격을\n정해주세요', '모집 인원과 참가비를 설정해요'],
   ['신청자에게\n무엇을 받을까요?', '기본 정보는 자동으로 받아요'],
-  ['공개 준비가\n끝났어요', '신청 페이지를 확인하고 공유하세요'],
+  ['기본 정보가\n준비됐어요', '이제 차시를 구성하면 공개할 수 있어요'],
 ] as const;
 const extraQuestions = ['성별', '연령대', '소속·직업', '신청 동기', '사전 질문', '기타 문의'];
+
+const draftTypeByLabel: Record<string, ClassDraft['type']> = {
+  온라인: 'online',
+  라이브: 'live',
+  오프라인: 'offline',
+  혼합형: 'hybrid',
+};
+
+function editDraftFromClass(item: ClassItem, detail: ClassDetail): ClassDraft {
+  const type = draftTypeByLabel[item.type] ?? 'online';
+  const offline = type === 'offline' || type === 'hybrid';
+  return {
+    ...initialClassDraft,
+    type,
+    title: detail.title,
+    summary: detail.summary,
+    description: detail.description,
+    thumbnail: item.thumbnail ?? '',
+    startDate: item.date,
+    recruitEndDate: detail.recruitEndDate,
+    capacity: detail.capacity,
+    payment: detail.price > 0 ? 'paid' : 'free',
+    price: detail.price,
+    url: !offline && /^https?:\/\//.test(detail.location) ? detail.location : '',
+    address: offline ? detail.location : '',
+  };
+}
 
 function useIsDesktop() {
   const [isDesktop, setIsDesktop] = useState(() =>
@@ -67,23 +95,38 @@ export function CreateClassPage() {
   const [error, setError] = useState('');
   const [customOpen, setCustomOpen] = useState(false);
   const [customQuestion, setCustomQuestion] = useState('');
-  const [tool, setTool] = useState(() => {
-    const url = draft.url.toLowerCase();
-    if (url.includes('zoom')) return 'Zoom';
-    if (url.includes('meet.google')) return 'Meet';
-    if (url.includes('youtu')) return 'YouTube';
-    return draft.url ? '기타 URL' : 'YouTube';
-  });
   const [submitting, setSubmitting] = useState(false);
   const [savedAt, setSavedAt] = useState('');
+  const [editLoading, setEditLoading] = useState(() => Boolean(editId && !hasClassPreview(editId)));
+  const [editLoadError, setEditLoadError] = useState('');
+  const [editReload, setEditReload] = useState(0);
   useEffect(() => {
+    if (!editId || hasClassPreview(editId)) return;
+    let alive = true;
+    setEditLoading(true);
+    setEditLoadError('');
+    Promise.all([classService.get(editId), detailService.getClass(editId)])
+      .then(([item, detail]) => {
+        if (!alive) return;
+        const nextDraft = editDraftFromClass(item, detail);
+        setDraft(nextDraft);
+        saveClassPreview(editId, nextDraft);
+      })
+      .catch(() => alive && setEditLoadError('강의 정보를 불러오지 못했어요.'))
+      .finally(() => alive && setEditLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [editId, editReload]);
+  useEffect(() => {
+    if (editLoading) return;
     const timer = window.setTimeout(() => {
       if (editId) saveClassPreview(editId, draft);
       else saveClassDraft(draft);
       setSavedAt(new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit' }).format(new Date()));
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [draft, editId]);
+  }, [draft, editId, editLoading]);
   async function next(e: FormEvent) {
     e.preventDefault();
     const needsAddress = draft.type === 'offline' || draft.type === 'hybrid';
@@ -106,7 +149,7 @@ export function CreateClassPage() {
         if (draft.thumbnail) saveClassThumbnail(created.id, draft.thumbnail);
         saveClassPreview(created.id, draft);
         clearClassDraft();
-        nav(editId ? `/classes/${created.id}` : `/classes/${created.id}/preview?draft=1`);
+        nav(editId ? `/classes/${created.id}` : `/classes/${created.id}/curriculum?setup=1`);
       } catch {
         setError('강의를 저장하지 못했어요. 잠시 후 다시 시도해 주세요.');
       } finally {
@@ -131,6 +174,31 @@ export function CreateClassPage() {
   }
   const title = labels[step - 1];
   const isDesktop = useIsDesktop();
+  if (editLoading) {
+    return (
+      <main className="create-load-state">
+        <section aria-label="강의 정보 불러오는 중">
+          <Skeleton lines={5} />
+        </section>
+      </main>
+    );
+  }
+  if (editLoadError) {
+    return (
+      <main className="create-load-state">
+        <EmptyState
+          title={editLoadError}
+          description="잠시 후 다시 시도하거나 강의 상세 화면으로 돌아가 주세요."
+          action={
+            <div className="create-load-actions">
+              <Button variant="secondary" onClick={() => nav(`/classes/${editId}`)}>상세로 돌아가기</Button>
+              <Button onClick={() => setEditReload((value) => value + 1)}>다시 시도</Button>
+            </div>
+          }
+        />
+      </main>
+    );
+  }
   return (
     <>
     {isDesktop && <form className="oc-create-web oc-web-page" onSubmit={next}>
@@ -184,8 +252,8 @@ export function CreateClassPage() {
                 ))}
               </div>
               <div className="delivery-fields wide">
-                {draft.type !== 'offline' && <><label className="create-field wide">진행 도구<div className="question-chips tools">{['YouTube', 'Zoom', 'Meet', '기타 URL'].map((x) => <button type="button" className={tool === x ? 'active' : ''} onClick={() => setTool(x)} key={x}>{x}</button>)}</div></label><Field label="참여 링크" value={draft.url} onChange={(v) => setDraft({ ...draft, url: v })} placeholder="나중에 입력해도 돼요" /></>}
                 {(draft.type === 'offline' || draft.type === 'hybrid') && <><label className="create-field">도로명 주소<button className="date-field" type="button" aria-label="도로명 주소 검색" onClick={() => setAddressOpen(true)}><span>{draft.address || '도로명 주소를 검색하세요'}</span><Search /></button></label><Field label="상세 주소" value={draft.detailedAddress} onChange={(v) => setDraft({ ...draft, detailedAddress: v })} placeholder="예) 3층 302호" /></>}
+                {draft.type !== 'offline' && <div className="delivery-guide wide"><Video /><span><b>영상과 참여 링크는 다음 단계에서 등록해요</b><small>YouTube, Zoom, 자료 링크를 차시마다 따로 연결할 수 있어요.</small></span></div>}
               </div>
             </div>
           )}
@@ -210,8 +278,8 @@ export function CreateClassPage() {
           {step === 5 && (
             <div className="publish-ready">
               <Check />
-              <h2>신청 페이지가 준비됐어요</h2>
-              <p>미리보기에서 화면을 확인한 뒤 바로 공개하고 링크를 복사할 수 있어요.</p>
+              <h2>강의 기본 정보를 저장할게요</h2>
+              <p>저장 후 커리큘럼에서 첫 차시와 영상·자료를 연결해 주세요.</p>
               <dl>
                 <div><dt>강의</dt><dd>{draft.title || '제목 미입력'}</dd></div>
                 <div><dt>진행</dt><dd>{types.find(([value]) => value === draft.type)?.[2]}</dd></div>
@@ -226,7 +294,7 @@ export function CreateClassPage() {
           {savedAt && <small>임시저장 {savedAt}</small>}
           <button type="button" onClick={() => (step > 1 ? setStep(step - 1) : nav('/classes'))}>이전</button>
           <button className="oc-create-submit" type="submit" disabled={submitting}>
-            {submitting ? '저장 중' : step < 5 ? '다음 단계' : '미리보기로 확인하기'}
+            {submitting ? '저장 중' : step < 5 ? '다음 단계' : editId ? '수정 내용 저장하기' : '저장하고 커리큘럼 만들기'}
             <ChevronRight size={18} />
           </button>
         </div>
@@ -321,31 +389,6 @@ export function CreateClassPage() {
                 ))}
               </div>
               <div className="delivery-fields">
-              {draft.type !== 'offline' && (
-                <>
-                  <label className="create-field">
-                    진행 도구
-                    <div className="question-chips tools">
-                      {['YouTube', 'Zoom', 'Meet', '기타 URL'].map((x) => (
-                        <button
-                          type="button"
-                          className={tool === x ? 'active' : ''}
-                          onClick={() => setTool(x)}
-                          key={x}
-                        >
-                          {x}
-                        </button>
-                      ))}
-                    </div>
-                  </label>
-                  <Field
-                    label="참여 링크"
-                    value={draft.url}
-                    onChange={(url) => setDraft({ ...draft, url })}
-                    placeholder="나중에 입력해도 돼요"
-                  />
-                </>
-              )}
               {(draft.type === 'offline' || draft.type === 'hybrid') && (
                 <>
                   <label className="create-field">
@@ -367,6 +410,15 @@ export function CreateClassPage() {
                     placeholder="예) 3층 302호"
                   />
                 </>
+              )}
+              {draft.type !== 'offline' && (
+                <div className="delivery-guide">
+                  <Video />
+                  <span>
+                    <b>영상과 참여 링크는 다음 단계에서 등록해요</b>
+                    <small>YouTube, Zoom, 자료 링크를 차시마다 따로 연결할 수 있어요.</small>
+                  </span>
+                </div>
               )}
               </div>
             </>
@@ -515,8 +567,8 @@ export function CreateClassPage() {
           {step === 5 && (
             <div className="publish-ready">
               <Check />
-              <h2>신청 페이지가 준비됐어요</h2>
-              <p>미리보기에서 확인한 뒤 바로 공개하고 링크를 복사할 수 있어요.</p>
+              <h2>강의 기본 정보를 저장할게요</h2>
+              <p>저장 후 커리큘럼에서 첫 차시와 영상·자료를 연결해 주세요.</p>
               <dl>
                 <div><dt>강의</dt><dd>{draft.title || '제목 미입력'}</dd></div>
                 <div><dt>진행</dt><dd>{types.find(([value]) => value === draft.type)?.[2]}</dd></div>
@@ -528,7 +580,7 @@ export function CreateClassPage() {
           {error && <p className="form-error">{error}</p>}
         </div>
         <button className="primary create-cta" type="submit" disabled={submitting}>
-          {submitting ? '저장 중' : step < 5 ? '다음' : '미리보기로 확인하기'}
+          {submitting ? '저장 중' : step < 5 ? '다음' : editId ? '수정 내용 저장하기' : '저장하고 커리큘럼 만들기'}
         </button>
       </form>
     </main>}

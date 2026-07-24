@@ -132,6 +132,30 @@
 .create-mobile .delivery-fields {
   min-height: 327px;
 }
+.delivery-guide {
+  width: 100%;
+  min-height: 92px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid #dbeafe;
+  border-radius: 12px;
+  background: #f4f8ff;
+  color: #1b64da;
+}
+.delivery-guide > svg {
+  flex: 0 0 auto;
+}
+.delivery-guide b,
+.delivery-guide small {
+  display: block;
+}
+.delivery-guide small {
+  margin-top: 4px;
+  color: #6b7684;
+  line-height: 1.5;
+}
 .create-field {
   display: block;
   margin: 0 0 15px !important;

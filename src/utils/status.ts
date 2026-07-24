@@ -5,6 +5,7 @@ export type PaymentStatus = '결제완료' | '결제대기' | '환불';
 export type AttendanceStatus = '출석' | '지각' | '결석';
 
 const statusTone: Record<ClassStatus | PaymentStatus | AttendanceStatus, StatusTone> = {
+  준비중: 'warning',
   모집중: 'primary',
   진행중: 'success',
   종료: 'neutral',

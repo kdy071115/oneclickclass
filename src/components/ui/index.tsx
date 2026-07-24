@@ -42,25 +42,26 @@ export function Avatar({ name, src, size = 40 }: { name: string; src?: string; s
 type FieldProps = { label?: string; error?: string; hint?: string };
 
 function Field({ label, error, hint, inputId, children }: FieldProps & { inputId: string; children: ReactNode }) {
-  return <label className="ui-field" htmlFor={inputId}>{label && <span>{label}</span>}{children}{error ? <small className="ui-field-error">{error}</small> : hint ? <small>{hint}</small> : null}</label>;
+  const descriptionId = `${inputId}-description`;
+  return <div className="ui-field">{label && <label htmlFor={inputId}>{label}</label>}{children}{error ? <small id={descriptionId} className="ui-field-error">{error}</small> : hint ? <small id={descriptionId}>{hint}</small> : null}</div>;
 }
 
 export function Input({ label, error, hint, id, className = '', ...props }: InputHTMLAttributes<HTMLInputElement> & FieldProps) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
-  return <Field label={label} error={error} hint={hint} inputId={inputId}><input id={inputId} className={`ui-input ${className}`} aria-invalid={!!error} {...props} /></Field>;
+  return <Field label={label} error={error} hint={hint} inputId={inputId}><input id={inputId} className={`ui-input ${className}`} aria-invalid={!!error} aria-describedby={error || hint ? `${inputId}-description` : undefined} {...props} /></Field>;
 }
 
 export function Textarea({ label, error, hint, id, className = '', ...props }: TextareaHTMLAttributes<HTMLTextAreaElement> & FieldProps) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
-  return <Field label={label} error={error} hint={hint} inputId={inputId}><textarea id={inputId} className={`ui-input ui-textarea ${className}`} aria-invalid={!!error} {...props} /></Field>;
+  return <Field label={label} error={error} hint={hint} inputId={inputId}><textarea id={inputId} className={`ui-input ui-textarea ${className}`} aria-invalid={!!error} aria-describedby={error || hint ? `${inputId}-description` : undefined} {...props} /></Field>;
 }
 
 export function Select({ label, error, hint, id, className = '', children, ...props }: SelectHTMLAttributes<HTMLSelectElement> & FieldProps) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
-  return <Field label={label} error={error} hint={hint} inputId={inputId}><select id={inputId} className={`ui-input ui-select ${className}`} aria-invalid={!!error} {...props}>{children}</select></Field>;
+  return <Field label={label} error={error} hint={hint} inputId={inputId}><select id={inputId} className={`ui-input ui-select ${className}`} aria-invalid={!!error} aria-describedby={error || hint ? `${inputId}-description` : undefined} {...props}>{children}</select></Field>;
 }
 
 export function DatePicker(props: Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> & FieldProps) {
@@ -107,10 +108,54 @@ export function Table<T>({ columns, rows, rowKey, loading = false, emptyText = '
   return <div className="ui-table-wrap"><table className="ui-table"><thead><tr>{columns.map((column) => <th key={column.key}>{column.sortable ? <button type="button" onClick={() => onSort?.(column.key)}>{column.header}{sortKey === column.key ? (sortDirection === 'asc' ? ' ↑' : ' ↓') : ''}</button> : column.header}</th>)}</tr></thead><tbody>{!loading && rows.map((row) => <tr key={rowKey(row)}>{columns.map((column) => <td key={column.key}>{column.render(row)}</td>)}</tr>)}</tbody></table>{loading ? <Skeleton lines={4} /> : rows.length === 0 ? <EmptyState title={emptyText} /> : null}</div>;
 }
 
-export function Modal({ open, title, onClose, children, footer }: { open: boolean; title: string; onClose: () => void; children: ReactNode; footer?: ReactNode }) {
+export function Modal({ open, title, onClose, children, footer, className = '', showClose = true }: { open: boolean; title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; className?: string; showClose?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => { const dialog = ref.current; if (!dialog) return; if (open && !dialog.open) dialog.showModal(); if (!open && dialog.open) dialog.close(); }, [open]);
-  return <dialog className="ui-dialog" ref={ref} onClose={onClose}><header><h2>{title}</h2><IconButton label="닫기" onClick={onClose}><X size={20} /></IconButton></header><div className="ui-dialog-body">{children}</div>{footer && <footer>{footer}</footer>}</dialog>;
+  return <dialog className={`ui-dialog ${className}`.trim()} ref={ref} onClose={onClose} onCancel={(event) => { event.preventDefault(); onClose(); }}><header><h2>{title}</h2>{showClose && <IconButton label="닫기" onClick={onClose}><X size={20} /></IconButton>}</header><div className="ui-dialog-body">{children}</div>{footer && <footer>{footer}</footer>}</dialog>;
+}
+
+export function ConfirmDialog({
+  open,
+  title,
+  description,
+  confirmText = '확인',
+  cancelText = '취소',
+  tone = 'danger',
+  loading = false,
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean;
+  title: string;
+  description?: ReactNode;
+  confirmText?: string;
+  cancelText?: string;
+  tone?: ButtonVariant;
+  loading?: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <Modal
+      className="ui-confirm-dialog"
+      open={open}
+      showClose={false}
+      title={title}
+      onClose={loading ? () => undefined : onCancel}
+      footer={(
+        <>
+          <Button variant="secondary" autoFocus disabled={loading} onClick={onCancel}>
+            {cancelText}
+          </Button>
+          <Button variant={tone} disabled={loading} onClick={onConfirm}>
+            {loading ? '처리 중' : confirmText}
+          </Button>
+        </>
+      )}
+    >
+      {description && <p>{description}</p>}
+    </Modal>
+  );
 }
 
 export function Drawer(props: Parameters<typeof Modal>[0]) {
@@ -151,12 +196,48 @@ export function BarChart({ data, label }: { data: readonly { label: string; valu
   );
 }
 
-export function FileDropzone({ onFile, accept = 'image/png,image/jpeg,image/webp', maxSize = 5 * 1024 * 1024 }: { onFile: (file: File) => void; accept?: string; maxSize?: number }) {
+export function FileDropzone({
+  onFile,
+  onFiles,
+  accept = 'image/png,image/jpeg,image/webp',
+  maxSize = 5 * 1024 * 1024,
+  multiple = false,
+  description,
+}: {
+  onFile?: (file: File) => void;
+  onFiles?: (files: File[]) => void;
+  accept?: string;
+  maxSize?: number;
+  multiple?: boolean;
+  description?: string;
+}) {
   const [error, setError] = useState('');
   const [dragging, setDragging] = useState(false);
   const id = useId();
-  const handleFile = (file?: File) => { if (!file) return; if (file.size > maxSize) { setError(`파일은 ${Math.round(maxSize / 1024 / 1024)}MB 이하여야 해요.`); return; } if (accept && !accept.split(',').includes(file.type)) { setError('지원하지 않는 파일 형식이에요.'); return; } setError(''); onFile(file); };
-  return <div className={`ui-dropzone ${dragging ? 'is-dragging' : ''}`} onDragOver={(event) => { event.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); handleFile(event.dataTransfer.files[0]); }}><label htmlFor={id}><UploadCloud size={24} /><strong>파일을 선택하거나 여기에 놓으세요</strong><small>JPG, PNG, WEBP · 최대 {Math.round(maxSize / 1024 / 1024)}MB</small><input id={id} type="file" accept={accept} onChange={(event) => handleFile(event.target.files?.[0])} /></label>{error && <p role="alert">{error}</p>}</div>;
+  const acceptRules = accept.split(',').map((item) => item.trim()).filter(Boolean);
+  const isAccepted = (file: File) =>
+    !acceptRules.length ||
+    acceptRules.some((rule) => {
+      if (rule.startsWith('.')) return file.name.toLowerCase().endsWith(rule.toLowerCase());
+      if (rule.endsWith('/*')) return file.type.startsWith(rule.slice(0, -1));
+      return file.type === rule;
+    });
+  const handleFiles = (fileList?: FileList | File[]) => {
+    const files = Array.from(fileList ?? []);
+    if (!files.length) return;
+    if (files.some((file) => file.size > maxSize)) {
+      setError(`파일은 ${Math.round(maxSize / 1024 / 1024)}MB 이하여야 해요.`);
+      return;
+    }
+    if (files.some((file) => !isAccepted(file))) {
+      setError('지원하지 않는 파일 형식이에요.');
+      return;
+    }
+    setError('');
+    if (multiple) onFiles?.(files);
+    else onFile?.(files[0]);
+  };
+  return <div className={`ui-dropzone ${dragging ? 'is-dragging' : ''}`} onDragOver={(event) => { event.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); handleFiles(multiple ? event.dataTransfer.files : [event.dataTransfer.files[0]].filter(Boolean) as File[]); }}><label htmlFor={id}><UploadCloud size={24} /><strong>파일을 선택하거나 여기에 놓으세요</strong><small>{description ?? `JPG, PNG, WEBP · 최대 ${Math.round(maxSize / 1024 / 1024)}MB`}</small><input id={id} type="file" accept={accept} multiple={multiple} onChange={(event) => handleFiles(event.target.files ?? undefined)} /></label>{error && <p role="alert">{error}</p>}</div>;
 }
 
 export function Stepper({ current, steps }: { current: number; steps: readonly string[] }) {

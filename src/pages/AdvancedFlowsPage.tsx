@@ -219,10 +219,7 @@ function Stepper({
 
 export function AttendPickerPage() {
   const today = ['notion', '노션으로 시작하는 업무 자동화', '오후 8:00', '2회차', '24'];
-  const others = [
-    ['calligraphy', '주말 원데이 캘리그라피 클래스', '1회차', '15'],
-    ['branding', '나만의 브랜드 만들기', '3회차', '20'],
-  ];
+  const others: string[][] = [];
   return (
     <div className="page subpage attendance-picker">
       <PageHeader

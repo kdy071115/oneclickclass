@@ -1,6 +1,16 @@
-export type ClassStatus = '모집중' | '진행중' | '종료';
+export type ClassStatus = '준비중' | '모집중' | '진행중' | '종료';
+export type ClassLifecycleStatus =
+  | 'DRAFT'
+  | 'CURRICULUM'
+  | 'READY'
+  | 'RECRUITING'
+  | 'IN_PROGRESS'
+  | 'ENDED';
 export interface ClassItem {
   id: string;
+  courseMasterSeq?: string;
+  courseActiveSeq?: string;
+  lifecycleStatus?: ClassLifecycleStatus;
   title: string;
   status: ClassStatus;
   type: string;
@@ -72,6 +82,8 @@ export interface ClassDetail extends ClassItem {
   applicantTrend: number[];
   curriculum: {
     id: string;
+    sectionId?: string;
+    sectionTitle?: string;
     title: string;
     description: string;
     durationText: string;
@@ -85,8 +97,31 @@ export interface ClassDetail extends ClassItem {
   }[];
 }
 export type LessonContentType = 'video' | 'live' | 'document' | 'assignment';
+export type LessonMarkerType = 'TEXT' | 'IMAGE' | 'QUIZ';
+export interface LessonMarker {
+  id: string;
+  markerSeq?: string;
+  timeSeconds: number;
+  type: LessonMarkerType;
+  title: string;
+  content: string;
+  imageUrl?: string;
+  choices?: string[];
+  answerIndex?: number;
+}
+export interface LessonResource {
+  id: string;
+  name: string;
+  url: string;
+  type?: string;
+  size?: number;
+}
 export interface CurriculumLesson {
   id: string;
+  organizationSeq?: string;
+  itemSeq?: string;
+  activeElementSeq?: string;
+  contentsSeq?: string;
   title: string;
   description: string;
   contentType: LessonContentType;
@@ -94,6 +129,10 @@ export interface CurriculumLesson {
   durationMinutes: number;
   preview: boolean;
   published: boolean;
+  required?: boolean;
+  sequential?: boolean;
+  markers?: LessonMarker[];
+  resources?: LessonResource[];
 }
 export interface CurriculumSection {
   id: string;

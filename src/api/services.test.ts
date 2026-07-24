@@ -8,6 +8,7 @@ import {
   examService,
   surveyService,
 } from './services';
+import { initialClassDraft } from '../constants/classDraft';
 
 describe('instructor mock services', () => {
   beforeEach(() => {
@@ -42,14 +43,43 @@ describe('instructor mock services', () => {
       expect.objectContaining({ id: 'recovered-course' }),
     );
     await expect(detailService.getClass('recovered-course')).resolves.toMatchObject({
+      title: '강의 정보 준비 중',
+      rating: 0,
+      reviewCount: 0,
       sessions: 1,
       curriculum: [expect.objectContaining({ id: 'lesson-1', title: '첫 강의' })],
     });
   });
 
+  it('does not substitute another applicant when an id is missing', async () => {
+    await expect(applicantService.get('missing-applicant')).rejects.toThrow(
+      'applicant not found',
+    );
+  });
+
   it('keeps applicants scoped to their course', async () => {
     await expect(applicantService.listByClass('notion')).resolves.toHaveLength(2);
-    await expect(applicantService.listByClass('calligraphy')).resolves.toHaveLength(1);
+    await expect(applicantService.listByClass('unknown-course')).resolves.toEqual([]);
+  });
+
+  it('applies saved detail only to its own course', async () => {
+    localStorage.setItem(
+      'oneclick-class-preview:custom-course',
+      JSON.stringify({
+        _schemaVersion: 2,
+        type: 'offline',
+        title: '직접 만든 강의',
+        summary: '직접 입력한 소개',
+        address: '서울 마포구 새 주소 1',
+      }),
+    );
+
+    await expect(detailService.getClass('custom-course')).resolves.toMatchObject({
+      title: '직접 만든 강의',
+      summary: '직접 입력한 소개',
+      location: '서울 마포구 새 주소 1',
+      rating: 0,
+    });
   });
 
   it('persists capacity and visibility settings in the course detail', async () => {
@@ -63,6 +93,31 @@ describe('instructor mock services', () => {
       capacity: 40,
       publicOn: false,
       recruitmentClosed: true,
+    });
+  });
+
+  it('creates a course privately and marks it public only after publishing', async () => {
+    const created = await classService.create({
+      ...initialClassDraft,
+      title: '새 강의',
+      startDate: '2026-08-01',
+    });
+
+    expect(created).toMatchObject({
+      courseActiveSeq: created.id,
+      status: '준비중',
+      lifecycleStatus: 'DRAFT',
+    });
+    expect(created.courseMasterSeq).toBeTruthy();
+    await expect(detailService.getClass(created.id)).resolves.toMatchObject({
+      publicOn: false,
+      status: '준비중',
+    });
+    await classService.publish(created.id);
+    await expect(detailService.getClass(created.id)).resolves.toMatchObject({
+      publicOn: true,
+      status: '모집중',
+      lifecycleStatus: 'RECRUITING',
     });
   });
 
@@ -106,12 +161,8 @@ describe('instructor mock services', () => {
   });
 
   it('uses only the selected course applicants for attendance and certificates', async () => {
-    await expect(attendanceService.checkins('calligraphy')).resolves.toEqual([
-      expect.objectContaining({ name: '이준호' }),
-    ]);
+    await expect(attendanceService.checkins('unknown-course')).resolves.toEqual([]);
     await expect(certificateService.recipients('notion')).resolves.toHaveLength(2);
-    await expect(certificateService.recipients('calligraphy')).resolves.toEqual([
-      expect.objectContaining({ name: '이준호' }),
-    ]);
+    await expect(certificateService.recipients('unknown-course')).resolves.toEqual([]);
   });
 });

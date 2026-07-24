@@ -49,5 +49,5 @@ export function NotificationPopover({ onClose }: { onClose: () => void }) {
 function NotificationLink({ item, read, onOpen }: { item: NotificationItem; read: boolean; onOpen: () => void }) {
   const Icon = icons[item.type];
   const unread = item.unread && !read;
-  return <Link className={`notification-popover-row ${unread ? 'unread' : ''}`} to={item.target} onClick={onOpen}><i className={item.type}><Icon size={17} /></i><span><b>{item.title}{unread && <em />}</b><small>{item.message}</small></span><time>{item.time}</time></Link>;
+  return <Link className={`notification-popover-row ${unread ? 'unread' : ''}`} to={item.target} onClick={onOpen}><i className={`notification-type-${item.type}`}><Icon size={17} /></i><span><b>{item.title}{unread && <em />}</b><small>{item.message}</small></span><time>{item.time}</time></Link>;
 }

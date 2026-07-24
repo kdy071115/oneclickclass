@@ -24,7 +24,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ApplicantRow } from '../components/feature/ApplicantRow';
 import { PageHeader } from '../components/common/PageHeader';
 import { applicants, classes } from '../constants/mockData';
-import { Button, FileDropzone, Input, Modal, Select, Textarea } from '../components/ui';
+import { Button, ConfirmDialog, FileDropzone, Input, Modal, Select, Textarea } from '../components/ui';
 import {
   attendanceService,
   applicantService,
@@ -1039,6 +1039,8 @@ function WebManage({
   const [closed, setClosed] = useState(false);
   const [capacity, setCapacity] = useState(detail?.capacity || 30);
   const [thumbnail, setThumbnail] = useState(() => getClassThumbnail(id));
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   useEffect(() => {
     if (detail?.capacity) setCapacity(detail.capacity);
   }, [detail?.capacity]);
@@ -1053,6 +1055,15 @@ function WebManage({
     saveClassThumbnail(id, value);
     await classService.update(id, { thumbnail: value });
     notify('클래스 썸네일을 변경했어요');
+  };
+  const deleteClass = async () => {
+    setDeleting(true);
+    try {
+      await classService.remove(id);
+      nav('/classes');
+    } finally {
+      setDeleting(false);
+    }
   };
   return (
     <>
@@ -1160,16 +1171,22 @@ function WebManage({
             </button>
             <button
               className="danger"
-              onClick={() => {
-                if (!window.confirm('강의를 삭제할까요? 삭제한 강의는 복구할 수 없어요.')) return;
-                void classService.remove(id).then(() => nav('/classes'));
-              }}
+              onClick={() => setDeleteOpen(true)}
             >
               강의 삭제
             </button>
           </div>
         </section>
       </div>
+      <ConfirmDialog
+        open={deleteOpen}
+        title="강의를 삭제할까요?"
+        description="삭제한 강의와 신청 페이지는 다시 복구할 수 없어요. 수강생에게 공유한 링크도 더 이상 사용할 수 없어요."
+        confirmText="삭제하기"
+        loading={deleting}
+        onCancel={() => setDeleteOpen(false)}
+        onConfirm={() => void deleteClass()}
+      />
     </>
   );
 }
@@ -1743,12 +1760,23 @@ function Manage({
   const [publicOn, setPublicOn] = useState(true);
   const [closed, setClosed] = useState(false);
   const [capacity, setCapacity] = useState(30);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   useEffect(() => {
     if (!detail) return;
     setPublicOn(detail.publicOn ?? true);
     setClosed(detail.recruitmentClosed ?? false);
     setCapacity(detail.capacity);
   }, [detail]);
+  const deleteClass = async () => {
+    setDeleting(true);
+    try {
+      await classService.remove(id);
+      nav('/classes');
+    } finally {
+      setDeleting(false);
+    }
+  };
   return (
     <>
       <Link className="thumbnail-manage-link" to={`/classes/new?edit=${id}`}>
@@ -1830,13 +1858,19 @@ function Manage({
       </section>
       <button
         className="danger"
-        onClick={() => {
-          if (!window.confirm('강의를 삭제할까요? 삭제한 강의는 복구할 수 없어요.')) return;
-          void classService.remove(id).then(() => nav('/classes'));
-        }}
+        onClick={() => setDeleteOpen(true)}
       >
         강의 삭제
       </button>
+      <ConfirmDialog
+        open={deleteOpen}
+        title="강의를 삭제할까요?"
+        description="삭제한 강의와 신청 페이지는 다시 복구할 수 없어요. 수강생에게 공유한 링크도 더 이상 사용할 수 없어요."
+        confirmText="삭제하기"
+        loading={deleting}
+        onCancel={() => setDeleteOpen(false)}
+        onConfirm={() => void deleteClass()}
+      />
     </>
   );
 }

@@ -26,36 +26,6 @@ export const classes: ClassItem[] = [
     capacity: 30,
     color: '#4c82f7',
   },
-  {
-    id: 'calligraphy',
-    title: '주말 원데이 캘리그라피 클래스',
-    status: '모집중',
-    type: '오프라인',
-    date: '8월 9일 · 토',
-    enrolled: 6,
-    capacity: 15,
-    color: '#22b573',
-  },
-  {
-    id: 'branding',
-    title: '나만의 브랜드 만들기',
-    status: '진행중',
-    type: '혼합형',
-    date: '7월 5일 ~ 26일',
-    enrolled: 18,
-    capacity: 20,
-    color: '#7048e8',
-  },
-  {
-    id: 'photo',
-    title: '스마트폰 사진 보정 클래스',
-    status: '종료',
-    type: '온라인',
-    date: '6월 14일',
-    enrolled: 20,
-    capacity: 20,
-    color: '#f76707',
-  },
 ];
 export const applicants: Applicant[] = [
   {
@@ -71,20 +41,6 @@ export const applicants: Applicant[] = [
     answers: [
       { label: '신청 동기', value: '반복 업무를 줄이고 팀의 업무 효율을 높이고 싶어요.' },
       { label: '노션 사용 경험', value: '개인 메모와 프로젝트 관리에 1년 정도 사용했어요.' },
-    ],
-  },
-  {
-    id: '2',
-    classId: 'calligraphy',
-    name: '이준호',
-    classTitle: '캘리그라피 클래스',
-    appliedAt: '12분 전',
-    payment: '결제완료',
-    amount: 45000,
-    phone: '010-4782-1135',
-    email: 'junho@example.com',
-    answers: [
-      { label: '신청 동기', value: '취미로 글씨를 배워 지인에게 카드를 만들어 주고 싶어요.' },
     ],
   },
   {
@@ -111,7 +67,7 @@ export const dashboard: Dashboard = {
   todayClasses: 2,
   pendingPayments: 3,
   pendingAmount: 135000,
-  classes: classes.slice(0, 2),
+  classes,
   applicants,
   studentStats: [
     { value: '2', label: '수강 중', color: '#3182f6' },
@@ -185,6 +141,7 @@ export const classDetail: ClassDetail = {
     { id: 'a2', type: 'completion', label: '수강 완료 1명', occurredAt: '1일 전' },
   ],
 };
+
 export const surveyQuestions: SurveyQuestion[] = [
   {
     id: 's1',
@@ -253,26 +210,6 @@ export const notifications: NotificationItem[] = [
     target: '/applicants/1',
   },
   {
-    id: 'n2',
-    group: '오늘',
-    type: 'pay',
-    title: '결제 완료',
-    message: '이준호님이 45,000원 결제를 완료했어요',
-    time: '12분 전',
-    unread: true,
-    target: '/applicants/2',
-  },
-  {
-    id: 'n3',
-    group: '어제',
-    type: 'review',
-    title: '새 후기',
-    message: "'캘리그라피 클래스'에 별점 5점 후기가 등록됐어요",
-    time: '어제',
-    unread: false,
-    target: '/classes/calligraphy',
-  },
-  {
     id: 'n4',
     group: '어제',
     type: 'settle',
@@ -311,35 +248,14 @@ export const settlementRows: SettlementRow[] = [
     amount: '+135,000원',
     status: 'wait',
   },
-  {
-    id: 'st2',
-    title: '주말 원데이 캘리그라피 클래스',
-    date: '2026.07.01 정산 완료',
-    amount: '+820,000원',
-    status: 'done',
-  },
-  {
-    id: 'st3',
-    title: '실전 유튜브 편집 8주 과정',
-    date: '2026.06.15 정산 완료',
-    amount: '+640,000원',
-    status: 'done',
-  },
-  {
-    id: 'st4',
-    title: '브랜딩 기초 클래스',
-    date: '2026.06.01 정산 완료',
-    amount: '+550,000원',
-    status: 'done',
-  },
 ];
 export const settlementSummary: SettlementSummary = {
-  availableAmount: 1240000,
+  availableAmount: 0,
   expectedAmount: 135000,
   account: '국민은행 123-45-6789-012',
   stats: [
-    { label: '이번 달 매출', value: '2,145,000', color: '#191f28' },
-    { label: '정산 완료', value: '2,010,000', color: '#0ca678' },
+    { label: '이번 달 매출', value: '135,000', color: '#191f28' },
+    { label: '정산 완료', value: '0', color: '#0ca678' },
     { label: '정산 예정', value: '135,000', color: '#f76707' },
   ],
   rows: settlementRows,

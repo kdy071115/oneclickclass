@@ -26,6 +26,44 @@ import { getClassThumbnail } from '../utils/classThumbnail';
 import { detailService } from '../api/services';
 import type { ClassDetail } from '../types/class';
 
+const parseDurationMinutes = (durationText: string) => {
+  const hours = durationText.match(/(\d+)\s*시간/)?.[1];
+  const minutes = durationText.match(/(\d+)\s*분/)?.[1];
+  if (hours || minutes) return Number(hours || 0) * 60 + Number(minutes || 0);
+  return Number(durationText.match(/\d+/)?.[0] || 0);
+};
+
+const formatSectionSummary = (count: number, minutes: number) => {
+  if (!minutes) return `${count}개 차시`;
+  if (minutes >= 60) {
+    const hours = Math.floor(minutes / 60);
+    const remainder = minutes % 60;
+    return `${count}개 차시 · ${hours}시간${remainder ? ` ${remainder}분` : ''}`;
+  }
+  return `${count}개 차시 · ${minutes}분`;
+};
+
+const groupCurriculumItems = <
+  T extends { sectionId?: string; sectionTitle?: string; durationText: string },
+>(items: T[]) =>
+  items.reduce<Array<{ key: string; title: string; items: T[]; totalMinutes: number }>>((groups, item, index) => {
+    const title = item.sectionTitle || '커리큘럼';
+    const key = item.sectionId || item.sectionTitle || `default-${index}`;
+    const previous = groups[groups.length - 1];
+    if (previous && previous.key === key) {
+      previous.items.push(item);
+      previous.totalMinutes += parseDurationMinutes(item.durationText);
+      return groups;
+    }
+    groups.push({
+      key,
+      title,
+      items: [item],
+      totalMinutes: parseDurationMinutes(item.durationText),
+    });
+    return groups;
+  }, []);
+
 export function ClassDetailPage() {
   const { id = 'notion' } = useParams();
   const [detail, setDetail] = useState<ClassDetail>();
@@ -41,7 +79,10 @@ export function ClassDetailPage() {
   const reviewCount = detail?.reviewCount || 0;
   const completionRate = detail?.completionRate || 0;
   const curriculum = detail?.curriculum || [];
+  const publishedLessons = curriculum.filter((item) => item.published).length;
+  const readySteps = 1 + Number(publishedLessons > 0) + Number(detail?.publicOn);
   const supportsAttendance = detail?.type !== '온라인';
+  const curriculumGroups = groupCurriculumItems(curriculum);
   const mobileMenus: [string, LucideIcon, string, string][] = [
     ['applicants', Users, '신청자', `${enrolled}명 관리`],
   ];
@@ -106,14 +147,14 @@ export function ClassDetailPage() {
   }, [id]);
   if (error) {
     return (
-      <div className="oc-web-page">
+      <main className="class-detail-error">
         <AsyncState loading={false} error={error} onRetry={() => location.reload()} />
         <div className="class-detail-recovery">
           <Link className="primary" to="/classes">
             클래스 목록으로
           </Link>
         </div>
-      </div>
+      </main>
     );
   }
   const notify = (message: string) => {
@@ -148,6 +189,19 @@ export function ClassDetailPage() {
         </div>
         <div className="oc-detail-layout">
           <main>
+            {detail && !detail.publicOn && (
+              <section className="oc-panel class-readiness">
+                <div className="oc-panel-title">
+                  <h2>강의 준비 <small>{readySteps} / 3 완료</small></h2>
+                  <Link to={`/classes/${id}/curriculum?setup=1`}>계속 준비하기</Link>
+                </div>
+                <div className="class-readiness-steps">
+                  <span className="complete"><CheckCircle2 /><b>기본 정보</b><small>저장 완료</small></span>
+                  <span className={publishedLessons ? 'complete' : 'active'}><ClipboardList /><b>커리큘럼</b><small>{publishedLessons ? `공개 차시 ${publishedLessons}개` : '첫 차시 필요'}</small></span>
+                  <span className={publishedLessons ? 'active' : ''}><Share2 /><b>신청 페이지</b><small>미리보기·공개 필요</small></span>
+                </div>
+              </section>
+            )}
             <section className="oc-detail-hero reference">
               <div className="oc-detail-main">
                 <div className="oc-detail-copy">
@@ -238,31 +292,30 @@ export function ClassDetailPage() {
                 <Link to={`/classes/${id}/curriculum`}>강의 구성 수정</Link>
               </div>
               <div className="oc-curriculum-timeline">
-                {curriculum.map((item, index) => (
-                  <div className="oc-curriculum-row reference" key={item.id}>
-                    <span>{index + 1}</span>
-                    <i>
-                      <ClipboardList size={18} />
-                    </i>
-                    <b>
-                      {item.title}
-                      <small>{item.description}</small>
-                    </b>
-                    <em>
-                      <CalendarDays size={16} /> {item.durationText}
-                    </em>
-                    {item.published ? (
-                      <CheckCircle2 className="done" size={20} />
-                    ) : (
-                      <CheckCircle2 size={20} />
-                    )}
-                  </div>
+                {curriculumGroups.map((section, sectionIndex) => (
+                  <section className="oc-curriculum-section-group" key={section.key}>
+                    <header className="curriculum-section-heading">
+                      <span>{String(sectionIndex + 1).padStart(2, '0')}</span>
+                      <b>섹션 {sectionIndex + 1}</b>
+                      <strong>{section.title}</strong>
+                      <small>{formatSectionSummary(section.items.length, section.totalMinutes)}</small>
+                    </header>
+                    {section.items.map((item, lessonIndex) => (
+                      <div className="oc-curriculum-row reference" key={item.id}>
+                        <span>{sectionIndex + 1}-{lessonIndex + 1}</span>
+                        <i><ClipboardList size={18} /></i>
+                        <b>{item.title}<small>{item.description}</small></b>
+                        <em><CalendarDays size={16} /> {item.durationText}</em>
+                        {item.published ? <CheckCircle2 className="done" size={20} /> : <CheckCircle2 size={20} />}
+                      </div>
+                    ))}
+                  </section>
                 ))}
                 {!curriculum.length && (
                   <div className="oc-empty-detail">
                     <ClipboardList />
                     <b>등록된 커리큘럼이 없어요.</b>
-                    <p>강의 수정에서 첫 커리큘럼을 등록해 주세요.</p>
+                    <p>강의 구성 수정에서 첫 섹션과 차시를 등록해 주세요.</p>
                   </div>
                 )}
               </div>

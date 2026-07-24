@@ -102,6 +102,12 @@
 .ui-dialog > header h2 { margin: 0; font-size: var(--font-size-xl); }
 .ui-dialog > footer { justify-content: flex-end; border-top: 1px solid var(--color-border); }
 .ui-dialog-body { padding: var(--space-5); overflow-y: auto; }
+.ui-confirm-dialog { width: min(420px, calc(100% - 32px)); }
+.ui-confirm-dialog > header { padding-bottom: var(--space-3); border-bottom: 0; }
+.ui-confirm-dialog > header h2 { font-size: var(--font-size-lg); }
+.ui-confirm-dialog .ui-dialog-body { padding-top: 0; padding-bottom: var(--space-4); color: var(--color-text-secondary); font-size: var(--font-size-md); line-height: 1.55; }
+.ui-confirm-dialog .ui-dialog-body p { margin: 0; }
+.ui-confirm-dialog > footer { padding-top: 0; border-top: 0; }
 .ui-drawer { width: min(480px, 100%); height: 100dvh; max-height: 100dvh; margin: 0 0 0 auto; border-radius: 0; }
 .ui-toast { position: fixed; z-index: 100; right: var(--space-6); bottom: var(--space-6); min-width: 280px; display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: 12px 14px; border-radius: var(--radius-md); background: var(--color-text); color: #fff; box-shadow: var(--shadow-overlay); }
 .ui-toast-danger { background: var(--color-danger); }
