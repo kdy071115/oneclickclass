@@ -989,12 +989,6 @@ export function LearnerRoomPage() {
   const [verifying, setVerifying] = useState(false);
   const [room, setRoom] = useState<OneClickLearnRoom | null>();
   const [enrollment, setEnrollment] = useState<OneClickEnrollment | null>();
-  const {
-    bookmarked,
-    loading: bookmarkLoading,
-    error: bookmarkError,
-    toggle: toggleBookmark,
-  } = useCourseBookmark(id, Boolean(enrollment?.canLearn));
   const [error, setError] = useState('');
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [activeTool, setActiveTool] = useState<'notice' | 'resource' | 'assessment' | 'review'>(
@@ -1285,17 +1279,6 @@ export function LearnerRoomPage() {
         <header className="learner-room-topbar">
           <b>원클릭 클래스</b>
           <div className="learner-room-actions">
-            <Link to="/favorites">관심 목록</Link>
-            <button
-              className={`learner-room-bookmark ${bookmarked ? 'active' : ''}`}
-              type="button"
-              aria-label={bookmarked ? '관심 클래스 해제' : '관심 클래스 등록'}
-              aria-pressed={bookmarked}
-              disabled={bookmarkLoading}
-              onClick={() => void toggleBookmark()}
-            >
-              <Heart fill={bookmarked ? 'currentColor' : 'none'} />
-            </button>
             <button type="button" onClick={() => nav(`/s/${courseShareToken}`)}>
               강의 정보
             </button>
@@ -1505,24 +1488,12 @@ export function LearnerRoomPage() {
       <header className="learner-room-topbar">
         <b>원클릭 클래스</b>
         <div className="learner-room-actions">
-          <Link to="/favorites">관심 목록</Link>
-          <button
-            className={`learner-room-bookmark ${bookmarked ? 'active' : ''}`}
-            type="button"
-            aria-label={bookmarked ? '관심 클래스 해제' : '관심 클래스 등록'}
-            aria-pressed={bookmarked}
-            disabled={bookmarkLoading}
-            onClick={() => void toggleBookmark()}
-          >
-            <Heart fill={bookmarked ? 'currentColor' : 'none'} />
-          </button>
           <button type="button" onClick={() => nav(`/s/${courseShareToken}`)}>
             강의 정보
           </button>
           <span>{enrollment.learnerName}님</span>
         </div>
       </header>
-      {bookmarkError && <p className="learner-bookmark-error room" role="status">{bookmarkError}</p>}
       <main className="learner-room-grid">
         <section className="learner-room-main">
           {linkedLessonView && activeLessonResources.length ? (

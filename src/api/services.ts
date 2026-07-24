@@ -29,6 +29,7 @@ import type {
   ClassDetail,
   ClassDraft,
   ClassItem,
+  ClassLifecycleStatus,
   CurriculumLesson,
   CurriculumSection,
   Dashboard,
@@ -39,6 +40,7 @@ import type {
   PaymentSummary,
   SettlementSummary,
   SurveyQuestion,
+  RecruitmentStatus,
 } from '../types/class';
 import { initialClassDraft } from '../constants/classDraft';
 import {
@@ -69,6 +71,23 @@ const classTypeLabel: Record<ClassDraft['type'], string> = {
   hybrid: '혼합형',
 };
 const untitledClassLabel = '강의 정보 준비 중';
+type MockClassSettings = {
+  lifecycleStatus?: ClassLifecycleStatus;
+  recruitmentStatus: RecruitmentStatus;
+  publicOn: boolean;
+  recruitmentClosed: boolean;
+  capacity: number;
+};
+const classStatus = (
+  lifecycleStatus: ClassLifecycleStatus,
+  recruitmentStatus: RecruitmentStatus,
+): ClassItem['status'] => {
+  if (lifecycleStatus === 'ENDED') return '종료';
+  if (recruitmentStatus === 'CLOSED' || recruitmentStatus === 'FULL') return '모집 마감';
+  if (lifecycleStatus === 'IN_PROGRESS') return '진행중';
+  if (recruitmentStatus === 'OPEN') return '모집중';
+  return '준비중';
+};
 const savedMockClasses = (): ClassItem[] => {
   try {
     const saved =
@@ -100,17 +119,14 @@ const previewClassItem = (id: string): ClassItem => {
   } catch {
     enrollmentTitle = '';
   }
+  const lifecycleStatus = settings.lifecycleStatus ?? (hasPublishedLesson ? 'READY' : 'CURRICULUM');
   return {
     id,
     courseMasterSeq: id,
     courseActiveSeq: id,
-    lifecycleStatus: settings.publicOn
-      ? 'RECRUITING'
-      : hasPublishedLesson
-        ? 'READY'
-        : 'CURRICULUM',
+    lifecycleStatus,
     title: draft.title || enrollmentTitle || untitledClassLabel,
-    status: settings.publicOn ? '모집중' : '준비중',
+    status: classStatus(lifecycleStatus, settings.recruitmentStatus),
     type: classTypeLabel[draft.type],
     date: draft.startDate || '일정 미정',
     enrolled: hasEnrollment ? 1 : 0,
@@ -121,12 +137,30 @@ const previewClassItem = (id: string): ClassItem => {
 };
 const mockClasses = () => {
   const saved = savedMockClasses();
-  const combined = [...saved, ...classes.filter((item) => !saved.some((row) => row.id === item.id))];
+  const combined = [
+    ...saved,
+    ...classes.filter((item) => !saved.some((row) => row.id === item.id)),
+  ];
   for (const id of listClassPreviewIds()) {
     if (LEGACY_MOCK_CLASS_IDS.has(id)) continue;
     if (!combined.some((item) => item.id === id)) combined.unshift(previewClassItem(id));
   }
-  return combined;
+  return combined.map((item) => {
+    const settings = mockSettings(item.id, item.capacity);
+    const lifecycleStatus =
+      settings.lifecycleStatus ??
+      (item.lifecycleStatus === 'RECRUITING' ? 'READY' : item.lifecycleStatus || 'READY');
+    const recruitmentStatus =
+      item.enrolled >= settings.capacity && settings.recruitmentStatus === 'OPEN'
+        ? 'FULL'
+        : settings.recruitmentStatus;
+    return {
+      ...item,
+      lifecycleStatus,
+      status: classStatus(lifecycleStatus, recruitmentStatus),
+      capacity: settings.capacity,
+    };
+  });
 };
 const saveMockClasses = (items: ClassItem[]) =>
   localStorage.setItem(
@@ -164,20 +198,49 @@ const saveMockCurriculum = (classId: string, sections: CurriculumSection[]) => {
   localStorage.setItem(curriculumKey(classId), JSON.stringify(sections));
   return sections;
 };
-const mockSettings = (classId: string, capacity = 30): Required<ClassSettingsUpdate> => {
+const mockSettings = (classId: string, capacity = 30): MockClassSettings => {
   try {
-    const saved = JSON.parse(localStorage.getItem(mockSettingsKey(classId)) || '{}') as ClassSettingsUpdate;
+    const saved = JSON.parse(
+      localStorage.getItem(mockSettingsKey(classId)) || '{}',
+    ) as ClassSettingsUpdate;
+    const publicOn = saved.publicOn ?? saved.recruitmentStatus !== 'PRIVATE';
+    const recruitmentClosed =
+      saved.recruitmentClosed ??
+      (saved.recruitmentStatus === 'CLOSED' || saved.recruitmentStatus === 'FULL');
     return {
-      publicOn: saved.publicOn ?? true,
-      recruitmentClosed: saved.recruitmentClosed ?? false,
+      lifecycleStatus: saved.lifecycleStatus,
+      recruitmentStatus:
+        saved.recruitmentStatus ?? (publicOn ? (recruitmentClosed ? 'CLOSED' : 'OPEN') : 'PRIVATE'),
+      publicOn,
+      recruitmentClosed,
       capacity: saved.capacity ?? capacity,
     };
   } catch {
-    return { publicOn: true, recruitmentClosed: false, capacity };
+    return {
+      recruitmentStatus: 'OPEN',
+      publicOn: true,
+      recruitmentClosed: false,
+      capacity,
+    };
   }
 };
 const saveMockSettings = (classId: string, update: ClassSettingsUpdate, capacity = 30) => {
-  const next = { ...mockSettings(classId, capacity), ...update };
+  const current = mockSettings(classId, capacity);
+  const next: MockClassSettings = { ...current, ...update };
+  if (update.recruitmentStatus) {
+    next.publicOn = update.recruitmentStatus !== 'PRIVATE';
+    next.recruitmentClosed =
+      update.recruitmentStatus === 'CLOSED' || update.recruitmentStatus === 'FULL';
+  } else if (update.publicOn !== undefined) {
+    next.recruitmentStatus = update.publicOn
+      ? current.recruitmentClosed
+        ? 'CLOSED'
+        : 'OPEN'
+      : 'PRIVATE';
+  } else if (update.recruitmentClosed !== undefined) {
+    next.recruitmentStatus = update.recruitmentClosed ? 'CLOSED' : 'OPEN';
+    next.publicOn = true;
+  }
   localStorage.setItem(mockSettingsKey(classId), JSON.stringify(next));
   return next;
 };
@@ -348,7 +411,11 @@ export const classService = {
       thumbnail: draft.thumbnail,
     };
     saveMockClasses([item, ...savedMockClasses()]);
-    saveMockSettings(item.id, { publicOn: false, recruitmentClosed: false }, item.capacity);
+    saveMockSettings(
+      item.id,
+      { lifecycleStatus: 'DRAFT', recruitmentStatus: 'PRIVATE' },
+      item.capacity,
+    );
     return delay(item);
   },
   update: (id: string, draft: Partial<ClassDraft>): Promise<ClassItem> => {
@@ -379,11 +446,14 @@ export const classService = {
   publish: (id: string): Promise<{ shareToken: string }> => {
     if (!mock)
       return apiClient.post<{ shareToken: string }>(`/classes/${id}/publish`).then((r) => r.data);
-    saveMockSettings(id, { publicOn: true });
+    saveMockSettings(id, {
+      lifecycleStatus: 'READY',
+      recruitmentStatus: 'OPEN',
+    });
     const current = mockClasses().find((item) => item.id === id);
     if (current) {
       saveMockClasses([
-        { ...current, status: '모집중', lifecycleStatus: 'RECRUITING' },
+        { ...current, status: '모집중', lifecycleStatus: 'READY' },
         ...savedMockClasses().filter((item) => item.id !== id),
       ]);
     }
@@ -404,8 +474,16 @@ export const classService = {
       })
       .then((r) => r.data);
   },
-  uploadFile: (file: File): Promise<{ url: string; name?: string; type?: string; size?: number }> => {
-    if (mock) return delay({ url: URL.createObjectURL(file), name: file.name, type: file.type, size: file.size });
+  uploadFile: (
+    file: File,
+  ): Promise<{ url: string; name?: string; type?: string; size?: number }> => {
+    if (mock)
+      return delay({
+        url: URL.createObjectURL(file),
+        name: file.name,
+        type: file.type,
+        size: file.size,
+      });
     const form = new FormData();
     form.append('file', file);
     return apiClient
@@ -417,7 +495,9 @@ export const classService = {
 };
 export const applicantService = {
   list: (): Promise<Applicant[]> =>
-    mock ? delay(allMockApplicants()) : apiClient.get<Applicant[]>('/applicants').then((r) => r.data),
+    mock
+      ? delay(allMockApplicants())
+      : apiClient.get<Applicant[]>('/applicants').then((r) => r.data),
   listPage: (query: PageQuery = {}): Promise<PageResponse<Applicant>> =>
     mock
       ? delay(pageItems(allMockApplicants(), query))
@@ -434,9 +514,7 @@ export const applicantService = {
           const applicant = (classId ? mockApplicantsByClass(classId) : allMockApplicants()).find(
             (item) => item.id === id,
           );
-          return applicant
-            ? delay(applicant)
-            : Promise.reject(new Error('applicant not found'));
+          return applicant ? delay(applicant) : Promise.reject(new Error('applicant not found'));
         })()
       : apiClient.get<Applicant>(`/applicants/${id}`).then((r) => r.data),
   updatePayment: (id: string, update: ApplicantUpdate, classId?: string): Promise<Applicant> => {
@@ -519,36 +597,43 @@ export const detailService = {
           ? '라이브 · 차시별 참여 링크'
           : '온라인 · 차시별 영상'
       : baseDetail.location;
+    const lifecycleStatus =
+      settings.lifecycleStatus ??
+      (savedCurriculum.some((section) => section.lessons.some((lesson) => lesson.published))
+        ? 'READY'
+        : hasDraft
+          ? 'CURRICULUM'
+          : baseDetail.lifecycleStatus || 'DRAFT');
+    const recruitmentStatus =
+      settings.capacity <= enrolled && settings.recruitmentStatus === 'OPEN'
+        ? 'FULL'
+        : settings.recruitmentStatus;
     return delay({
       ...baseDetail,
       ...item,
       id,
       courseMasterSeq: item?.courseMasterSeq || id,
       courseActiveSeq: item?.courseActiveSeq || id,
-      lifecycleStatus: settings.publicOn
-        ? 'RECRUITING'
-        : savedCurriculum.some((section) => section.lessons.some((lesson) => lesson.published))
-          ? 'READY'
-          : hasDraft
-            ? 'CURRICULUM'
-            : baseDetail.lifecycleStatus,
-      status: settings.publicOn ? (item?.status === '준비중' ? '모집중' : item?.status || baseDetail.status) : '준비중',
+      lifecycleStatus,
+      status: classStatus(lifecycleStatus, recruitmentStatus),
       title: item?.title ?? baseDetail.title,
       summary: draftPatch?.summary?.trim() ? draftPatch.summary : baseDetail.summary,
-      description: draftPatch?.description?.trim() ? draftPatch.description : baseDetail.description,
+      description: draftPatch?.description?.trim()
+        ? draftPatch.description
+        : baseDetail.description,
       price: draftPatch?.payment
         ? draftPatch.payment === 'paid'
           ? draftPatch.price || 0
           : 0
         : baseDetail.price,
-      recruitEndDate:
-        draftPatch?.recruitEndDate?.trim() || baseDetail.recruitEndDate,
+      recruitEndDate: draftPatch?.recruitEndDate?.trim() || baseDetail.recruitEndDate,
       location: location || baseDetail.location,
       shareToken: id === 'notion' ? 'notion-auto' : id,
       enrolled,
       capacity: settings.capacity,
       publicOn: settings.publicOn,
       recruitmentClosed: settings.recruitmentClosed,
+      recruitmentStatus,
       reviewCount: baseDetail.reviewCount + (hasReview ? 1 : 0),
       rating: hasReview ? 5 : baseDetail.rating,
       completionRate: baseDetail.completionRate,

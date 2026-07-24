@@ -329,7 +329,7 @@ a {
   position: relative;
 }
 .icon-btn.has-unread::after {
-  content: "";
+  content: '';
   position: absolute;
   top: 8px;
   right: 9px;
@@ -495,7 +495,10 @@ a {
   margin-bottom: 10px;
   box-shadow: 0 2px 10px #17202c0a;
 }
-.class-card-wrap { position: relative; min-width: 0; }
+.class-card-wrap {
+  position: relative;
+  min-width: 0;
+}
 .class-thumb {
   width: 56px;
   height: 64px;
@@ -504,9 +507,35 @@ a {
   background-size: cover;
   background-position: center;
 }
-.class-favorite { position: absolute; z-index: 2; top: 12px; right: 12px; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; background: #fff; color: var(--color-danger); box-shadow: var(--shadow-card); }
-.class-favorite svg { width: 19px; }
-.thumbnail-manage-link { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; padding: 16px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-tint-blue); color: var(--color-primary); font-weight: 800; }
+.class-favorite {
+  position: absolute;
+  z-index: 2;
+  top: 12px;
+  right: 12px;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--color-danger);
+  box-shadow: var(--shadow-card);
+}
+.class-favorite svg {
+  width: 19px;
+}
+.thumbnail-manage-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-tint-blue);
+  color: var(--color-primary);
+  font-weight: 800;
+}
 .class-info {
   flex: 1;
   min-width: 0;
@@ -1221,7 +1250,7 @@ a {
   }
 
   .phone nav::before {
-    content: "원클릭 클래스";
+    content: '원클릭 클래스';
     position: absolute;
     top: 32px;
     left: 24px;
@@ -1259,7 +1288,7 @@ a {
   }
 
   .nav-create::after {
-    content: "강의 만들기";
+    content: '강의 만들기';
     font-size: 14px;
     font-weight: 800;
   }
@@ -1276,7 +1305,7 @@ a {
   }
 
   .home header::before {
-    content: "대시보드";
+    content: '대시보드';
     font-size: 30px;
     font-weight: 800;
   }
@@ -1300,7 +1329,10 @@ a {
   .applicant-row,
   .menu-row,
   .menu-box button {
-    transition: background 0.15s, border-color 0.15s, transform 0.15s;
+    transition:
+      background 0.15s,
+      border-color 0.15s,
+      transform 0.15s;
   }
 
   .class-card:hover,
@@ -1918,6 +1950,19 @@ a {
   font-size: 11px;
   color: var(--muted);
   margin-top: 3px;
+}
+.settings-card .oc-setting-select {
+  width: 104px;
+  height: 36px;
+  padding: 0 28px 0 10px;
+  border: 1px solid #dfe3e8;
+  border-radius: 9px;
+  background: #fff;
+  font: inherit;
+  font-weight: 700;
+}
+.settings-card button:disabled {
+  opacity: 0.45;
 }
 .switch {
   width: 46px;

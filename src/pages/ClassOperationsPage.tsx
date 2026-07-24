@@ -24,7 +24,15 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ApplicantRow } from '../components/feature/ApplicantRow';
 import { PageHeader } from '../components/common/PageHeader';
 import { applicants, classes } from '../constants/mockData';
-import { Button, ConfirmDialog, FileDropzone, Input, Modal, Select, Textarea } from '../components/ui';
+import {
+  Button,
+  ConfirmDialog,
+  FileDropzone,
+  Input,
+  Modal,
+  Select,
+  Textarea,
+} from '../components/ui';
 import {
   attendanceService,
   applicantService,
@@ -35,7 +43,7 @@ import {
   surveyService,
 } from '../api/services';
 import type { AttendanceRow, SurveyOverviewItem } from '../types/api';
-import type { ClassDetail } from '../types/class';
+import type { ClassDetail, ClassLifecycleStatus } from '../types/class';
 import { getClassThumbnail, readImageFile, saveClassThumbnail } from '../utils/classThumbnail';
 
 type Config = {
@@ -135,9 +143,7 @@ export function ClassOperationsPage() {
         {cfg.kind === 'builder' && (
           <Builder classId={id} exam={key.startsWith('exam')} notify={notify} />
         )}{' '}
-        {cfg.kind === 'settings' && (
-          <Manage id={id} detail={detail} notify={notify} />
-        )}{' '}
+        {cfg.kind === 'settings' && <Manage id={id} detail={detail} notify={notify} />}{' '}
         {cfg.kind === 'certificates' && (
           <Certificates manager={certificateManager} requiresAttendance={item.type !== '온라인'} />
         )}{' '}
@@ -1037,6 +1043,7 @@ function WebManage({
   const nav = useNavigate();
   const [publicOn, setPublicOn] = useState(true);
   const [closed, setClosed] = useState(false);
+  const [lifecycleStatus, setLifecycleStatus] = useState<ClassLifecycleStatus>('READY');
   const [capacity, setCapacity] = useState(detail?.capacity || 30);
   const [thumbnail, setThumbnail] = useState(() => getClassThumbnail(id));
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -1046,9 +1053,17 @@ function WebManage({
   }, [detail?.capacity]);
   useEffect(() => {
     if (!detail) return;
-    setPublicOn(detail.publicOn ?? true);
-    setClosed(detail.recruitmentClosed ?? false);
+    setPublicOn(
+      detail.recruitmentStatus ? detail.recruitmentStatus !== 'PRIVATE' : (detail.publicOn ?? true),
+    );
+    setClosed(detail.recruitmentStatus === 'CLOSED' || (detail.recruitmentClosed ?? false));
+    setLifecycleStatus(
+      detail.lifecycleStatus === 'IN_PROGRESS' || detail.lifecycleStatus === 'ENDED'
+        ? detail.lifecycleStatus
+        : 'READY',
+    );
   }, [detail]);
+  const full = !closed && (detail?.enrolled || 0) >= capacity;
   const changeThumbnail = async (file: File) => {
     const value = await readImageFile(file);
     setThumbnail(value);
@@ -1080,6 +1095,34 @@ function WebManage({
           <h2>강의 설정</h2>
           <div>
             <span>
+              <b>운영 상태</b>
+              <small>수강생에게 표시되는 강의 진행 단계예요</small>
+            </span>
+            <select
+              className="oc-setting-select"
+              aria-label="강의 운영 상태"
+              value={lifecycleStatus}
+              onChange={(event) => {
+                const next = event.target.value as ClassLifecycleStatus;
+                setLifecycleStatus(next);
+                if (next === 'ENDED') {
+                  setClosed(true);
+                  setPublicOn(true);
+                }
+                void classService.updateSettings(id, {
+                  lifecycleStatus: next,
+                  ...(next === 'ENDED' ? { recruitmentStatus: 'CLOSED' as const } : {}),
+                });
+                notify(next === 'ENDED' ? '강의 운영을 종료했어요' : '운영 상태를 변경했어요');
+              }}
+            >
+              <option value="READY">준비중</option>
+              <option value="IN_PROGRESS">진행중</option>
+              <option value="ENDED">종료</option>
+            </select>
+          </div>
+          <div>
+            <span>
               <b>공개 상태</b>
               <small>신청 페이지 노출</small>
             </span>
@@ -1091,7 +1134,9 @@ function WebManage({
               onClick={() => {
                 const next = !publicOn;
                 setPublicOn(next);
-                void classService.updateSettings(id, { publicOn: next });
+                void classService.updateSettings(id, {
+                  recruitmentStatus: next ? (closed ? 'CLOSED' : 'OPEN') : 'PRIVATE',
+                });
                 notify(next ? '공개로 전환했어요' : '비공개로 전환했어요');
               }}
             >
@@ -1101,18 +1146,29 @@ function WebManage({
           <div>
             <span>
               <b>모집 상태</b>
-              <small>{closed ? '신청을 받지 않아요' : '현재 신청을 받고 있어요'}</small>
+              <small>
+                {lifecycleStatus === 'ENDED'
+                  ? '종료된 강의는 신청을 받을 수 없어요'
+                  : full
+                    ? '정원이 모두 찼어요'
+                    : closed
+                      ? '신청을 받지 않아요'
+                      : '현재 신청을 받고 있어요'}
+              </small>
             </span>
             <button
               className="oc-soft-button"
+              disabled={!publicOn || lifecycleStatus === 'ENDED' || full}
               onClick={() => {
                 const next = !closed;
                 setClosed(next);
-                void classService.updateSettings(id, { recruitmentClosed: next });
+                void classService.updateSettings(id, {
+                  recruitmentStatus: next ? 'CLOSED' : 'OPEN',
+                });
                 notify(next ? '모집을 마감했어요' : '모집을 다시 열었어요');
               }}
             >
-              {closed ? '모집 재개' : '모집 마감'}
+              {full ? '정원 마감' : closed ? '모집 재개' : '모집 마감'}
             </button>
           </div>
           <div>
@@ -1169,10 +1225,7 @@ function WebManage({
             >
               <Copy size={18} /> 신청 링크 복사 <span>›</span>
             </button>
-            <button
-              className="danger"
-              onClick={() => setDeleteOpen(true)}
-            >
+            <button className="danger" onClick={() => setDeleteOpen(true)}>
               강의 삭제
             </button>
           </div>
@@ -1423,19 +1476,22 @@ function People({ id }: { id: string }) {
         <div className="blue">
           <small>전체 신청</small>
           <b>
-            {rows.length}<em>명</em>
+            {rows.length}
+            <em>명</em>
           </b>
         </div>
         <div className="orange">
           <small>결제 대기</small>
           <b>
-            {count('결제대기')}<em>건</em>
+            {count('결제대기')}
+            <em>건</em>
           </b>
         </div>
         <div className="green">
           <small>결제 완료</small>
           <b>
-            {count('결제완료')}<em>명</em>
+            {count('결제완료')}
+            <em>명</em>
           </b>
         </div>
       </div>
@@ -1510,19 +1566,22 @@ function Attendance({
         <div className="blue">
           <small>전체 수강생</small>
           <b>
-            {rows.length}<em>명</em>
+            {rows.length}
+            <em>명</em>
           </b>
         </div>
         <div className="green">
           <small>출석</small>
           <b>
-            {present}<em>명</em>
+            {present}
+            <em>명</em>
           </b>
         </div>
         <div className="orange">
           <small>결석</small>
           <b>
-            {absent.length}<em>명</em>
+            {absent.length}
+            <em>명</em>
           </b>
         </div>
       </div>
@@ -1530,7 +1589,9 @@ function Attendance({
         <QrCode />
         <span>
           <b>출석 QR 열기</b>
-          <small>{schedule} · {session}회차</small>
+          <small>
+            {schedule} · {session}회차
+          </small>
         </span>
       </Link>
       <div className="chips session-chips">
@@ -1587,7 +1648,8 @@ function Survey({ id, detail }: { id: string; detail?: ClassDetail }) {
         <div>
           <small>등록 항목</small>
           <b>
-            {items.length}<em>개</em>
+            {items.length}
+            <em>개</em>
           </b>
         </div>
         <div>
@@ -1599,7 +1661,9 @@ function Survey({ id, detail }: { id: string; detail?: ClassDetail }) {
         <article className="survey-result mobile-survey-item" key={item.id}>
           <b>{item.title}</b>
           <p>{item.meta}</p>
-          <small>{item.status} · 응답률 {item.response}%</small>
+          <small>
+            {item.status} · 응답률 {item.response}%
+          </small>
         </article>
       ))}
       {!items.length && <div className="mobile-operation-empty">아직 만든 설문이 없어요.</div>}
@@ -1759,15 +1823,24 @@ function Manage({
   const nav = useNavigate();
   const [publicOn, setPublicOn] = useState(true);
   const [closed, setClosed] = useState(false);
+  const [lifecycleStatus, setLifecycleStatus] = useState<ClassLifecycleStatus>('READY');
   const [capacity, setCapacity] = useState(30);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   useEffect(() => {
     if (!detail) return;
-    setPublicOn(detail.publicOn ?? true);
-    setClosed(detail.recruitmentClosed ?? false);
+    setPublicOn(
+      detail.recruitmentStatus ? detail.recruitmentStatus !== 'PRIVATE' : (detail.publicOn ?? true),
+    );
+    setClosed(detail.recruitmentStatus === 'CLOSED' || (detail.recruitmentClosed ?? false));
+    setLifecycleStatus(
+      detail.lifecycleStatus === 'IN_PROGRESS' || detail.lifecycleStatus === 'ENDED'
+        ? detail.lifecycleStatus
+        : 'READY',
+    );
     setCapacity(detail.capacity);
   }, [detail]);
+  const full = !closed && (detail?.enrolled || 0) >= capacity;
   const deleteClass = async () => {
     setDeleting(true);
     try {
@@ -1785,14 +1858,45 @@ function Manage({
       <section className="settings-card">
         <div>
           <span>
+            <b>운영 상태</b>
+            <small>강의 진행 단계를 선택해 주세요</small>
+          </span>
+          <select
+            className="oc-setting-select"
+            aria-label="강의 운영 상태"
+            value={lifecycleStatus}
+            onChange={(event) => {
+              const next = event.target.value as ClassLifecycleStatus;
+              setLifecycleStatus(next);
+              if (next === 'ENDED') {
+                setClosed(true);
+                setPublicOn(true);
+              }
+              void classService.updateSettings(id, {
+                lifecycleStatus: next,
+                ...(next === 'ENDED' ? { recruitmentStatus: 'CLOSED' as const } : {}),
+              });
+              notify(next === 'ENDED' ? '강의 운영을 종료했어요' : '운영 상태를 변경했어요');
+            }}
+          >
+            <option value="READY">준비중</option>
+            <option value="IN_PROGRESS">진행중</option>
+            <option value="ENDED">종료</option>
+          </select>
+        </div>
+        <div>
+          <span>
             <b>공개 상태</b>
             <small>신청 페이지 노출</small>
           </span>
           <button
             className={`switch ${publicOn ? 'on' : ''}`}
             onClick={() => {
-              setPublicOn(!publicOn);
-              void classService.updateSettings(id, { publicOn: !publicOn });
+              const next = !publicOn;
+              setPublicOn(next);
+              void classService.updateSettings(id, {
+                recruitmentStatus: next ? (closed ? 'CLOSED' : 'OPEN') : 'PRIVATE',
+              });
               notify(publicOn ? '비공개로 전환했어요' : '공개로 전환했어요');
             }}
           >
@@ -1802,17 +1906,28 @@ function Manage({
         <div>
           <span>
             <b>모집 상태</b>
-            <small>{closed ? '신청을 받지 않아요' : '현재 신청을 받고 있어요'}</small>
+            <small>
+              {lifecycleStatus === 'ENDED'
+                ? '종료된 강의는 신청을 받을 수 없어요'
+                : full
+                  ? '정원이 모두 찼어요'
+                  : closed
+                    ? '신청을 받지 않아요'
+                    : '현재 신청을 받고 있어요'}
+            </small>
           </span>
           <button
             className="badge blue"
+            disabled={!publicOn || lifecycleStatus === 'ENDED' || full}
             onClick={() => {
               setClosed(!closed);
-              void classService.updateSettings(id, { recruitmentClosed: !closed });
+              void classService.updateSettings(id, {
+                recruitmentStatus: closed ? 'OPEN' : 'CLOSED',
+              });
               notify(closed ? '모집을 다시 열었어요' : '모집을 마감했어요');
             }}
           >
-            {closed ? '모집 재개' : '모집 마감'}
+            {full ? '정원 마감' : closed ? '모집 재개' : '모집 마감'}
           </button>
         </div>
         <div>
@@ -1821,16 +1936,25 @@ function Manage({
             <small>현재 {detail?.enrolled || 0}명 신청</small>
           </span>
           <em>
-            <button onClick={() => {
-              const next = Math.max(1, capacity - 5);
-              setCapacity(next);
-              void classService.updateSettings(id, { capacity: next });
-            }}>−</button>
-            {capacity}명<button onClick={() => {
-              const next = capacity + 5;
-              setCapacity(next);
-              void classService.updateSettings(id, { capacity: next });
-            }}>＋</button>
+            <button
+              onClick={() => {
+                const next = Math.max(1, capacity - 5);
+                setCapacity(next);
+                void classService.updateSettings(id, { capacity: next });
+              }}
+            >
+              −
+            </button>
+            {capacity}명
+            <button
+              onClick={() => {
+                const next = capacity + 5;
+                setCapacity(next);
+                void classService.updateSettings(id, { capacity: next });
+              }}
+            >
+              ＋
+            </button>
           </em>
         </div>
       </section>
@@ -1856,10 +1980,7 @@ function Manage({
           <span>신청 링크 복사</span>›
         </button>
       </section>
-      <button
-        className="danger"
-        onClick={() => setDeleteOpen(true)}
-      >
+      <button className="danger" onClick={() => setDeleteOpen(true)}>
         강의 삭제
       </button>
       <ConfirmDialog

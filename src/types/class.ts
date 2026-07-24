@@ -1,11 +1,7 @@
-export type ClassStatus = '준비중' | '모집중' | '진행중' | '종료';
+export type ClassStatus = '준비중' | '모집중' | '모집 마감' | '진행중' | '종료';
+export type RecruitmentStatus = 'PRIVATE' | 'OPEN' | 'CLOSED' | 'FULL';
 export type ClassLifecycleStatus =
-  | 'DRAFT'
-  | 'CURRICULUM'
-  | 'READY'
-  | 'RECRUITING'
-  | 'IN_PROGRESS'
-  | 'ENDED';
+  'DRAFT' | 'CURRICULUM' | 'READY' | 'RECRUITING' | 'IN_PROGRESS' | 'ENDED';
 export interface ClassItem {
   id: string;
   courseMasterSeq?: string;
@@ -79,6 +75,7 @@ export interface ClassDetail extends ClassItem {
   shareToken: string;
   publicOn?: boolean;
   recruitmentClosed?: boolean;
+  recruitmentStatus?: RecruitmentStatus;
   applicantTrend: number[];
   curriculum: {
     id: string;

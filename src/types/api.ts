@@ -1,4 +1,5 @@
 import type { AttendanceStatus, PaymentStatus } from '../utils/status';
+import type { ClassLifecycleStatus, RecruitmentStatus } from './class';
 
 export interface PageQuery {
   page?: number;
@@ -45,6 +46,8 @@ export interface SurveyOverviewItem {
 }
 
 export interface ClassSettingsUpdate {
+  lifecycleStatus?: ClassLifecycleStatus;
+  recruitmentStatus?: RecruitmentStatus;
   publicOn?: boolean;
   recruitmentClosed?: boolean;
   capacity?: number;
