@@ -104,6 +104,35 @@ const groupCurriculumItems = <T extends { sectionId?: string; sectionTitle?: str
     return groups;
   }, []);
 
+const getResumeLessonIndex = (room: OneClickLearnRoom) => {
+  const available = (lesson: OneClickLesson) => !lesson.locked && lesson.playable;
+  const savedIndex = room.resumeLessonId
+    ? room.lessons.findIndex((lesson) => lesson.lessonId === room.resumeLessonId && available(lesson))
+    : -1;
+  if (savedIndex >= 0) return savedIndex;
+  const legacyIndex = Number.parseInt(room.lastPosition, 10) - 1;
+  if (legacyIndex >= 0 && available(room.lessons[legacyIndex])) return legacyIndex;
+  const inProgressIndex = room.lessons.findIndex(
+    (lesson) => available(lesson) && !lesson.completed && (lesson.currentSeconds ?? 0) > 0,
+  );
+  if (inProgressIndex >= 0) return inProgressIndex;
+  const incompleteIndex = room.lessons.findIndex(
+    (lesson) => available(lesson) && !lesson.completed,
+  );
+  return incompleteIndex >= 0 ? incompleteIndex : 0;
+};
+
+const getLessonDisplayNumber = (
+  groups: Array<{ items: OneClickLesson[] }>,
+  lessonId: string,
+) => {
+  for (let sectionIndex = 0; sectionIndex < groups.length; sectionIndex += 1) {
+    const lessonIndex = groups[sectionIndex].items.findIndex((lesson) => lesson.lessonId === lessonId);
+    if (lessonIndex >= 0) return `${sectionIndex + 1}-${lessonIndex + 1}`;
+  }
+  return '1-1';
+};
+
 const getYouTubeVideoId = (url: string) => {
   try {
     const parsed = new URL(url);
@@ -1007,10 +1036,7 @@ export function LearnerRoomPage() {
         setRoom(nextRoom);
         setEnrollment(nextRoom);
         if (nextRoom?.lessons?.length) {
-          const resumableIndex = nextRoom.lessons.findIndex(
-            (lesson) => !lesson.completed && !lesson.locked,
-          );
-          const nextIndex = resumableIndex >= 0 ? resumableIndex : 0;
+          const nextIndex = getResumeLessonIndex(nextRoom);
           setActiveLessonIndex(nextIndex);
           setPlaybackStartSeconds(
             nextRoom.lessons[nextIndex].completed
@@ -1063,9 +1089,17 @@ export function LearnerRoomPage() {
     try {
       const next = await oneclickService.continueWithPhone(id, phone, verificationCode);
       const nextRoom = await oneclickService.learnRoom(id);
-      setEnrollment(next);
+      setEnrollment(nextRoom || next);
       setRoom(nextRoom);
-      setActiveLessonIndex(defaultResumeLessonIndex);
+      if (nextRoom?.lessons.length) {
+        const nextIndex = getResumeLessonIndex(nextRoom);
+        setActiveLessonIndex(nextIndex);
+        setPlaybackStartSeconds(
+          nextRoom.lessons[nextIndex].completed
+            ? 0
+            : (nextRoom.lessons[nextIndex].currentSeconds ?? 0),
+        );
+      }
     } catch {
       setError('인증번호가 올바르지 않거나 만료됐어요. 다시 확인해 주세요.');
     } finally {
@@ -1292,6 +1326,10 @@ export function LearnerRoomPage() {
   }
   const activeLesson = lessons[activeLessonIndex] ?? lessons[0];
   const activeProgress = activeLesson.progress ?? enrollment.progress;
+  const activeLessonNumber = getLessonDisplayNumber(lessonGroups, activeLesson.lessonId);
+  const activeLessonPosition = `${activeLessonNumber}차시 ${formatPlaybackTime(
+    activeLesson.currentSeconds ?? playbackStartSeconds,
+  )}`;
   const linkedLessonView = getLinkedLessonView(activeLesson.contentProvider);
   const activeLessonResources =
     activeLesson.resources?.length
@@ -1371,7 +1409,7 @@ export function LearnerRoomPage() {
       : activeProgress;
     const lessonCompleted = ended || activeLesson.completed || measuredProgress >= 90;
     const lessonProgress = Math.max(activeLesson.progress, measuredProgress, lessonCompleted ? 90 : 0);
-    const lastPosition = `${activeLessonIndex + 1}강 ${formatPlaybackTime(currentSeconds)}`;
+    const lastPosition = `${activeLessonNumber}차시 ${formatPlaybackTime(currentSeconds)}`;
     const totalProgress = Math.round(
       lessons.reduce(
         (total, lesson, index) =>
@@ -1393,6 +1431,7 @@ export function LearnerRoomPage() {
             ...current,
             progress: totalProgress,
             lastPosition,
+            resumeLessonId: activeLesson.lessonId,
             lessons: current.lessons.map((lesson, index) =>
               index === activeLessonIndex
                 ? {
@@ -1416,7 +1455,14 @@ export function LearnerRoomPage() {
         : current,
     );
     setEnrollment((current) =>
-      current ? { ...current, progress: totalProgress, lastPosition } : current,
+      current
+        ? {
+            ...current,
+            progress: totalProgress,
+            lastPosition,
+            resumeLessonId: activeLesson.lessonId,
+          }
+        : current,
     );
   };
   const saveReview = async () => {
@@ -1483,7 +1529,7 @@ export function LearnerRoomPage() {
             <section className="learner-material-stage">
               <div className="learner-material-stage-head">
                 <span><FileText size={18} /> {linkedLessonView.label}</span>
-                <small>{activeLessonIndex + 1}강</small>
+                <small>{activeLessonNumber}차시</small>
               </div>
               <h2>{activeLesson.title}</h2>
               <p>{activeLesson.description || linkedLessonView.description}</p>
@@ -1631,7 +1677,7 @@ export function LearnerRoomPage() {
                   : '콘텐츠 준비 중'}
               </small>
               <b>
-                {activeLessonIndex + 1}강. {activeLesson.title}
+                {activeLessonNumber}차시. {activeLesson.title}
               </b>
               <span>
                 {activeDurationSeconds
@@ -1644,8 +1690,8 @@ export function LearnerRoomPage() {
           )}
           <section className="learner-section learner-progress-card">
             <span>수강 중</span>
-            <h1>{title}</h1>
-            <p>최근 학습 위치: {enrollment.lastPosition}</p>
+            <h1>{activeLesson.title}</h1>
+            <p>현재 학습 위치: {activeLessonPosition}</p>
             <div className="student-progress-head">
               <span>전체 진도</span>
               <b>{enrollment.progress}%</b>

@@ -380,9 +380,11 @@ describe('oneclick learner service', () => {
     await expect(oneclickService.enrollment('heartbeat-course')).resolves.toMatchObject({
       lastPosition: '1강 1분 27초',
       progress: 29,
+      resumeLessonId: 'lesson-1',
     });
     await expect(oneclickService.learnRoom('heartbeat-course')).resolves.toMatchObject({
       progress: 29,
+      resumeLessonId: 'lesson-1',
       lessons: [expect.objectContaining({ progress: 29, currentSeconds: 87 })],
     });
 

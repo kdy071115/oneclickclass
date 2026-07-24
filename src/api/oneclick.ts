@@ -115,6 +115,7 @@ export type OneClickEnrollment = {
   accessReason: OneClickAccessReason;
   progress: number;
   lastPosition: string;
+  resumeLessonId?: string;
 };
 
 export type OneClickLesson = {
@@ -815,6 +816,12 @@ const normalizeEnrollment = (
       ['lastPosition', 'lastStudyPosition', 'resumeText'],
       '1강 0분 0초',
     ),
+    resumeLessonId:
+      pickString(
+        merged,
+        ['resumeLessonId', 'lastLessonId', 'lastStudyLessonId', 'activeElementSeq'],
+        '',
+      ) || undefined,
   };
 };
 
@@ -1092,12 +1099,11 @@ const defaultReviews = (courseActiveSeq: string): OneClickReview[] => [
 const normalizeLearnRoom = (raw: unknown, fallbackCourseActiveSeq: string): OneClickLearnRoom => {
   const root = asRecord(raw);
   const enrollment = normalizeEnrollment(raw, fallbackCourseActiveSeq);
-  const share = normalizeShare(raw, fallbackCourseActiveSeq);
   return {
     ...enrollment,
     progress: enrollment.progress || pickNumber(root, ['appMyRateScore', 'totalProgress'], 0),
-    courseTitle: pickString(root, ['courseTitle', 'courseActiveTitle'], share.title),
-    courseSummary: pickString(root, ['courseSummary', 'summary'], share.summary),
+    courseTitle: pickString(root, ['courseTitle', 'courseActiveTitle'], '강의'),
+    courseSummary: pickString(root, ['courseSummary', 'summary'], ''),
     lessons: normalizeLessons(raw),
     tools: normalizeTools(raw),
     notices: normalizeToolItems(raw, ['notices', 'noticeList', 'listNotice']),
@@ -1242,6 +1248,10 @@ export const oneclickService = {
         ? fallbackLessons(enrollment.progress)
         : [];
     const lastLessonNumber = Number.parseInt(enrollment.lastPosition, 10);
+    const resumeLessonId =
+      enrollment.resumeLessonId ||
+      lessons[Math.min(Math.max(lastLessonNumber - 1, 0), Math.max(lessons.length - 1, 0))]
+        ?.lessonId;
     const totalProgress = savedCurriculum.length
       ? Math.round(
           lessonStates.reduce((total, lesson) => total + lesson.progress, 0) /
@@ -1256,6 +1266,7 @@ export const oneclickService = {
           ? '1강 0분 0초'
           : enrollment.lastPosition,
       courseActiveSeq: enrollment.courseActiveSeq || courseActiveSeq,
+      resumeLessonId,
       courseTitle: mockShare(courseActiveSeq).title,
       courseSummary: mockShare(courseActiveSeq).summary,
       lessons,
@@ -1433,6 +1444,7 @@ export const oneclickService = {
             ...enrollment,
             progress: totalProgress,
             lastPosition: `${Math.max(0, lessonIndex) + 1}강 ${minutes}분 ${seconds}초`,
+            resumeLessonId: input.lessonId,
           }),
         );
       }
