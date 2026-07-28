@@ -10,4 +10,5 @@ import './styles/qr.css';
 import './styles/design-fixes.css';
 import './styles/web.css';
 import './styles/auth-layout.css';
+import './styles/landing.css';
 createRoot(document.getElementById('root')!).render(<StrictMode><App/></StrictMode>);

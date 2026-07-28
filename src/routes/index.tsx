@@ -40,6 +40,11 @@ const operations = [
 
 export const router = createBrowserRouter([
   {
+    path: '/',
+    lazy: lazyPage(() => import('../pages/LandingPage'), 'LandingPage'),
+    errorElement: <RouteErrorPage />,
+  },
+  {
     errorElement: <RouteErrorPage />,
     element: (
       <ProtectedRoute>
@@ -47,7 +52,6 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      { path: '/', element: <Navigate to="/dashboard" replace /> },
       { path: '/dashboard', lazy: lazyPage(() => import('../pages/HomePage'), 'HomePage') },
       { path: '/classes', lazy: lazyPage(() => import('../pages/ClassesPage'), 'ClassesPage') },
       {
