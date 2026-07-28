@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   ClipboardList,
   Copy,
+  Download,
   Edit3,
   Eye,
   Image,
@@ -170,12 +171,14 @@ type CertificateManager = {
   editOpen: boolean;
   loading: boolean;
   submitting: boolean;
+  downloadingId: string | null;
   eligible: CertificateCandidate[];
   issued: CertificateCandidate[];
   ineligible: CertificateCandidate[];
   setEditOpen: (open: boolean) => void;
   toggleSelected: (id: string) => void;
   issue: (ids: string[]) => Promise<void>;
+  download: (candidate: CertificateCandidate) => Promise<void>;
   savePolicy: (policy: CertificatePolicy) => Promise<void>;
 };
 function useCertificateManager(
@@ -186,6 +189,7 @@ function useCertificateManager(
   const [editOpen, setEditOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<CertificateCandidate[]>([]);
   const [policy, setPolicy] = useState<CertificatePolicy>({
     minProgress: 80,
@@ -253,11 +257,30 @@ function useCertificateManager(
       setSubmitting(false);
     }
   };
+  const download = async (candidate: CertificateCandidate) => {
+    if (!candidate.certificateId) return;
+    setDownloadingId(candidate.certificateId);
+    try {
+      const blob = await certificateService.download(candidate.certificateId);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `${candidate.certificateId}.pdf`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      notify(`${candidate.name}님의 수료증 PDF를 저장했어요`);
+    } catch {
+      notify('수료증 PDF를 다운로드하지 못했어요');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
   return {
     selected,
     editOpen,
     loading,
     submitting,
+    downloadingId,
     candidates,
     policy,
     eligible: candidates.filter((item) => item.eligibility === 'ELIGIBLE'),
@@ -266,6 +289,7 @@ function useCertificateManager(
     setEditOpen,
     toggleSelected,
     issue,
+    download,
     savePolicy,
   };
 }
@@ -1350,9 +1374,11 @@ function WebCertificates({
     ineligible,
     loading,
     submitting,
+    downloadingId,
     setEditOpen,
     toggleSelected,
     issue,
+    download,
     savePolicy,
   } = manager;
   const [filter, setFilter] = useState<'ELIGIBLE' | 'ISSUED' | 'INELIGIBLE'>('ELIGIBLE');
@@ -1498,7 +1524,17 @@ function WebCertificates({
                   {candidate.issuedAt && <p>{new Date(candidate.issuedAt).toLocaleDateString('ko-KR')} 발급</p>}
                 </div>
                 {done ? (
-                  <em className="issued">발급완료</em>
+                  <div className="certificate-issued-actions">
+                    <em className="issued">발급완료</em>
+                    <button
+                      type="button"
+                      disabled={downloadingId === candidate.certificateId}
+                      onClick={() => void download(candidate)}
+                    >
+                      <Download size={14} />
+                      {downloadingId === candidate.certificateId ? '다운로드 중...' : 'PDF 다운로드'}
+                    </button>
+                  </div>
                 ) : candidate.eligibility === 'ELIGIBLE' ? (
                   <button
                     className="certificate-issue-one"
@@ -2321,7 +2357,17 @@ function Certificates({
   manager: CertificateManager;
   requiresAttendance: boolean;
 }) {
-  const { issued, candidates, eligible, policy, issue, setEditOpen, submitting } = manager;
+  const {
+    issued,
+    candidates,
+    eligible,
+    policy,
+    issue,
+    download,
+    downloadingId,
+    setEditOpen,
+    submitting,
+  } = manager;
   return (
     <>
       <button className="certificate-banner" onClick={() => setEditOpen(true)}>
@@ -2354,8 +2400,14 @@ function Certificates({
         return (
           <button
             className="check-row"
-            disabled={!canIssue || submitting}
-            onClick={() => void issue([candidate.applicantId])}
+            disabled={
+              (!canIssue && !done) ||
+              submitting ||
+              downloadingId === candidate.certificateId
+            }
+            onClick={() =>
+              void (done ? download(candidate) : issue([candidate.applicantId]))
+            }
             key={candidate.applicantId}
           >
             <span>{candidate.name[0]}</span>
@@ -2367,8 +2419,14 @@ function Certificates({
               </small>
             </b>
             <em className={candidate.eligibility === 'INELIGIBLE' ? 'absent' : ''}>
-              {candidate.eligibility === 'INELIGIBLE' ? <X /> : <Check />}
-              {done ? '발급완료' : canIssue ? '개별 발급' : '조건 미달'}
+              {done ? <Download /> : candidate.eligibility === 'INELIGIBLE' ? <X /> : <Check />}
+              {done
+                ? downloadingId === candidate.certificateId
+                  ? '다운로드 중...'
+                  : 'PDF 다운로드'
+                : canIssue
+                  ? '개별 발급'
+                  : '조건 미달'}
             </em>
           </button>
         );

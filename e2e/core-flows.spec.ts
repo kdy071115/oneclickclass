@@ -307,20 +307,51 @@ test('온라인 클래스의 설문·수료증 관리 흐름을 처리한다', a
   await makeMockCertificatesEligible(page);
   await page.goto('/classes/notion/certificates');
   const certificateTargets = page.locator('.certificate-targets');
-  const individualButtons = certificateTargets.getByRole('button', { name: '개별 발급' });
-  await expect(individualButtons).toHaveCount(2);
-  await individualButtons.first().click();
+  const candidateRows = certificateTargets.locator('.certificate-candidate-row');
+
+  await page.getByRole('button', { name: '발급 설정' }).click();
+  const settingsDialog = page.locator('.certificate-editor-dialog[open]');
+  await expect(settingsDialog).toBeVisible();
+  await settingsDialog.getByLabel('발급 기관').fill('원클릭 클래스 교육원');
+  await settingsDialog.getByRole('button', { name: '저장', exact: true }).click();
+  await expect(page.getByText('수료증 설정을 저장했어요')).toBeVisible();
+  await page.getByRole('button', { name: '발급 설정' }).click();
+  await expect(settingsDialog.getByLabel('발급 기관')).toHaveValue('원클릭 클래스 교육원');
+  await settingsDialog.getByRole('button', { name: '취소' }).click();
+
+  await expect(candidateRows).toHaveCount(2);
+  await candidateRows.first().getByRole('button', { name: '개별 발급' }).click();
   await page.getByRole('dialog').getByRole('button', { name: '1명 발급', exact: true }).click();
   await expect(
     certificateTargets.getByRole('tab', { name: '발급 완료 1' }),
   ).toBeVisible();
   await certificateTargets.getByRole('tab', { name: '발급 가능 1' }).click();
-  await certificateTargets.getByRole('checkbox', { name: '박민지 선택' }).check();
+  await expect(candidateRows).toHaveCount(1);
+  await candidateRows.first().getByRole('checkbox').check();
   await certificateTargets.getByRole('button', { name: '선택 1명 발급' }).click();
   await page.getByRole('dialog').getByRole('button', { name: '1명 발급', exact: true }).click();
   await expect(
     certificateTargets.getByRole('tab', { name: '발급 완료 2' }),
   ).toBeVisible();
+
+  await certificateTargets.getByRole('tab', { name: '발급 완료 2' }).click();
+  await page.route('**/certificates/*/pdf', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    await route.fulfill({
+      contentType: 'application/pdf',
+      body: Buffer.from('%PDF-1.4 test certificate'),
+    });
+  });
+  const download = page.waitForEvent('download');
+  await candidateRows.first().getByRole('button', { name: 'PDF 다운로드' }).click();
+  await expect(candidateRows.first().getByRole('button')).toHaveText('다운로드 중...');
+  await expect(await download).toBeTruthy();
+  await expect(page.getByText(/수료증 PDF를 저장했어요/)).toBeVisible();
+
+  await page.unroute('**/certificates/*/pdf');
+  await page.route('**/certificates/*/pdf', (route) => route.abort());
+  await candidateRows.last().getByRole('button', { name: 'PDF 다운로드' }).click();
+  await expect(page.getByText('수료증 PDF를 다운로드하지 못했어요')).toBeVisible();
 });
 
 test('모바일 수료증이 데스크톱과 같은 발급 상태를 사용한다', async ({ page }, testInfo) => {
