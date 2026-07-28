@@ -161,8 +161,23 @@ test('수강생 신청 페이지와 강의실이 모바일에서 가로로 깨�
           lessons: [
             {
               id: 'lesson-1',
+              title: '콘텐츠 준비 중인 강의',
+              durationMinutes: 10,
+              published: true,
+              contentType: 'video',
+            },
+            {
+              id: 'lesson-2',
               title: '모바일 첫 강의',
               durationMinutes: 15,
+              published: true,
+              contentUrl: 'https://youtu.be/M7lc1UVf-VE',
+              contentType: 'video',
+            },
+            {
+              id: 'lesson-3',
+              title: '모바일 다음 강의',
+              durationMinutes: 20,
               published: true,
               contentUrl: 'https://youtu.be/M7lc1UVf-VE',
               contentType: 'video',
@@ -193,7 +208,19 @@ test('수강생 신청 페이지와 강의실이 모바일에서 가로로 깨�
   await page.locator('.learner-mobile-apply-cta').click();
   await expect(page).toHaveURL('/learn/responsive-course');
   await expect(page.getByRole('heading', { name: '모바일 첫 강의' })).toBeVisible();
-  await expect(page.getByRole('button', { name: /1 모바일 첫 강의 예상 15분/ })).toBeVisible();
+
+  await page.getByRole('button', { name: '커리큘럼 보기' }).click();
+  await expect(page.getByLabel('강의 커리큘럼')).toBeVisible();
+  await expect(page.getByRole('button', { name: /모바일 첫 강의 예상 15분/ })).toBeVisible();
+  await page.getByRole('button', { name: '커리큘럼 닫기' }).last().click();
+  await expect(page.getByLabel('강의 커리큘럼')).not.toBeVisible();
+
+  await page.getByRole('button', { name: '다음 차시' }).click();
+  await expect(page.getByRole('heading', { name: '모바일 다음 강의' })).toBeVisible();
+
+  await page.getByRole('button', { name: /수강 후기/ }).click();
+  await expect(page.getByText('전체 진도 50%부터 후기를 작성할 수 있어요.')).toBeVisible();
+  await expect(page.getByRole('textbox', { name: '후기 내용' })).toBeDisabled();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
