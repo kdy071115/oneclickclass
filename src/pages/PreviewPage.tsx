@@ -45,12 +45,6 @@ import { useCourseBookmark } from '../hooks/useCourseBookmark';
 import { ConfirmDialog } from '../components/ui';
 import { YouTubePlayer } from '../components/YouTubePlayer';
 
-const fallbackLearnerHighlights = [
-  '업무 흐름을 기준으로 데이터베이스를 설계해요.',
-  '반복 업무를 버튼과 자동화 도구로 줄여요.',
-  '팀원이 바로 쓸 수 있는 운영 템플릿을 완성해요.',
-];
-
 const defaultResumeLessonIndex = 0;
 
 const isValidCourseId = (value?: string): value is string =>
@@ -209,6 +203,7 @@ export function PublicEnrollmentPage() {
   const [reviews, setReviews] = useState<OneClickReview[]>([]);
   const [existing, setExisting] = useState<OneClickEnrollment | null>(null);
   const [existingChecked, setExistingChecked] = useState(false);
+  const [existingCheckFailed, setExistingCheckFailed] = useState(false);
   const [showNewApplication, setShowNewApplication] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
@@ -240,12 +235,19 @@ export function PublicEnrollmentPage() {
         if (!alive) return;
         setShare(nextShare);
         void oneclickService.reviews(shareToken).then((items) => alive && setReviews(items));
-        void oneclickService.enrollment(nextShare.courseActiveSeq).then((enrollment) => {
-          if (alive) {
-            setExisting(enrollment);
-            setExistingChecked(true);
-          }
-        });
+        void oneclickService
+          .enrollment(nextShare.courseActiveSeq)
+          .then((enrollment) => {
+            if (alive) setExisting(enrollment);
+          })
+          .catch(() => {
+            if (!alive) return;
+            setExistingCheckFailed(true);
+            setError('신청 상태를 확인하지 못했어요. 잠시 후 다시 시도해 주세요.');
+          })
+          .finally(() => {
+            if (alive) setExistingChecked(true);
+          });
       })
       .catch(() => alive && setError('신청 링크를 확인하지 못했어요.'));
     return () => {
@@ -335,8 +337,8 @@ export function PublicEnrollmentPage() {
       setSubmitting(false);
     }
   };
-  const title = share?.title || draft.title || '노션으로 시작하는 업무 자동화';
-  const summary = share?.summary || draft.summary || '반복 업무를 자동화하는 실전 4주 과정';
+  const title = share?.title || draft.title || '강의 정보 준비 중';
+  const summary = share?.summary || draft.summary || '강의 소개를 준비하고 있어요.';
   const priceText = share?.paymentType === 'PAID' ? `${share.price.toLocaleString()}원` : '무료';
   const capacityText = share
     ? `${share.confirmedCount} / ${share.capacity}명`
@@ -420,7 +422,7 @@ export function PublicEnrollmentPage() {
   const reviewAverage = reviews.length
     ? (reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1)
     : '0.0';
-  const highlights = share?.highlights?.length ? share.highlights : fallbackLearnerHighlights;
+  const highlights = share?.highlights ?? [];
   const remainingSeats = share?.remainingSeats ?? draft.capacity;
   const mobileCtaText = !share || !existingChecked
     ? '신청 정보 확인 중...'
@@ -522,14 +524,18 @@ export function PublicEnrollmentPage() {
           </div>
           <section className="learner-section" id="learn">
             <h2>이런 걸 배워요</h2>
-            <div className="learner-highlight-list">
-              {highlights.map((item) => (
-                <p key={item}>
-                  <Check />
-                  {item}
-                </p>
-              ))}
-            </div>
+            {highlights.length ? (
+              <div className="learner-highlight-list">
+                {highlights.map((item) => (
+                  <p key={item}>
+                    <Check />
+                    {item}
+                  </p>
+                ))}
+              </div>
+            ) : (
+              <p className="curriculum-empty">강의 소개를 준비하고 있어요.</p>
+            )}
           </section>
           <section className="learner-section" id="curriculum">
             <h2>커리큘럼</h2>
@@ -598,7 +604,22 @@ export function PublicEnrollmentPage() {
           </section>
         </section>
         <aside className="learner-apply-side" id="learner-application">
-          {existing && !showNewApplication ? (
+          {!existingChecked ? (
+            <section className="learner-card learner-application-state" aria-live="polite">
+              <span className="spinner" />
+              <h2>신청 정보를 확인하고 있어요.</h2>
+              <p>잠시만 기다려 주세요.</p>
+            </section>
+          ) : existingCheckFailed ? (
+            <section className="learner-card learner-application-state" role="alert">
+              <ShieldCheck />
+              <h2>신청 상태를 확인하지 못했어요.</h2>
+              <p>네트워크 상태를 확인한 뒤 다시 시도해 주세요.</p>
+              <button className="primary" type="button" onClick={() => window.location.reload()}>
+                다시 시도
+              </button>
+            </section>
+          ) : existing && !showNewApplication ? (
             <section className="learner-card learner-continue-card">
               {isPaymentPending(existing) ? (
                 <CreditCard />
@@ -1637,7 +1658,7 @@ export function LearnerRoomPage() {
                 </button>
               </section>
             )}
-            <div className="learner-player-meta">
+            {hasActiveLessonContent && <div className="learner-player-meta">
               <small>
                 {hasActiveLessonContent
                   ? playing
@@ -1656,7 +1677,7 @@ export function LearnerRoomPage() {
                   : `예상 학습 ${activeLesson.durationText}`}
                 {activeProgress > 0 ? ` · 차시 진도 ${activeProgress}%` : ''}
               </span>
-            </div>
+            </div>}
           </div>
           )}
           <section className="learner-section learner-progress-card">

@@ -3278,6 +3278,28 @@
   flex: none;
 }
 
+.learner-application-state {
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+}
+.learner-application-state h2,
+.learner-application-state p {
+  margin: 0;
+}
+.learner-application-state p {
+  color: #6b7684;
+  font-size: 14px;
+}
+.learner-application-state .spinner {
+  width: 24px;
+  height: 24px;
+}
+
 .learner-player-meta {
   position: absolute;
   left: 18px;

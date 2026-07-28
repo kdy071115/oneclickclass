@@ -33,6 +33,19 @@ export interface Dashboard {
   todayClasses: number;
   pendingPayments: number;
   pendingAmount: number;
+  monthlyRevenue?: number;
+  monthlyRevenueChange?: string;
+  activeStudents?: number;
+  newMembers?: number;
+  enrollmentTrend?: { label: string; value: number }[];
+  memberTrend?: { label: string; value: number }[];
+  todaySchedule?: {
+    time: string;
+    meridiem: string;
+    title: string;
+    meta: string;
+    badge: string;
+  }[];
   classes: ClassItem[];
   applicants: Applicant[];
   studentStats?: StatItem[];
@@ -147,14 +160,6 @@ export interface ExamQuestion {
   text: string;
   choices: string[];
   answer: number;
-}
-export interface CertificateItem {
-  id: string;
-  title: string;
-  completedAt: string;
-  attendance: number;
-  score: number;
-  color: string;
 }
 export interface StatItem {
   label: string;

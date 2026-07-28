@@ -8,30 +8,12 @@ import { ClassCard } from '../components/feature/ClassCard';
 import { Badge, BarChart, EmptyState, Table, Tabs, type TableColumn } from '../components/ui';
 import { useAsync } from '../hooks/useAsync';
 import { useRole } from '../hooks/useRole';
+import { getSession } from '../auth/session';
 import type { ClassItem } from '../types/class';
 import { won } from '../utils/format';
 import { getStatusTone } from '../utils/status';
 
 const trendPeriods = ['최근 3개월', '최근 6개월', '최근 1년', '금년'] as const;
-const enrollmentTrend = [
-  { label: '2월', value: 4 },
-  { label: '3월', value: 7 },
-  { label: '4월', value: 5 },
-  { label: '5월', value: 9 },
-  { label: '6월', value: 14 },
-  { label: '7월', value: 16 },
-];
-const memberTrend = [
-  { label: '2월', value: 2 },
-  { label: '3월', value: 3 },
-  { label: '4월', value: 5 },
-  { label: '5월', value: 8 },
-  { label: '6월', value: 10 },
-  { label: '7월', value: 12 },
-];
-const todaySchedule = [
-  ['20:00', '오후', '노션으로 시작하는 업무 자동화 · 2주차', '수강생 24명', '온라인'],
-];
 const classColumns: TableColumn<ClassItem>[] = [
   { key: 'title', header: '클래스명', render: (item) => <Link to={`/classes/${item.id}`}><b>{item.title}</b></Link> },
   { key: 'status', header: '상태', render: (item) => <Badge tone={getStatusTone(item.status)}>{item.status}</Badge> },
@@ -66,32 +48,54 @@ export function HomePage() {
   const tintCards = [
     ['수강 중', '이번 주 강의 3개', '2개', '#e1f7ec', '/classes'],
     ['이수 완료', '누적 12개', '3개', '#e7f0ff', '/classes'],
-    ['받은 수료증', '최근 3월', '3개', '#eceafe', '/my/certificates'],
+    ['학습 완료', '누적 학습 현황', '3개', '#eceafe', '/classes'],
   ];
   const kpiCards = [
-    { label: '이번 달 매출', value: won(2145000), tag: '전월 대비 +18%', tint: '#e7f0ff', to: '/settlements' },
+    {
+      label: '이번 달 매출',
+      value: data.monthlyRevenue == null ? '-' : won(data.monthlyRevenue),
+      tag: data.monthlyRevenueChange,
+      tint: '#e7f0ff',
+      to: '/settlements',
+    },
     { label: '신규 신청', meta: '오늘 접수', value: `${data.newApplicants}건`, tint: '#ffeedd', to: '/applicants' },
-    { label: '진행중 클래스', meta: '수강생 52명', value: `${data.todayClasses}개`, tint: '#eceafe', to: '/classes' },
-    { label: '신규 가입', meta: '이번 달', value: '12명', tint: '#e6f9f0', to: '/applicants' },
+    {
+      label: '진행중 클래스',
+      meta: data.activeStudents == null ? '수강생 집계 전' : `수강생 ${data.activeStudents}명`,
+      value: `${data.todayClasses}개`,
+      tint: '#eceafe',
+      to: '/classes',
+    },
+    {
+      label: '신규 가입',
+      meta: '이번 달',
+      value: data.newMembers == null ? '-' : `${data.newMembers}명`,
+      tint: '#e6f9f0',
+      to: '/applicants',
+    },
   ];
+  const enrollmentTrend = data.enrollmentTrend ?? [];
+  const memberTrend = data.memberTrend ?? [];
+  const todaySchedule = data.todaySchedule ?? [];
   const enrollmentTotal = enrollmentTrend.reduce((sum, t) => sum + t.value, 0);
   const memberTotal = memberTrend.reduce((sum, t) => sum + t.value, 0);
   const trendData = statsTab === 'enrollment' ? enrollmentTrend : memberTrend;
   const visibleTrend = trendPeriod === '최근 3개월' ? trendData.slice(-3) : trendData;
   const studentStats = data.studentStats ?? [];
   const studentInProgress = data.studentInProgress ?? [];
+  const userName = getSession()?.user.name || '강사';
 
   return (
     <>
       <div className="oc-web-page">
         <div className="oc-web-head">
           <h1>홈</h1>
-          <p>{teacher ? '오늘 강의 2개, 신규 신청 3건이 있어요' : '이어서 들을 강의를 확인하세요'}</p>
+          <p>{teacher ? `오늘 강의 ${data.todayClasses}개, 신규 신청 ${data.newApplicants}건이 있어요` : '이어서 들을 강의를 확인하세요'}</p>
         </div>
 
         {teacher ? (
           <div className="oc-stack">
-            <div className="oc-hero-title">지훈님, 안녕하세요</div>
+            <div className="oc-hero-title">{userName}님, 안녕하세요</div>
             <div className="oc-hero-sub">
               {!classesLoading && classItems.length === 0
                 ? '첫 강의를 만들고 클래스 운영을 시작해보세요'
@@ -140,8 +144,8 @@ export function HomePage() {
                     <Link to="/classes">전체보기</Link>
                   </div>
                   <div className="oc-list">
-                    {todaySchedule.map(([time, meridiem, title, meta, badge], index) => (
-                      <div className="oc-schedule-row" key={title}>
+                    {todaySchedule.map(({ time, meridiem, title, meta, badge }, index) => (
+                      <div className="oc-schedule-row" key={`${time}-${title}`}>
                         <span className="oc-schedule-time">
                           <b>{time}</b>
                           <small>{meridiem}</small>
@@ -199,7 +203,7 @@ export function HomePage() {
           <>
             <section className="oc-grid-2 dashboard-overview">
               <div className="dashboard-primary">
-                <div className="oc-hero-title">지훈님, 안녕하세요</div>
+                <div className="oc-hero-title">{userName}님, 안녕하세요</div>
                 <div className="oc-hero-sub">오늘 학습할 내용을 이어서 볼 수 있어요</div>
                 <div className="oc-tint-grid">
                   {tintCards.map(([label, sub, value, tint, to]) => (
@@ -298,8 +302,8 @@ export function HomePage() {
                   <Link to="/classes">전체보기</Link>
                 </div>
                 <div className="oc-list">
-                  {todaySchedule.map(([time, meridiem, title, meta, badge]) => (
-                    <div className="oc-schedule-row" key={title}>
+                  {todaySchedule.map(({ time, meridiem, title, meta, badge }) => (
+                    <div className="oc-schedule-row" key={`${time}-${title}`}>
                       <span className="oc-schedule-time">
                         <b>{time}</b>
                         <small>{meridiem}</small>
@@ -357,9 +361,9 @@ export function HomePage() {
           <>
             <button className="hero" onClick={() => nav('/attendance/select')}>
               <strong>
-                지훈님, 오늘
+                {userName}님, 오늘
                 <br />
-                강의 2개가 있어요 🎓
+                강의 {data.todayClasses}개가 있어요
               </strong>
               <span>
                 오늘 일정 보기 <ChevronRight size={15} />
@@ -394,7 +398,7 @@ export function HomePage() {
               <Link to="/attendance/select">
                 <CheckSquare />
                 <b>출석 QR</b>
-                <small>강의 선택 · 오늘 2개</small>
+                <small>강의 선택 · 오늘 {data.todayClasses}개</small>
               </Link>
               <Link to="/classes/new">
                 <Plus />
@@ -420,7 +424,7 @@ export function HomePage() {
           <>
             <button className="hero student-hero" onClick={() => nav('/classes')}>
               <strong>
-                지훈님, 오늘
+                {userName}님, 오늘
                 <br />
                 이어서 들을 강의가 있어요
               </strong>
