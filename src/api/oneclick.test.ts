@@ -394,6 +394,8 @@ describe('oneclick learner service', () => {
       lessonId: 'lesson-1',
       currentSeconds: 87,
       durationSeconds: 300,
+      watchedSeconds: 87,
+      watchedProgress: 29,
       playing: false,
     });
 
@@ -413,6 +415,8 @@ describe('oneclick learner service', () => {
       lessonId: 'lesson-1',
       currentSeconds: 30,
       durationSeconds: 300,
+      watchedSeconds: 87,
+      watchedProgress: 29,
       playing: false,
     });
 
@@ -426,12 +430,56 @@ describe('oneclick learner service', () => {
       lessonId: 'lesson-1',
       currentSeconds: 270,
       durationSeconds: 300,
+      watchedSeconds: 270,
+      watchedProgress: 90,
       playing: false,
     });
 
     await expect(oneclickService.learnRoom('heartbeat-course')).resolves.toMatchObject({
       progress: 90,
       lessons: [expect.objectContaining({ progress: 90, completed: true })],
+    });
+  });
+
+  it('does not complete a lesson when the learner only seeks near the end', async () => {
+    localStorage.setItem(
+      'oneclick.curriculum.seek-course',
+      JSON.stringify([
+        {
+          id: 'section-1',
+          title: '탐색 방지 과정',
+          lessons: [
+            {
+              id: 'lesson-1',
+              title: '탐색 방지 강의',
+              durationMinutes: 10,
+              published: true,
+              contentUrl: 'https://example.com/video.mp4',
+            },
+          ],
+        },
+      ]),
+    );
+    const enrollment = await verifiedApply('seek-course', {
+      name: '김수강',
+      phone: '010-1234-5678',
+      privacyConsent: true,
+    });
+
+    await oneclickService.heartbeat('seek-course', {
+      courseApplySeq: enrollment.courseApplySeq,
+      lessonId: 'lesson-1',
+      currentSeconds: 590,
+      durationSeconds: 600,
+      watchedSeconds: 10,
+      watchedProgress: 2,
+      ended: true,
+      playing: false,
+    });
+
+    await expect(oneclickService.learnRoom('seek-course')).resolves.toMatchObject({
+      progress: 2,
+      lessons: [expect.objectContaining({ progress: 2, completed: false })],
     });
   });
 
@@ -480,6 +528,8 @@ describe('oneclick learner service', () => {
       lessonId: 'lesson-1',
       currentSeconds: 100,
       durationSeconds: 100,
+      watchedSeconds: 100,
+      watchedProgress: 100,
       playing: false,
     });
 

@@ -122,6 +122,7 @@ export type OneClickLesson = {
   playable: boolean;
   currentSeconds?: number;
   durationSeconds?: number;
+  watchedSeconds?: number;
   progressPercent?: number;
   completedAt?: string | null;
   completionReason?: 'WATCH_THRESHOLD' | 'ENDED' | 'MANUAL' | 'ATTENDANCE' | 'SUBMISSION' | null;
@@ -205,6 +206,8 @@ type OneClickHeartbeatInput = {
   lessonId: string;
   currentSeconds: number;
   durationSeconds?: number;
+  watchedSeconds?: number;
+  watchedProgress?: number;
   ended?: boolean;
   playing: boolean;
 };
@@ -921,6 +924,7 @@ const normalizeLessons = (raw: unknown): OneClickLesson[] => {
       playable: !locked && Boolean(primaryContentUrl || resources.length),
       currentSeconds: pickNumber(record, ['currentSeconds', 'lastSeconds'], 0),
       durationSeconds: pickNumber(record, ['durationSeconds', 'totalSeconds'], 0),
+      watchedSeconds: pickNumber(record, ['watchedSeconds', 'learningSeconds'], 0),
       progressPercent: progress,
       completedAt: pickString(record, ['completedAt', 'completeDate'], '') || null,
       completionReason:
@@ -1229,13 +1233,18 @@ export const oneclickService = {
         oneclickLessonProgressKey(courseActiveSeq, lesson.lessonId),
       );
       return stored
-        ? (JSON.parse(stored) as { currentSeconds: number; progress: number })
-        : { currentSeconds: 0, progress: 0 };
+        ? (JSON.parse(stored) as {
+            currentSeconds: number;
+            watchedSeconds?: number;
+            progress: number;
+          })
+        : { currentSeconds: 0, watchedSeconds: 0, progress: 0 };
     });
     const lessons = savedCurriculum.length
       ? savedCurriculum.map((lesson, index) => ({
           ...lesson,
           currentSeconds: lessonStates[index].currentSeconds,
+          watchedSeconds: lessonStates[index].watchedSeconds ?? 0,
           progress: lessonStates[index].progress,
           locked: Boolean(lesson.sequential && index > 0 && lessonStates[index - 1].progress < 90),
           completed: lessonStates[index].progress >= 90,
@@ -1408,20 +1417,24 @@ export const oneclickService = {
         const previousProgress = progressValue
           ? (JSON.parse(progressValue) as { progress: number }).progress
           : 0;
-        const measuredProgress = input.durationSeconds
-          ? Math.min(100, Math.round((input.currentSeconds / input.durationSeconds) * 100))
-          : previousProgress;
-        const completed = Boolean(input.ended || measuredProgress >= 90 || previousProgress >= 90);
+        const watchedProgress =
+          input.watchedProgress ??
+          (input.durationSeconds && input.watchedSeconds !== undefined
+            ? Math.min(100, Math.round((input.watchedSeconds / input.durationSeconds) * 100))
+            : previousProgress);
+        const completed = watchedProgress >= 90 || previousProgress >= 90;
+        const measuredProgress = Math.max(previousProgress, watchedProgress);
         const progress = Math.max(previousProgress, measuredProgress, completed ? 90 : 0);
         localStorage.setItem(
           oneclickLessonProgressKey(courseActiveSeq, input.lessonId),
           JSON.stringify({
             currentSeconds: Math.max(0, input.currentSeconds),
             durationSeconds: input.durationSeconds,
+            watchedSeconds: Math.max(0, input.watchedSeconds ?? 0),
             progress,
             completed,
             completedAt: completed ? new Date().toISOString() : null,
-            completionReason: input.ended ? 'ENDED' : completed ? 'WATCH_THRESHOLD' : null,
+            completionReason: input.ended && completed ? 'ENDED' : completed ? 'WATCH_THRESHOLD' : null,
           }),
         );
         const totalProgress = curriculum.length
