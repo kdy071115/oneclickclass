@@ -301,6 +301,7 @@ file: File
 - `canLearn=false`면 콘텐츠 URL과 자료 다운로드 URL을 내려주지 않는다.
 - `lessons[].locked`, `playable`, `completed`, `progress`를 서버가 계산한다.
 - 자료 차시는 `contentProvider=DOCUMENT`, `resources[]`로 내려준다.
+- 마지막으로 학습한 차시는 `resumeLessonId`로 내려준다. 표시용 `lastPosition` 문자열만으로 차시를 식별하지 않는다.
 
 ## 7. 자료 차시 완료 처리
 

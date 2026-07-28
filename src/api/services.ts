@@ -3,6 +3,9 @@ import type { AuthSession, LoginRequest, SignupRequest } from '../types/auth';
 import type {
   ApplicantUpdate,
   AttendanceRow,
+  CertificateCandidate,
+  CertificateIssueResult,
+  CertificatePolicy,
   ClassSettingsUpdate,
   PageQuery,
   PageResponse,
@@ -29,6 +32,7 @@ import type {
   ClassDetail,
   ClassDraft,
   ClassItem,
+  ClassLifecycleStatus,
   CurriculumLesson,
   CurriculumSection,
   Dashboard,
@@ -39,6 +43,7 @@ import type {
   PaymentSummary,
   SettlementSummary,
   SurveyQuestion,
+  RecruitmentStatus,
 } from '../types/class';
 import { initialClassDraft } from '../constants/classDraft';
 import {
@@ -62,6 +67,8 @@ const LEGACY_MOCK_CLASS_IDS = new Set([
 const mockSettingsKey = (classId: string) => `oneclick.class-settings.${classId}`;
 const curriculumKey = (classId: string) => `oneclick.curriculum.${classId}`;
 const surveyKey = (classId: string) => `oneclick.surveys.${classId}`;
+const certificatePolicyKey = (classId: string) => `oneclick.certificate-policy.${classId}`;
+const certificateIssuanceKey = (classId: string) => `oneclick.certificate-issuances.${classId}`;
 const classTypeLabel: Record<ClassDraft['type'], string> = {
   online: '온라인',
   live: '라이브',
@@ -69,6 +76,23 @@ const classTypeLabel: Record<ClassDraft['type'], string> = {
   hybrid: '혼합형',
 };
 const untitledClassLabel = '강의 정보 준비 중';
+type MockClassSettings = {
+  lifecycleStatus?: ClassLifecycleStatus;
+  recruitmentStatus: RecruitmentStatus;
+  publicOn: boolean;
+  recruitmentClosed: boolean;
+  capacity: number;
+};
+const classStatus = (
+  lifecycleStatus: ClassLifecycleStatus,
+  recruitmentStatus: RecruitmentStatus,
+): ClassItem['status'] => {
+  if (lifecycleStatus === 'ENDED') return '종료';
+  if (recruitmentStatus === 'CLOSED' || recruitmentStatus === 'FULL') return '모집 마감';
+  if (lifecycleStatus === 'IN_PROGRESS') return '진행중';
+  if (recruitmentStatus === 'OPEN') return '모집중';
+  return '준비중';
+};
 const savedMockClasses = (): ClassItem[] => {
   try {
     const saved =
@@ -100,17 +124,14 @@ const previewClassItem = (id: string): ClassItem => {
   } catch {
     enrollmentTitle = '';
   }
+  const lifecycleStatus = settings.lifecycleStatus ?? (hasPublishedLesson ? 'READY' : 'CURRICULUM');
   return {
     id,
     courseMasterSeq: id,
     courseActiveSeq: id,
-    lifecycleStatus: settings.publicOn
-      ? 'RECRUITING'
-      : hasPublishedLesson
-        ? 'READY'
-        : 'CURRICULUM',
+    lifecycleStatus,
     title: draft.title || enrollmentTitle || untitledClassLabel,
-    status: settings.publicOn ? '모집중' : '준비중',
+    status: classStatus(lifecycleStatus, settings.recruitmentStatus),
     type: classTypeLabel[draft.type],
     date: draft.startDate || '일정 미정',
     enrolled: hasEnrollment ? 1 : 0,
@@ -121,12 +142,30 @@ const previewClassItem = (id: string): ClassItem => {
 };
 const mockClasses = () => {
   const saved = savedMockClasses();
-  const combined = [...saved, ...classes.filter((item) => !saved.some((row) => row.id === item.id))];
+  const combined = [
+    ...saved,
+    ...classes.filter((item) => !saved.some((row) => row.id === item.id)),
+  ];
   for (const id of listClassPreviewIds()) {
     if (LEGACY_MOCK_CLASS_IDS.has(id)) continue;
     if (!combined.some((item) => item.id === id)) combined.unshift(previewClassItem(id));
   }
-  return combined;
+  return combined.map((item) => {
+    const settings = mockSettings(item.id, item.capacity);
+    const lifecycleStatus =
+      settings.lifecycleStatus ??
+      (item.lifecycleStatus === 'RECRUITING' ? 'READY' : item.lifecycleStatus || 'READY');
+    const recruitmentStatus =
+      item.enrolled >= settings.capacity && settings.recruitmentStatus === 'OPEN'
+        ? 'FULL'
+        : settings.recruitmentStatus;
+    return {
+      ...item,
+      lifecycleStatus,
+      status: classStatus(lifecycleStatus, recruitmentStatus),
+      capacity: settings.capacity,
+    };
+  });
 };
 const saveMockClasses = (items: ClassItem[]) =>
   localStorage.setItem(
@@ -164,20 +203,49 @@ const saveMockCurriculum = (classId: string, sections: CurriculumSection[]) => {
   localStorage.setItem(curriculumKey(classId), JSON.stringify(sections));
   return sections;
 };
-const mockSettings = (classId: string, capacity = 30): Required<ClassSettingsUpdate> => {
+const mockSettings = (classId: string, capacity = 30): MockClassSettings => {
   try {
-    const saved = JSON.parse(localStorage.getItem(mockSettingsKey(classId)) || '{}') as ClassSettingsUpdate;
+    const saved = JSON.parse(
+      localStorage.getItem(mockSettingsKey(classId)) || '{}',
+    ) as ClassSettingsUpdate;
+    const publicOn = saved.publicOn ?? saved.recruitmentStatus !== 'PRIVATE';
+    const recruitmentClosed =
+      saved.recruitmentClosed ??
+      (saved.recruitmentStatus === 'CLOSED' || saved.recruitmentStatus === 'FULL');
     return {
-      publicOn: saved.publicOn ?? true,
-      recruitmentClosed: saved.recruitmentClosed ?? false,
+      lifecycleStatus: saved.lifecycleStatus,
+      recruitmentStatus:
+        saved.recruitmentStatus ?? (publicOn ? (recruitmentClosed ? 'CLOSED' : 'OPEN') : 'PRIVATE'),
+      publicOn,
+      recruitmentClosed,
       capacity: saved.capacity ?? capacity,
     };
   } catch {
-    return { publicOn: true, recruitmentClosed: false, capacity };
+    return {
+      recruitmentStatus: 'OPEN',
+      publicOn: true,
+      recruitmentClosed: false,
+      capacity,
+    };
   }
 };
 const saveMockSettings = (classId: string, update: ClassSettingsUpdate, capacity = 30) => {
-  const next = { ...mockSettings(classId, capacity), ...update };
+  const current = mockSettings(classId, capacity);
+  const next: MockClassSettings = { ...current, ...update };
+  if (update.recruitmentStatus) {
+    next.publicOn = update.recruitmentStatus !== 'PRIVATE';
+    next.recruitmentClosed =
+      update.recruitmentStatus === 'CLOSED' || update.recruitmentStatus === 'FULL';
+  } else if (update.publicOn !== undefined) {
+    next.recruitmentStatus = update.publicOn
+      ? current.recruitmentClosed
+        ? 'CLOSED'
+        : 'OPEN'
+      : 'PRIVATE';
+  } else if (update.recruitmentClosed !== undefined) {
+    next.recruitmentStatus = update.recruitmentClosed ? 'CLOSED' : 'OPEN';
+    next.publicOn = true;
+  }
   localStorage.setItem(mockSettingsKey(classId), JSON.stringify(next));
   return next;
 };
@@ -216,6 +284,140 @@ const mockApplicantsByClass = (classId: string) => {
   return enrollment && !rows.some((item) => item.id === enrollment.id)
     ? [enrollment, ...rows]
     : rows;
+};
+
+const defaultCertificatePolicy = (classId: string): CertificatePolicy => ({
+  minProgress: 80,
+  requireRequiredLessons: true,
+  requireSurvey: false,
+  requireExam: false,
+  minExamScore: 70,
+  minAttendance: mockClasses().find((item) => item.id === classId)?.type === '온라인' ? null : 80,
+  issueMode: 'MANUAL',
+  message: '위 사람은 본 과정을 성실히 이수하였기에 이 수료증을 수여합니다.',
+  issuer: '원클릭 클래스',
+  signerName: '김지훈 강사',
+  template: 'CLASSIC',
+  accentColor: '#3182f6',
+});
+
+const mockCertificatePolicy = (classId: string): CertificatePolicy => {
+  try {
+    const stored = localStorage.getItem(certificatePolicyKey(classId));
+    return stored
+      ? { ...defaultCertificatePolicy(classId), ...(JSON.parse(stored) as Partial<CertificatePolicy>) }
+      : defaultCertificatePolicy(classId);
+  } catch {
+    return defaultCertificatePolicy(classId);
+  }
+};
+
+type MockCertificateIssuance = {
+  applicantId: string;
+  certificateId: string;
+  issuedAt: string;
+};
+
+const mockCertificateIssuances = (classId: string): MockCertificateIssuance[] => {
+  try {
+    return JSON.parse(localStorage.getItem(certificateIssuanceKey(classId)) ?? '[]') as MockCertificateIssuance[];
+  } catch {
+    return [];
+  }
+};
+
+const mockEnrollmentProgress = (classId: string, applicantId: string) => {
+  try {
+    const stored = localStorage.getItem(`oneclick.enrollment.${classId}`);
+    if (!stored) return 0;
+    const enrollment = JSON.parse(stored) as { courseApplySeq?: string; progress?: number };
+    return enrollment.courseApplySeq === applicantId ? Math.max(0, Math.min(100, enrollment.progress ?? 0)) : 0;
+  } catch {
+    return 0;
+  }
+};
+
+const mockCertificateCandidates = (
+  classId: string,
+  policy = mockCertificatePolicy(classId),
+): CertificateCandidate[] => {
+  const curriculum = mockCurriculum(classId).flatMap((section) => section.lessons);
+  const requiredLessons = curriculum.filter((lesson) => lesson.required);
+  const issuances = mockCertificateIssuances(classId);
+  return mockApplicantsByClass(classId).map((applicant) => {
+    const progress = mockEnrollmentProgress(classId, applicant.id);
+    const requiredLessonsCompleted = requiredLessons.filter((lesson) => {
+      try {
+        const stored = localStorage.getItem(`oneclick.lesson-progress.${classId}.${lesson.id}`);
+        return stored
+          ? (JSON.parse(stored) as { progress?: number }).progress !== undefined &&
+              (JSON.parse(stored) as { progress: number }).progress >= 90
+          : false;
+      } catch {
+        return false;
+      }
+    }).length;
+    const surveyCompleted =
+      sessionStorage.getItem(`oneclick.assessment.${classId}.survey`) === 'done';
+    const examCompleted = sessionStorage.getItem(`oneclick.assessment.${classId}.exam`) === 'done';
+    const examScore = examCompleted ? 100 : null;
+    const attendanceRate = policy.minAttendance === null ? null : 0;
+    const reasons = [
+      ...(progress < policy.minProgress ? [`진도 ${policy.minProgress}% 미달`] : []),
+      ...(policy.requireRequiredLessons && requiredLessonsCompleted < requiredLessons.length
+        ? [`필수 차시 ${requiredLessons.length - requiredLessonsCompleted}개 미완료`]
+        : []),
+      ...(policy.requireSurvey && !surveyCompleted ? ['필수 설문 미제출'] : []),
+      ...(policy.requireExam && (examScore ?? 0) < policy.minExamScore
+        ? [`시험 ${policy.minExamScore}점 미달`]
+        : []),
+      ...(policy.minAttendance !== null && (attendanceRate ?? 0) < policy.minAttendance
+        ? [`출석 ${policy.minAttendance}% 미달`]
+        : []),
+    ];
+    const issuance = issuances.find((item) => item.applicantId === applicant.id);
+    return {
+      applicantId: applicant.id,
+      name: applicant.name,
+      email: applicant.email,
+      progress,
+      requiredLessonsCompleted,
+      requiredLessonsTotal: requiredLessons.length,
+      surveyCompleted,
+      examScore,
+      attendanceRate,
+      eligibility: issuance ? 'ISSUED' : reasons.length ? 'INELIGIBLE' : 'ELIGIBLE',
+      reasons,
+      certificateId: issuance?.certificateId,
+      issuedAt: issuance?.issuedAt,
+    };
+  });
+};
+
+const mockResolvedCertificateCandidates = (classId: string) => {
+  const policy = mockCertificatePolicy(classId);
+  const candidates = mockCertificateCandidates(classId, policy);
+  if (policy.issueMode !== 'AUTO') return candidates;
+  const issuances = mockCertificateIssuances(classId);
+  const eligible = candidates.filter(
+    (candidate) =>
+      candidate.eligibility === 'ELIGIBLE' &&
+      !issuances.some((issuance) => issuance.applicantId === candidate.applicantId),
+  );
+  if (!eligible.length) return candidates;
+  const issuedAt = new Date().toISOString();
+  localStorage.setItem(
+    certificateIssuanceKey(classId),
+    JSON.stringify([
+      ...issuances,
+      ...eligible.map((candidate) => ({
+        applicantId: candidate.applicantId,
+        certificateId: `certificate-${classId}-${candidate.applicantId}`,
+        issuedAt,
+      })),
+    ]),
+  );
+  return mockCertificateCandidates(classId, policy);
 };
 const allMockApplicants = () => {
   const rows = [...applicants];
@@ -348,7 +550,11 @@ export const classService = {
       thumbnail: draft.thumbnail,
     };
     saveMockClasses([item, ...savedMockClasses()]);
-    saveMockSettings(item.id, { publicOn: false, recruitmentClosed: false }, item.capacity);
+    saveMockSettings(
+      item.id,
+      { lifecycleStatus: 'DRAFT', recruitmentStatus: 'PRIVATE' },
+      item.capacity,
+    );
     return delay(item);
   },
   update: (id: string, draft: Partial<ClassDraft>): Promise<ClassItem> => {
@@ -379,11 +585,14 @@ export const classService = {
   publish: (id: string): Promise<{ shareToken: string }> => {
     if (!mock)
       return apiClient.post<{ shareToken: string }>(`/classes/${id}/publish`).then((r) => r.data);
-    saveMockSettings(id, { publicOn: true });
+    saveMockSettings(id, {
+      lifecycleStatus: 'READY',
+      recruitmentStatus: 'OPEN',
+    });
     const current = mockClasses().find((item) => item.id === id);
     if (current) {
       saveMockClasses([
-        { ...current, status: '모집중', lifecycleStatus: 'RECRUITING' },
+        { ...current, status: '모집중', lifecycleStatus: 'READY' },
         ...savedMockClasses().filter((item) => item.id !== id),
       ]);
     }
@@ -404,8 +613,16 @@ export const classService = {
       })
       .then((r) => r.data);
   },
-  uploadFile: (file: File): Promise<{ url: string; name?: string; type?: string; size?: number }> => {
-    if (mock) return delay({ url: URL.createObjectURL(file), name: file.name, type: file.type, size: file.size });
+  uploadFile: (
+    file: File,
+  ): Promise<{ url: string; name?: string; type?: string; size?: number }> => {
+    if (mock)
+      return delay({
+        url: URL.createObjectURL(file),
+        name: file.name,
+        type: file.type,
+        size: file.size,
+      });
     const form = new FormData();
     form.append('file', file);
     return apiClient
@@ -417,7 +634,9 @@ export const classService = {
 };
 export const applicantService = {
   list: (): Promise<Applicant[]> =>
-    mock ? delay(allMockApplicants()) : apiClient.get<Applicant[]>('/applicants').then((r) => r.data),
+    mock
+      ? delay(allMockApplicants())
+      : apiClient.get<Applicant[]>('/applicants').then((r) => r.data),
   listPage: (query: PageQuery = {}): Promise<PageResponse<Applicant>> =>
     mock
       ? delay(pageItems(allMockApplicants(), query))
@@ -434,9 +653,7 @@ export const applicantService = {
           const applicant = (classId ? mockApplicantsByClass(classId) : allMockApplicants()).find(
             (item) => item.id === id,
           );
-          return applicant
-            ? delay(applicant)
-            : Promise.reject(new Error('applicant not found'));
+          return applicant ? delay(applicant) : Promise.reject(new Error('applicant not found'));
         })()
       : apiClient.get<Applicant>(`/applicants/${id}`).then((r) => r.data),
   updatePayment: (id: string, update: ApplicantUpdate, classId?: string): Promise<Applicant> => {
@@ -519,36 +736,43 @@ export const detailService = {
           ? '라이브 · 차시별 참여 링크'
           : '온라인 · 차시별 영상'
       : baseDetail.location;
+    const lifecycleStatus =
+      settings.lifecycleStatus ??
+      (savedCurriculum.some((section) => section.lessons.some((lesson) => lesson.published))
+        ? 'READY'
+        : hasDraft
+          ? 'CURRICULUM'
+          : baseDetail.lifecycleStatus || 'DRAFT');
+    const recruitmentStatus =
+      settings.capacity <= enrolled && settings.recruitmentStatus === 'OPEN'
+        ? 'FULL'
+        : settings.recruitmentStatus;
     return delay({
       ...baseDetail,
       ...item,
       id,
       courseMasterSeq: item?.courseMasterSeq || id,
       courseActiveSeq: item?.courseActiveSeq || id,
-      lifecycleStatus: settings.publicOn
-        ? 'RECRUITING'
-        : savedCurriculum.some((section) => section.lessons.some((lesson) => lesson.published))
-          ? 'READY'
-          : hasDraft
-            ? 'CURRICULUM'
-            : baseDetail.lifecycleStatus,
-      status: settings.publicOn ? (item?.status === '준비중' ? '모집중' : item?.status || baseDetail.status) : '준비중',
+      lifecycleStatus,
+      status: classStatus(lifecycleStatus, recruitmentStatus),
       title: item?.title ?? baseDetail.title,
       summary: draftPatch?.summary?.trim() ? draftPatch.summary : baseDetail.summary,
-      description: draftPatch?.description?.trim() ? draftPatch.description : baseDetail.description,
+      description: draftPatch?.description?.trim()
+        ? draftPatch.description
+        : baseDetail.description,
       price: draftPatch?.payment
         ? draftPatch.payment === 'paid'
           ? draftPatch.price || 0
           : 0
         : baseDetail.price,
-      recruitEndDate:
-        draftPatch?.recruitEndDate?.trim() || baseDetail.recruitEndDate,
+      recruitEndDate: draftPatch?.recruitEndDate?.trim() || baseDetail.recruitEndDate,
       location: location || baseDetail.location,
       shareToken: id === 'notion' ? 'notion-auto' : id,
       enrolled,
       capacity: settings.capacity,
       publicOn: settings.publicOn,
       recruitmentClosed: settings.recruitmentClosed,
+      recruitmentStatus,
       reviewCount: baseDetail.reviewCount + (hasReview ? 1 : 0),
       rating: hasReview ? 5 : baseDetail.rating,
       completionRate: baseDetail.completionRate,
@@ -820,18 +1044,64 @@ export const examService = {
 };
 
 export const certificateService = {
+  policy: (classId: string): Promise<CertificatePolicy> =>
+    mock
+      ? delay(mockCertificatePolicy(classId))
+      : apiClient
+          .get<CertificatePolicy>(`/classes/${classId}/certificate-policy`)
+          .then((r) => r.data),
+  updatePolicy: (classId: string, policy: CertificatePolicy): Promise<CertificatePolicy> => {
+    if (mock) {
+      localStorage.setItem(certificatePolicyKey(classId), JSON.stringify(policy));
+      return delay(policy);
+    }
+    return apiClient
+      .put<CertificatePolicy>(`/classes/${classId}/certificate-policy`, policy)
+      .then((r) => r.data);
+  },
+  candidates: (classId: string): Promise<CertificateCandidate[]> =>
+    mock
+      ? delay(mockResolvedCertificateCandidates(classId))
+      : apiClient
+          .get<CertificateCandidate[]>(`/classes/${classId}/certificate-candidates`)
+          .then((r) => r.data),
   recipients: (classId: string): Promise<Applicant[]> =>
     mock
       ? delay(mockApplicantsByClass(classId))
       : apiClient
           .get<Applicant[]>(`/classes/${classId}/certificates/recipients`)
           .then((r) => r.data),
-  issue: (classId: string, applicantIds: string[]): Promise<void> =>
-    mock
-      ? delay(undefined)
-      : apiClient
-          .post<void>(`/classes/${classId}/certificates`, { applicantIds })
-          .then((r) => r.data),
+  issue: (classId: string, applicantIds: string[]): Promise<CertificateIssueResult> => {
+    if (mock) {
+      const candidates = mockCertificateCandidates(classId);
+      const issuances = mockCertificateIssuances(classId);
+      const now = new Date().toISOString();
+      const skipped: CertificateIssueResult['skipped'] = [];
+      for (const applicantId of applicantIds) {
+        const candidate = candidates.find((item) => item.applicantId === applicantId);
+        if (!candidate) skipped.push({ applicantId, reason: '발급 대상을 찾을 수 없어요.' });
+        else if (candidate.eligibility === 'INELIGIBLE')
+          skipped.push({ applicantId, reason: candidate.reasons.join(', ') });
+        else if (!issuances.some((item) => item.applicantId === applicantId))
+          issuances.push({
+            applicantId,
+            certificateId: `certificate-${classId}-${applicantId}`,
+            issuedAt: now,
+          });
+      }
+      localStorage.setItem(certificateIssuanceKey(classId), JSON.stringify(issuances));
+      const refreshed = mockCertificateCandidates(classId);
+      return delay({
+        issued: refreshed.filter(
+          (item) => applicantIds.includes(item.applicantId) && item.eligibility === 'ISSUED',
+        ),
+        skipped,
+      });
+    }
+    return apiClient
+      .post<CertificateIssueResult>(`/classes/${classId}/certificates/issue`, { applicantIds })
+      .then((r) => r.data);
+  },
   download: (certificateId: string): Promise<Blob> =>
     apiClient
       .get(`/certificates/${certificateId}/pdf`, { responseType: 'blob' })

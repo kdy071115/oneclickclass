@@ -1,4 +1,4 @@
-import { Award, BookOpen, CreditCard, Grid2X2, Home, UserRound, Users } from 'lucide-react';
+import { BookOpen, CreditCard, Grid2X2, Home, UserRound, Users } from 'lucide-react';
 
 export const mobileNav = [
   ['/dashboard', Home, '홈'],
@@ -12,5 +12,4 @@ export const teacherNav = [
   ['/classes', BookOpen, '클래스'],
   ['/applicants', Users, '신청자', '3'],
   ['/settlements', CreditCard, '정산 관리'],
-  ['/my/certificates', Award, '수료증'],
 ] as const;

@@ -7,6 +7,7 @@ export type AttendanceStatus = '출석' | '지각' | '결석';
 const statusTone: Record<ClassStatus | PaymentStatus | AttendanceStatus, StatusTone> = {
   준비중: 'warning',
   모집중: 'primary',
+  '모집 마감': 'neutral',
   진행중: 'success',
   종료: 'neutral',
   결제완료: 'success',

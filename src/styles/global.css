@@ -329,7 +329,7 @@ a {
   position: relative;
 }
 .icon-btn.has-unread::after {
-  content: "";
+  content: '';
   position: absolute;
   top: 8px;
   right: 9px;
@@ -495,7 +495,10 @@ a {
   margin-bottom: 10px;
   box-shadow: 0 2px 10px #17202c0a;
 }
-.class-card-wrap { position: relative; min-width: 0; }
+.class-card-wrap {
+  position: relative;
+  min-width: 0;
+}
 .class-thumb {
   width: 56px;
   height: 64px;
@@ -504,9 +507,35 @@ a {
   background-size: cover;
   background-position: center;
 }
-.class-favorite { position: absolute; z-index: 2; top: 12px; right: 12px; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; background: #fff; color: var(--color-danger); box-shadow: var(--shadow-card); }
-.class-favorite svg { width: 19px; }
-.thumbnail-manage-link { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; padding: 16px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-tint-blue); color: var(--color-primary); font-weight: 800; }
+.class-favorite {
+  position: absolute;
+  z-index: 2;
+  top: 12px;
+  right: 12px;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--color-danger);
+  box-shadow: var(--shadow-card);
+}
+.class-favorite svg {
+  width: 19px;
+}
+.thumbnail-manage-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-tint-blue);
+  color: var(--color-primary);
+  font-weight: 800;
+}
 .class-info {
   flex: 1;
   min-width: 0;
@@ -1221,7 +1250,7 @@ a {
   }
 
   .phone nav::before {
-    content: "원클릭 클래스";
+    content: '원클릭 클래스';
     position: absolute;
     top: 32px;
     left: 24px;
@@ -1259,7 +1288,7 @@ a {
   }
 
   .nav-create::after {
-    content: "강의 만들기";
+    content: '강의 만들기';
     font-size: 14px;
     font-weight: 800;
   }
@@ -1276,7 +1305,7 @@ a {
   }
 
   .home header::before {
-    content: "대시보드";
+    content: '대시보드';
     font-size: 30px;
     font-weight: 800;
   }
@@ -1300,7 +1329,10 @@ a {
   .applicant-row,
   .menu-row,
   .menu-box button {
-    transition: background 0.15s, border-color 0.15s, transform 0.15s;
+    transition:
+      background 0.15s,
+      border-color 0.15s,
+      transform 0.15s;
   }
 
   .class-card:hover,
@@ -1803,6 +1835,10 @@ a {
   color: #e03131;
   background: #fff0f0;
 }
+.original-operations .check-row em.absent {
+  color: #e67700;
+  background: #fff4e6;
+}
 .check-row em svg {
   width: 13px;
 }
@@ -1918,6 +1954,19 @@ a {
   font-size: 11px;
   color: var(--muted);
   margin-top: 3px;
+}
+.settings-card .oc-setting-select {
+  width: 104px;
+  height: 36px;
+  padding: 0 28px 0 10px;
+  border: 1px solid #dfe3e8;
+  border-radius: 9px;
+  background: #fff;
+  font: inherit;
+  font-weight: 700;
+}
+.settings-card button:disabled {
+  opacity: 0.45;
 }
 .switch {
   width: 46px;
@@ -2128,6 +2177,163 @@ a {
 .sns button:nth-child(4) {
   background: white;
   border: 1px solid var(--line);
+}
+.login-auth {
+  padding-top: 56px !important;
+}
+.login-auth > h1 {
+  margin-bottom: 8px;
+}
+.login-auth > .muted {
+  margin: 0 0 30px;
+  font-size: 14px;
+}
+.oauth-login {
+  display: grid;
+  gap: 10px;
+}
+.oauth-title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.oauth-title strong {
+  font-size: 16px;
+}
+.oauth-title small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.oauth-button {
+  position: relative;
+  width: 100%;
+  height: 54px;
+  display: grid;
+  grid-template-columns: 34px 1fr 34px;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  font-size: 14px;
+}
+.oauth-symbol {
+  width: 26px;
+  height: 26px;
+  display: block;
+  justify-self: center;
+  overflow: hidden;
+}
+.oauth-symbol img {
+  display: block;
+  width: auto;
+  height: 26px;
+  max-width: none;
+}
+.oauth-button.kakao .oauth-symbol img {
+  height: 48px;
+  transform: translate(-13px, -11px);
+}
+.oauth-button.naver .oauth-symbol img {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  transform: translate(-8px, -8px);
+}
+.oauth-button.google .oauth-symbol img {
+  height: 40px;
+  transform: translate(-7px, -7px);
+}
+.oauth-button b {
+  grid-column: 2;
+}
+.oauth-button.kakao {
+  background: #fee500;
+  color: #191919;
+}
+.oauth-button.naver {
+  background: #03a94d;
+  color: #fff;
+}
+.oauth-button.google {
+  border-color: #dfe3e8;
+  background: #fff;
+  color: #1f1f1f;
+}
+.oauth-button:hover {
+  filter: brightness(0.97);
+}
+.oauth-button:focus-visible,
+.email-login-toggle:focus-visible {
+  outline: 3px solid #3182f638;
+  outline-offset: 2px;
+}
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 22px 0 14px;
+  color: #8b95a1;
+  font-size: 11px;
+}
+.login-divider::before,
+.login-divider::after {
+  content: '';
+  height: 1px;
+  flex: 1;
+  background: var(--line);
+}
+.email-login-toggle {
+  width: 100%;
+  height: 50px;
+  display: grid;
+  grid-template-columns: 24px 1fr 24px;
+  align-items: center;
+  padding: 0 14px;
+  border: 1px solid #dfe3e8;
+  border-radius: 12px;
+  color: #4e5968;
+  font-size: 14px;
+  text-align: left;
+}
+.email-login-toggle svg:last-child {
+  transition: transform 0.2s ease;
+}
+.email-login-toggle svg.open {
+  transform: rotate(180deg);
+}
+.email-login-form {
+  margin-top: 4px;
+}
+.email-login-form label {
+  margin-top: 14px;
+}
+.email-login-form .primary {
+  height: 50px;
+  margin-top: 18px;
+}
+.login-message {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fff4f4;
+  line-height: 1.5;
+}
+.login-signup {
+  margin: 22px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+.login-signup a {
+  margin-left: 4px;
+  color: var(--blue);
+  font-weight: 700;
+}
+@media (max-width: 500px) {
+  .login-auth {
+    padding-top: 72px !important;
+    padding-bottom: 42px !important;
+  }
 }
 .guest-link {
   display: block;

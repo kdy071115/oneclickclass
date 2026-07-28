@@ -19,12 +19,21 @@ import {
   X,
 } from 'lucide-react';
 import QRCode from 'qrcode';
-import { useCallback, useEffect, useState } from 'react';
+import { type CSSProperties, useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ApplicantRow } from '../components/feature/ApplicantRow';
 import { PageHeader } from '../components/common/PageHeader';
 import { applicants, classes } from '../constants/mockData';
-import { Button, ConfirmDialog, FileDropzone, Input, Modal, Select, Textarea } from '../components/ui';
+import {
+  Button,
+  ConfirmDialog,
+  FileDropzone,
+  Input,
+  Modal,
+  Select,
+  Textarea,
+  Toggle,
+} from '../components/ui';
 import {
   attendanceService,
   applicantService,
@@ -34,8 +43,13 @@ import {
   examService,
   surveyService,
 } from '../api/services';
-import type { AttendanceRow, SurveyOverviewItem } from '../types/api';
-import type { ClassDetail } from '../types/class';
+import type {
+  AttendanceRow,
+  CertificateCandidate,
+  CertificatePolicy,
+  SurveyOverviewItem,
+} from '../types/api';
+import type { ClassDetail, ClassLifecycleStatus } from '../types/class';
 import { getClassThumbnail, readImageFile, saveClassThumbnail } from '../utils/classThumbnail';
 
 type Config = {
@@ -88,10 +102,10 @@ export function ClassOperationsPage() {
       alive = false;
     };
   }, [id]);
-  const notify = (message: string) => {
+  const notify = useCallback((message: string) => {
     setToast(message);
     window.setTimeout(() => setToast(''), 2000);
-  };
+  }, []);
   const certificateManager = useCertificateManager(id, notify);
   const active: OperationTab = cfg.kind === 'builder' || cfg.kind === 'exams' ? 'survey' : cfg.kind;
   return (
@@ -135,9 +149,7 @@ export function ClassOperationsPage() {
         {cfg.kind === 'builder' && (
           <Builder classId={id} exam={key.startsWith('exam')} notify={notify} />
         )}{' '}
-        {cfg.kind === 'settings' && (
-          <Manage id={id} detail={detail} notify={notify} />
-        )}{' '}
+        {cfg.kind === 'settings' && <Manage id={id} detail={detail} notify={notify} />}{' '}
         {cfg.kind === 'certificates' && (
           <Certificates manager={certificateManager} requiresAttendance={item.type !== '온라인'} />
         )}{' '}
@@ -152,89 +164,109 @@ export function ClassOperationsPage() {
 }
 
 type CertificateManager = {
-  recipients: typeof applicants;
-  issued: string[];
+  candidates: CertificateCandidate[];
+  policy: CertificatePolicy;
   selected: string[];
-  condition: number;
-  message: string;
   editOpen: boolean;
-  pending: typeof applicants;
+  loading: boolean;
+  submitting: boolean;
+  eligible: CertificateCandidate[];
+  issued: CertificateCandidate[];
+  ineligible: CertificateCandidate[];
   setEditOpen: (open: boolean) => void;
-  setCondition: (value: number) => void;
-  setMessage: (value: string) => void;
   toggleSelected: (id: string) => void;
-  issue: (ids: string[]) => void;
-  saveSettings: () => void;
+  issue: (ids: string[]) => Promise<void>;
+  savePolicy: (policy: CertificatePolicy) => Promise<void>;
 };
 function useCertificateManager(
   classId: string,
   notify: (message: string) => void,
 ): CertificateManager {
-  const storageKey = `oneclick.certificates.${classId}`;
-  const saved = () => {
-    try {
-      return JSON.parse(sessionStorage.getItem(storageKey) ?? '{}') as {
-        issued?: string[];
-        condition?: number;
-        message?: string;
-      };
-    } catch {
-      return {};
-    }
-  };
-  const initial = saved();
-  const [issued, setIssued] = useState<string[]>(initial.issued ?? []);
   const [selected, setSelected] = useState<string[]>([]);
-  const [condition, setCondition] = useState(initial.condition ?? 80);
-  const [message, setMessage] = useState(
-    initial.message ?? '위 사람은 본 과정을 성실히 이수하였기에 이 수료증을 수여합니다.',
-  );
   const [editOpen, setEditOpen] = useState(false);
-  const [recipients, setRecipients] = useState<typeof applicants>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [candidates, setCandidates] = useState<CertificateCandidate[]>([]);
+  const [policy, setPolicy] = useState<CertificatePolicy>({
+    minProgress: 80,
+    requireRequiredLessons: true,
+    requireSurvey: false,
+    requireExam: false,
+    minExamScore: 70,
+    minAttendance: null,
+    issueMode: 'MANUAL',
+    message: '위 사람은 본 과정을 성실히 이수하였기에 이 수료증을 수여합니다.',
+    issuer: '원클릭 클래스',
+    signerName: '김지훈 강사',
+    template: 'CLASSIC',
+    accentColor: '#3182f6',
+  });
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [nextPolicy, nextCandidates] = await Promise.all([
+        certificateService.policy(classId),
+        certificateService.candidates(classId),
+      ]);
+      setPolicy(nextPolicy);
+      setCandidates(nextCandidates);
+    } catch {
+      notify('수료증 정보를 불러오지 못했어요');
+    } finally {
+      setLoading(false);
+    }
+  }, [classId, notify]);
   useEffect(() => {
-    let alive = true;
-    certificateService.recipients(classId).then((items) => {
-      if (alive) setRecipients(items);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [classId]);
-  const persist = (nextIssued = issued, nextCondition = condition, nextMessage = message) =>
-    sessionStorage.setItem(
-      storageKey,
-      JSON.stringify({ issued: nextIssued, condition: nextCondition, message: nextMessage }),
-    );
-  const issue = (ids: string[]) => {
-    const next = [...new Set([...issued, ...ids])];
-    setIssued(next);
-    setSelected([]);
-    persist(next);
-    notify(`${ids.length}명의 수료증을 발급했어요`);
+    void refresh();
+  }, [refresh]);
+  const issue = async (ids: string[]) => {
+    if (!ids.length) return;
+    setSubmitting(true);
+    try {
+      const result = await certificateService.issue(classId, ids);
+      setCandidates(await certificateService.candidates(classId));
+      setSelected([]);
+      if (result.issued.length) notify(`${result.issued.length}명의 수료증을 발급했어요`);
+      else notify(result.skipped[0]?.reason ?? '발급할 수 있는 수강생이 없어요');
+    } catch {
+      notify('수료증을 발급하지 못했어요');
+    } finally {
+      setSubmitting(false);
+    }
   };
   const toggleSelected = (id: string) =>
     setSelected(
       selected.includes(id) ? selected.filter((value) => value !== id) : [...selected, id],
     );
-  const saveSettings = () => {
-    persist(issued, condition, message);
-    setEditOpen(false);
-    notify('수료증 설정을 저장했어요');
+  const savePolicy = async (nextPolicy: CertificatePolicy) => {
+    setSubmitting(true);
+    try {
+      const saved = await certificateService.updatePolicy(classId, nextPolicy);
+      setPolicy(saved);
+      setCandidates(await certificateService.candidates(classId));
+      setSelected([]);
+      setEditOpen(false);
+      notify('수료증 설정을 저장했어요');
+    } catch {
+      notify('수료증 설정을 저장하지 못했어요');
+    } finally {
+      setSubmitting(false);
+    }
   };
   return {
-    issued,
     selected,
-    condition,
-    message,
     editOpen,
-    recipients,
-    pending: recipients.filter((item) => !issued.includes(item.id)),
+    loading,
+    submitting,
+    candidates,
+    policy,
+    eligible: candidates.filter((item) => item.eligibility === 'ELIGIBLE'),
+    issued: candidates.filter((item) => item.eligibility === 'ISSUED'),
+    ineligible: candidates.filter((item) => item.eligibility === 'INELIGIBLE'),
     setEditOpen,
-    setCondition,
-    setMessage,
     toggleSelected,
     issue,
-    saveSettings,
+    savePolicy,
   };
 }
 
@@ -1037,6 +1069,7 @@ function WebManage({
   const nav = useNavigate();
   const [publicOn, setPublicOn] = useState(true);
   const [closed, setClosed] = useState(false);
+  const [lifecycleStatus, setLifecycleStatus] = useState<ClassLifecycleStatus>('READY');
   const [capacity, setCapacity] = useState(detail?.capacity || 30);
   const [thumbnail, setThumbnail] = useState(() => getClassThumbnail(id));
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -1046,9 +1079,17 @@ function WebManage({
   }, [detail?.capacity]);
   useEffect(() => {
     if (!detail) return;
-    setPublicOn(detail.publicOn ?? true);
-    setClosed(detail.recruitmentClosed ?? false);
+    setPublicOn(
+      detail.recruitmentStatus ? detail.recruitmentStatus !== 'PRIVATE' : (detail.publicOn ?? true),
+    );
+    setClosed(detail.recruitmentStatus === 'CLOSED' || (detail.recruitmentClosed ?? false));
+    setLifecycleStatus(
+      detail.lifecycleStatus === 'IN_PROGRESS' || detail.lifecycleStatus === 'ENDED'
+        ? detail.lifecycleStatus
+        : 'READY',
+    );
   }, [detail]);
+  const full = !closed && (detail?.enrolled || 0) >= capacity;
   const changeThumbnail = async (file: File) => {
     const value = await readImageFile(file);
     setThumbnail(value);
@@ -1080,6 +1121,34 @@ function WebManage({
           <h2>강의 설정</h2>
           <div>
             <span>
+              <b>운영 상태</b>
+              <small>수강생에게 표시되는 강의 진행 단계예요</small>
+            </span>
+            <select
+              className="oc-setting-select"
+              aria-label="강의 운영 상태"
+              value={lifecycleStatus}
+              onChange={(event) => {
+                const next = event.target.value as ClassLifecycleStatus;
+                setLifecycleStatus(next);
+                if (next === 'ENDED') {
+                  setClosed(true);
+                  setPublicOn(true);
+                }
+                void classService.updateSettings(id, {
+                  lifecycleStatus: next,
+                  ...(next === 'ENDED' ? { recruitmentStatus: 'CLOSED' as const } : {}),
+                });
+                notify(next === 'ENDED' ? '강의 운영을 종료했어요' : '운영 상태를 변경했어요');
+              }}
+            >
+              <option value="READY">준비중</option>
+              <option value="IN_PROGRESS">진행중</option>
+              <option value="ENDED">종료</option>
+            </select>
+          </div>
+          <div>
+            <span>
               <b>공개 상태</b>
               <small>신청 페이지 노출</small>
             </span>
@@ -1091,7 +1160,9 @@ function WebManage({
               onClick={() => {
                 const next = !publicOn;
                 setPublicOn(next);
-                void classService.updateSettings(id, { publicOn: next });
+                void classService.updateSettings(id, {
+                  recruitmentStatus: next ? (closed ? 'CLOSED' : 'OPEN') : 'PRIVATE',
+                });
                 notify(next ? '공개로 전환했어요' : '비공개로 전환했어요');
               }}
             >
@@ -1101,18 +1172,29 @@ function WebManage({
           <div>
             <span>
               <b>모집 상태</b>
-              <small>{closed ? '신청을 받지 않아요' : '현재 신청을 받고 있어요'}</small>
+              <small>
+                {lifecycleStatus === 'ENDED'
+                  ? '종료된 강의는 신청을 받을 수 없어요'
+                  : full
+                    ? '정원이 모두 찼어요'
+                    : closed
+                      ? '신청을 받지 않아요'
+                      : '현재 신청을 받고 있어요'}
+              </small>
             </span>
             <button
               className="oc-soft-button"
+              disabled={!publicOn || lifecycleStatus === 'ENDED' || full}
               onClick={() => {
                 const next = !closed;
                 setClosed(next);
-                void classService.updateSettings(id, { recruitmentClosed: next });
+                void classService.updateSettings(id, {
+                  recruitmentStatus: next ? 'CLOSED' : 'OPEN',
+                });
                 notify(next ? '모집을 마감했어요' : '모집을 다시 열었어요');
               }}
             >
-              {closed ? '모집 재개' : '모집 마감'}
+              {full ? '정원 마감' : closed ? '모집 재개' : '모집 마감'}
             </button>
           </div>
           <div>
@@ -1169,10 +1251,7 @@ function WebManage({
             >
               <Copy size={18} /> 신청 링크 복사 <span>›</span>
             </button>
-            <button
-              className="danger"
-              onClick={() => setDeleteOpen(true)}
-            >
+            <button className="danger" onClick={() => setDeleteOpen(true)}>
               강의 삭제
             </button>
           </div>
@@ -1191,6 +1270,69 @@ function WebManage({
   );
 }
 
+function CertificateDocument({
+  policy,
+  classTitle,
+  candidate,
+  compact = false,
+}: {
+  policy: CertificatePolicy;
+  classTitle: string;
+  candidate?: CertificateCandidate;
+  compact?: boolean;
+}) {
+  const issuedDate = candidate?.issuedAt
+    ? new Date(candidate.issuedAt).toLocaleDateString('ko-KR')
+    : '발급 시 생성';
+  const certificateNumber = candidate?.certificateId ?? '발급 시 생성';
+  const templateName = policy.template.toLowerCase();
+  const style = { '--certificate-accent': policy.accentColor } as CSSProperties;
+  return (
+    <article
+      className={`certificate-document template-${templateName} ${compact ? 'compact' : ''}`}
+      style={style}
+    >
+      <header>
+        <span><Award size={compact ? 18 : 24} /></span>
+        <b>CERTIFICATE OF COMPLETION</b>
+      </header>
+      <div className="certificate-document-body">
+        <small>수료증</small>
+        <h3>{candidate?.name ?? '수강생'}</h3>
+        <p>{policy.message}</p>
+        <h4>{classTitle}</h4>
+        <div className="certificate-document-records">
+          <span><b>{candidate?.progress ?? 100}%</b><small>학습 진도</small></span>
+          {candidate?.requiredLessonsTotal ? (
+            <span>
+              <b>{candidate.requiredLessonsCompleted}/{candidate.requiredLessonsTotal}</b>
+              <small>필수 차시</small>
+            </span>
+          ) : null}
+          {candidate?.examScore !== null && candidate?.examScore !== undefined ? (
+            <span><b>{candidate.examScore}점</b><small>시험 점수</small></span>
+          ) : null}
+        </div>
+      </div>
+      <footer>
+        <span>
+          <small>발급일</small>
+          <b>{issuedDate}</b>
+          <em>인증번호 {certificateNumber}</em>
+        </span>
+        <strong>
+          <span>{policy.signerName}<small>{policy.issuer}</small></span>
+          {policy.sealImageUrl ? (
+            <img src={policy.sealImageUrl} alt={`${policy.issuer} 직인`} />
+          ) : (
+            <i>직인</i>
+          )}
+        </strong>
+      </footer>
+    </article>
+  );
+}
+
 function WebCertificates({
   manager,
   classTitle,
@@ -1200,41 +1342,85 @@ function WebCertificates({
 }) {
   const {
     issued,
-    recipients,
+    candidates,
     selected,
-    condition,
-    message,
+    policy,
     editOpen,
-    pending,
+    eligible,
+    ineligible,
+    loading,
+    submitting,
     setEditOpen,
-    setCondition,
-    setMessage,
     toggleSelected,
     issue,
-    saveSettings,
+    savePolicy,
   } = manager;
+  const [filter, setFilter] = useState<'ELIGIBLE' | 'ISSUED' | 'INELIGIBLE'>('ELIGIBLE');
+  const [issueIds, setIssueIds] = useState<string[]>([]);
+  const [draft, setDraft] = useState(policy);
+  useEffect(() => {
+    if (editOpen) setDraft(policy);
+  }, [editOpen, policy]);
+  const visibleCandidates =
+    filter === 'ELIGIBLE' ? eligible : filter === 'ISSUED' ? issued : ineligible;
+  const previewCandidate =
+    candidates.find((candidate) => selected.includes(candidate.applicantId)) ??
+    eligible[0] ??
+    issued[0];
+  const policySummary = [
+    `진도 ${policy.minProgress}%`,
+    policy.requireRequiredLessons ? '필수 차시 완료' : '',
+    policy.requireSurvey ? '설문 제출' : '',
+    policy.requireExam ? `시험 ${policy.minExamScore}점` : '',
+    policy.minAttendance !== null ? `출석 ${policy.minAttendance}%` : '',
+  ].filter(Boolean);
+  const requestIssue = (ids: string[]) => setIssueIds(ids);
+  const confirmIssue = async () => {
+    await issue(issueIds);
+    setIssueIds([]);
+  };
+  const changeSeal = async (file: File) => {
+    try {
+      setDraft({ ...draft, sealImageUrl: await readImageFile(file) });
+    } catch {
+      setDraft({ ...draft, sealImageUrl: undefined });
+    }
+  };
   return (
     <section className="operation-content">
       <OperationHead
         title="수료증 관리"
-        description="수료 조건을 확인하고 개별·일괄 발급하세요"
+        description="수료 조건을 충족한 수강생에게 발급하고 이력을 관리하세요"
         action="발급 설정"
         onAction={() => setEditOpen(true)}
       />
-      <div className="operation-metrics">
+      <div className="operation-metrics certificate-metrics">
+        <OperationMetric
+          icon={CheckCircle2}
+          label="조건 충족"
+          value={`${eligible.length}명`}
+          tone="blue"
+        />
         <OperationMetric icon={Award} label="발급 완료" value={`${issued.length}명`} tone="green" />
         <OperationMetric
           icon={Users}
-          label="발급 대기"
-          value={`${pending.length}명`}
+          label="조건 미달"
+          value={`${ineligible.length}명`}
           tone="orange"
         />
         <OperationMetric
           icon={CheckCircle2}
           label="수료 기준"
-          value={`진도 ${condition}%`}
+          value={`진도 ${policy.minProgress}%`}
           tone="purple"
         />
+      </div>
+      <div className="certificate-policy-summary">
+        <span>현재 발급 기준</span>
+        <div>
+          {policySummary.map((item) => <em key={item}>{item}</em>)}
+          <em>{policy.issueMode === 'AUTO' ? '자동 발급' : '강사 확인 후 발급'}</em>
+        </div>
       </div>
       <div className="certificate-layout">
         <div className="oc-panel oc-cert-preview refined">
@@ -1242,16 +1428,11 @@ function WebCertificates({
             <h2>수료증 미리보기</h2>
             <button onClick={() => setEditOpen(true)}>편집</button>
           </div>
-          <div>
-            <b>CERTIFICATE</b>
-            <strong>수료증</strong>
-            <p>
-              홍길동 님은 「{classTitle}」 과정을 성실히 수료하였습니다.
-              <br />
-              {message}
-            </p>
-            <small>2026.03.15 · 원클릭 클래스</small>
-          </div>
+          <CertificateDocument
+            policy={policy}
+            classTitle={classTitle}
+            candidate={previewCandidate}
+          />
         </div>
         <div className="oc-panel certificate-targets">
           <div className="oc-panel-title">
@@ -1260,55 +1441,97 @@ function WebCertificates({
               <p>
                 {selected.length
                   ? `${selected.length}명 선택됨`
-                  : '수료 조건을 충족한 수강생이에요'}
+                  : '판정 결과와 미달 사유를 확인하세요'}
               </p>
             </div>
             <button
               className="oc-create"
-              disabled={!pending.length}
-              onClick={() => issue(pending.map((item) => item.id))}
+              disabled={!eligible.length || submitting}
+              onClick={() => requestIssue(eligible.map((item) => item.applicantId))}
             >
-              일괄 발급
+              조건 충족자 일괄 발급
             </button>
           </div>
-          {recipients.map((a, i) => {
-            const done = issued.includes(a.id);
-            const checked = selected.includes(a.id);
+          <div className="certificate-filter-tabs" role="tablist" aria-label="수료증 발급 상태">
+            {[
+              ['ELIGIBLE', `발급 가능 ${eligible.length}`],
+              ['ISSUED', `발급 완료 ${issued.length}`],
+              ['INELIGIBLE', `조건 미달 ${ineligible.length}`],
+            ].map(([value, label]) => (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={filter === value}
+                className={filter === value ? 'active' : ''}
+                onClick={() => setFilter(value as typeof filter)}
+                key={value}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {loading && <div className="certificate-empty-state"><p>발급 대상을 확인하고 있어요.</p></div>}
+          {!loading && visibleCandidates.map((candidate) => {
+            const done = candidate.eligibility === 'ISSUED';
+            const checked = selected.includes(candidate.applicantId);
             return (
-              <div className="oc-attend-row certificate-target-row" key={a.id}>
-                <input
-                  type="checkbox"
-                  aria-label={`${a.name} 선택`}
-                  checked={checked}
-                  disabled={done}
-                  onChange={() => toggleSelected(a.id)}
-                />
-                <span className="oc-avatar">{a.name[0]}</span>
-                <b>
-                  {a.name}
+              <div className="certificate-candidate-row" key={candidate.applicantId}>
+                {candidate.eligibility === 'ELIGIBLE' ? (
+                  <input
+                    type="checkbox"
+                    aria-label={`${candidate.name} 선택`}
+                    checked={checked}
+                    onChange={() => toggleSelected(candidate.applicantId)}
+                  />
+                ) : <span className="certificate-row-spacer" />}
+                <span className="oc-avatar">{candidate.name[0]}</span>
+                <div className="certificate-candidate-info">
+                  <b>{candidate.name}</b>
                   <small>
-                    진도 {i ? 92 : 100}% · 출석 {i ? 90 : 100}%
+                    진도 {candidate.progress}%
+                    {candidate.requiredLessonsTotal
+                      ? ` · 필수 차시 ${candidate.requiredLessonsCompleted}/${candidate.requiredLessonsTotal}`
+                      : ''}
+                    {candidate.attendanceRate !== null ? ` · 출석 ${candidate.attendanceRate}%` : ''}
                   </small>
-                </b>
+                  {candidate.reasons.length > 0 && <p>{candidate.reasons.join(' · ')}</p>}
+                  {candidate.issuedAt && <p>{new Date(candidate.issuedAt).toLocaleDateString('ko-KR')} 발급</p>}
+                </div>
                 {done ? (
                   <em className="issued">발급완료</em>
-                ) : (
-                  <button className="certificate-issue-one" onClick={() => issue([a.id])}>
+                ) : candidate.eligibility === 'ELIGIBLE' ? (
+                  <button
+                    className="certificate-issue-one"
+                    disabled={submitting}
+                    onClick={() => requestIssue([candidate.applicantId])}
+                  >
                     개별 발급
                   </button>
+                ) : (
+                  <em className="not-eligible">조건 미달</em>
                 )}
               </div>
             );
           })}
-          {!recipients.length && (
+          {!loading && !visibleCandidates.length && (
             <div className="certificate-empty-state">
               <Users size={26} />
-              <b>수료증 발급 대상이 아직 없어요</b>
-              <p>신청자가 수료 조건을 충족하면 이곳에서 발급할 수 있습니다.</p>
+              <b>
+                {filter === 'ELIGIBLE'
+                  ? '발급 가능한 수강생이 아직 없어요'
+                  : filter === 'ISSUED'
+                    ? '발급한 수료증이 아직 없어요'
+                    : '조건이 부족한 수강생이 없어요'}
+              </b>
+              <p>수강생의 학습 기록이 바뀌면 판정 결과에 반영됩니다.</p>
             </div>
           )}
           {selected.length > 0 && (
-            <Button className="certificate-selected-issue" onClick={() => issue(selected)}>
+            <Button
+              className="certificate-selected-issue"
+              disabled={submitting}
+              onClick={() => requestIssue(selected)}
+            >
               선택 {selected.length}명 발급
             </Button>
           )}
@@ -1317,38 +1540,186 @@ function WebCertificates({
       <Modal
         open={editOpen}
         title="수료증 발급 설정"
+        className="certificate-editor-dialog"
         onClose={() => setEditOpen(false)}
         footer={
           <>
             <Button variant="secondary" onClick={() => setEditOpen(false)}>
               취소
             </Button>
-            <Button onClick={saveSettings}>저장</Button>
+            <Button
+              disabled={
+                submitting ||
+                !draft.issuer.trim() ||
+                !draft.signerName.trim() ||
+                !draft.message.trim()
+              }
+              onClick={() => void savePolicy(draft)}
+            >
+              {submitting ? '저장 중...' : '저장'}
+            </Button>
           </>
         }
       >
-        <label className="operation-stepper">
-          <span>최소 진도</span>
-          <button
-            aria-label="최소 진도 줄이기"
-            onClick={() => setCondition(Math.max(50, condition - 5))}
-          >
-            <Minus />
-          </button>
-          <b>{condition}%</b>
-          <button
-            aria-label="최소 진도 늘리기"
-            onClick={() => setCondition(Math.min(100, condition + 5))}
-          >
-            <Plus />
-          </button>
-        </label>
-        <Textarea
-          label="증서 문구"
-          value={message}
-          onChange={(event) => setMessage(event.target.value)}
-        />
+        <div className="certificate-editor-layout">
+        <div className="certificate-policy-editor">
+          <section className="certificate-design-section">
+            <h3>템플릿</h3>
+            <div className="certificate-template-options">
+              {[
+                ['CLASSIC', '클래식'],
+                ['MODERN', '모던'],
+                ['MINIMAL', '미니멀'],
+              ].map(([value, label]) => (
+                <button
+                  type="button"
+                  className={draft.template === value ? 'active' : ''}
+                  aria-pressed={draft.template === value}
+                  onClick={() => setDraft({ ...draft, template: value as CertificatePolicy['template'] })}
+                  key={value}
+                >
+                  <i className={`template-sample template-${value.toLowerCase()}`} />
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+          <section className="certificate-design-section">
+            <h3>강조 색상</h3>
+            <div className="certificate-color-options">
+              {['#3182f6', '#7048e8', '#0ca678', '#e67700', '#191f28'].map((color) => (
+                <button
+                  type="button"
+                  aria-label={`${color} 색상`}
+                  aria-pressed={draft.accentColor === color}
+                  className={draft.accentColor === color ? 'active' : ''}
+                  style={{ backgroundColor: color }}
+                  onClick={() => setDraft({ ...draft, accentColor: color })}
+                  key={color}
+                >
+                  {draft.accentColor === color && <Check />}
+                </button>
+              ))}
+            </div>
+          </section>
+          <label className="operation-stepper">
+            <span>최소 진도</span>
+            <button
+              type="button"
+              aria-label="최소 진도 줄이기"
+              onClick={() => setDraft({ ...draft, minProgress: Math.max(50, draft.minProgress - 5) })}
+            >
+              <Minus />
+            </button>
+            <b>{draft.minProgress}%</b>
+            <button
+              type="button"
+              aria-label="최소 진도 늘리기"
+              onClick={() => setDraft({ ...draft, minProgress: Math.min(100, draft.minProgress + 5) })}
+            >
+              <Plus />
+            </button>
+          </label>
+          <div className="certificate-policy-toggle">
+            <span><b>필수 차시 완료</b><small>필수로 지정된 차시를 모두 완료해야 해요.</small></span>
+            <Toggle
+              label="필수 차시 완료 조건"
+              checked={draft.requireRequiredLessons}
+              onChange={(checked) => setDraft({ ...draft, requireRequiredLessons: checked })}
+            />
+          </div>
+          <div className="certificate-policy-toggle">
+            <span><b>설문 제출</b><small>수료 설문을 제출한 수강생만 발급해요.</small></span>
+            <Toggle
+              label="설문 제출 조건"
+              checked={draft.requireSurvey}
+              onChange={(checked) => setDraft({ ...draft, requireSurvey: checked })}
+            />
+          </div>
+          <div className="certificate-policy-toggle">
+            <span><b>시험 통과</b><small>시험을 사용하는 강의에서만 켜 주세요.</small></span>
+            <Toggle
+              label="시험 통과 조건"
+              checked={draft.requireExam}
+              onChange={(checked) => setDraft({ ...draft, requireExam: checked })}
+            />
+          </div>
+          {draft.requireExam && (
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              label="최소 시험 점수"
+              value={draft.minExamScore}
+              onChange={(event) => setDraft({ ...draft, minExamScore: Number(event.target.value) })}
+            />
+          )}
+          <div className="certificate-policy-toggle">
+            <span><b>자동 발급</b><small>조건을 충족하면 강사 확인 없이 발급해요.</small></span>
+            <Toggle
+              label="수료증 자동 발급"
+              checked={draft.issueMode === 'AUTO'}
+              onChange={(checked) => setDraft({ ...draft, issueMode: checked ? 'AUTO' : 'MANUAL' })}
+            />
+          </div>
+          <Input
+            label="발급 기관"
+            value={draft.issuer}
+            onChange={(event) => setDraft({ ...draft, issuer: event.target.value })}
+          />
+          <Input
+            label="발급자 · 서명"
+            value={draft.signerName}
+            onChange={(event) => setDraft({ ...draft, signerName: event.target.value })}
+          />
+          <Textarea
+            label="증서 문구"
+            value={draft.message}
+            onChange={(event) => setDraft({ ...draft, message: event.target.value })}
+          />
+          <section className="certificate-design-section certificate-seal-editor">
+            <h3>직인</h3>
+            {draft.sealImageUrl ? (
+              <div className="certificate-seal-preview">
+                <img src={draft.sealImageUrl} alt="등록한 직인 미리보기" />
+                <div>
+                  <b>직인이 등록됐어요</b>
+                  <button type="button" onClick={() => setDraft({ ...draft, sealImageUrl: undefined })}>
+                    삭제
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <FileDropzone
+                accept="image/png,image/jpeg,image/webp"
+                maxSize={1024 * 1024}
+                description="배경이 투명한 PNG 직인을 권장해요. 최대 1MB"
+                onFile={(file) => void changeSeal(file)}
+              />
+            )}
+          </section>
+        </div>
+        <aside className="certificate-editor-preview">
+          <span>실시간 미리보기</span>
+          <CertificateDocument
+            compact
+            policy={draft}
+            classTitle={classTitle}
+            candidate={previewCandidate}
+          />
+        </aside>
+        </div>
       </Modal>
+      <ConfirmDialog
+        open={issueIds.length > 0}
+        title="수료증을 발급할까요?"
+        description={`선택한 ${issueIds.length}명에게 수료증을 발급합니다. 발급 후 이력에서 다시 확인할 수 있어요.`}
+        confirmText={`${issueIds.length}명 발급`}
+        tone="primary"
+        loading={submitting}
+        onCancel={() => setIssueIds([])}
+        onConfirm={() => void confirmIssue()}
+      />
     </section>
   );
 }
@@ -1423,19 +1794,22 @@ function People({ id }: { id: string }) {
         <div className="blue">
           <small>전체 신청</small>
           <b>
-            {rows.length}<em>명</em>
+            {rows.length}
+            <em>명</em>
           </b>
         </div>
         <div className="orange">
           <small>결제 대기</small>
           <b>
-            {count('결제대기')}<em>건</em>
+            {count('결제대기')}
+            <em>건</em>
           </b>
         </div>
         <div className="green">
           <small>결제 완료</small>
           <b>
-            {count('결제완료')}<em>명</em>
+            {count('결제완료')}
+            <em>명</em>
           </b>
         </div>
       </div>
@@ -1510,19 +1884,22 @@ function Attendance({
         <div className="blue">
           <small>전체 수강생</small>
           <b>
-            {rows.length}<em>명</em>
+            {rows.length}
+            <em>명</em>
           </b>
         </div>
         <div className="green">
           <small>출석</small>
           <b>
-            {present}<em>명</em>
+            {present}
+            <em>명</em>
           </b>
         </div>
         <div className="orange">
           <small>결석</small>
           <b>
-            {absent.length}<em>명</em>
+            {absent.length}
+            <em>명</em>
           </b>
         </div>
       </div>
@@ -1530,7 +1907,9 @@ function Attendance({
         <QrCode />
         <span>
           <b>출석 QR 열기</b>
-          <small>{schedule} · {session}회차</small>
+          <small>
+            {schedule} · {session}회차
+          </small>
         </span>
       </Link>
       <div className="chips session-chips">
@@ -1587,7 +1966,8 @@ function Survey({ id, detail }: { id: string; detail?: ClassDetail }) {
         <div>
           <small>등록 항목</small>
           <b>
-            {items.length}<em>개</em>
+            {items.length}
+            <em>개</em>
           </b>
         </div>
         <div>
@@ -1599,7 +1979,9 @@ function Survey({ id, detail }: { id: string; detail?: ClassDetail }) {
         <article className="survey-result mobile-survey-item" key={item.id}>
           <b>{item.title}</b>
           <p>{item.meta}</p>
-          <small>{item.status} · 응답률 {item.response}%</small>
+          <small>
+            {item.status} · 응답률 {item.response}%
+          </small>
         </article>
       ))}
       {!items.length && <div className="mobile-operation-empty">아직 만든 설문이 없어요.</div>}
@@ -1759,15 +2141,24 @@ function Manage({
   const nav = useNavigate();
   const [publicOn, setPublicOn] = useState(true);
   const [closed, setClosed] = useState(false);
+  const [lifecycleStatus, setLifecycleStatus] = useState<ClassLifecycleStatus>('READY');
   const [capacity, setCapacity] = useState(30);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   useEffect(() => {
     if (!detail) return;
-    setPublicOn(detail.publicOn ?? true);
-    setClosed(detail.recruitmentClosed ?? false);
+    setPublicOn(
+      detail.recruitmentStatus ? detail.recruitmentStatus !== 'PRIVATE' : (detail.publicOn ?? true),
+    );
+    setClosed(detail.recruitmentStatus === 'CLOSED' || (detail.recruitmentClosed ?? false));
+    setLifecycleStatus(
+      detail.lifecycleStatus === 'IN_PROGRESS' || detail.lifecycleStatus === 'ENDED'
+        ? detail.lifecycleStatus
+        : 'READY',
+    );
     setCapacity(detail.capacity);
   }, [detail]);
+  const full = !closed && (detail?.enrolled || 0) >= capacity;
   const deleteClass = async () => {
     setDeleting(true);
     try {
@@ -1785,14 +2176,45 @@ function Manage({
       <section className="settings-card">
         <div>
           <span>
+            <b>운영 상태</b>
+            <small>강의 진행 단계를 선택해 주세요</small>
+          </span>
+          <select
+            className="oc-setting-select"
+            aria-label="강의 운영 상태"
+            value={lifecycleStatus}
+            onChange={(event) => {
+              const next = event.target.value as ClassLifecycleStatus;
+              setLifecycleStatus(next);
+              if (next === 'ENDED') {
+                setClosed(true);
+                setPublicOn(true);
+              }
+              void classService.updateSettings(id, {
+                lifecycleStatus: next,
+                ...(next === 'ENDED' ? { recruitmentStatus: 'CLOSED' as const } : {}),
+              });
+              notify(next === 'ENDED' ? '강의 운영을 종료했어요' : '운영 상태를 변경했어요');
+            }}
+          >
+            <option value="READY">준비중</option>
+            <option value="IN_PROGRESS">진행중</option>
+            <option value="ENDED">종료</option>
+          </select>
+        </div>
+        <div>
+          <span>
             <b>공개 상태</b>
             <small>신청 페이지 노출</small>
           </span>
           <button
             className={`switch ${publicOn ? 'on' : ''}`}
             onClick={() => {
-              setPublicOn(!publicOn);
-              void classService.updateSettings(id, { publicOn: !publicOn });
+              const next = !publicOn;
+              setPublicOn(next);
+              void classService.updateSettings(id, {
+                recruitmentStatus: next ? (closed ? 'CLOSED' : 'OPEN') : 'PRIVATE',
+              });
               notify(publicOn ? '비공개로 전환했어요' : '공개로 전환했어요');
             }}
           >
@@ -1802,17 +2224,28 @@ function Manage({
         <div>
           <span>
             <b>모집 상태</b>
-            <small>{closed ? '신청을 받지 않아요' : '현재 신청을 받고 있어요'}</small>
+            <small>
+              {lifecycleStatus === 'ENDED'
+                ? '종료된 강의는 신청을 받을 수 없어요'
+                : full
+                  ? '정원이 모두 찼어요'
+                  : closed
+                    ? '신청을 받지 않아요'
+                    : '현재 신청을 받고 있어요'}
+            </small>
           </span>
           <button
             className="badge blue"
+            disabled={!publicOn || lifecycleStatus === 'ENDED' || full}
             onClick={() => {
               setClosed(!closed);
-              void classService.updateSettings(id, { recruitmentClosed: !closed });
+              void classService.updateSettings(id, {
+                recruitmentStatus: closed ? 'OPEN' : 'CLOSED',
+              });
               notify(closed ? '모집을 다시 열었어요' : '모집을 마감했어요');
             }}
           >
-            {closed ? '모집 재개' : '모집 마감'}
+            {full ? '정원 마감' : closed ? '모집 재개' : '모집 마감'}
           </button>
         </div>
         <div>
@@ -1821,16 +2254,25 @@ function Manage({
             <small>현재 {detail?.enrolled || 0}명 신청</small>
           </span>
           <em>
-            <button onClick={() => {
-              const next = Math.max(1, capacity - 5);
-              setCapacity(next);
-              void classService.updateSettings(id, { capacity: next });
-            }}>−</button>
-            {capacity}명<button onClick={() => {
-              const next = capacity + 5;
-              setCapacity(next);
-              void classService.updateSettings(id, { capacity: next });
-            }}>＋</button>
+            <button
+              onClick={() => {
+                const next = Math.max(1, capacity - 5);
+                setCapacity(next);
+                void classService.updateSettings(id, { capacity: next });
+              }}
+            >
+              −
+            </button>
+            {capacity}명
+            <button
+              onClick={() => {
+                const next = capacity + 5;
+                setCapacity(next);
+                void classService.updateSettings(id, { capacity: next });
+              }}
+            >
+              ＋
+            </button>
           </em>
         </div>
       </section>
@@ -1856,10 +2298,7 @@ function Manage({
           <span>신청 링크 복사</span>›
         </button>
       </section>
-      <button
-        className="danger"
-        onClick={() => setDeleteOpen(true)}
-      >
+      <button className="danger" onClick={() => setDeleteOpen(true)}>
         강의 삭제
       </button>
       <ConfirmDialog
@@ -1882,7 +2321,7 @@ function Certificates({
   manager: CertificateManager;
   requiresAttendance: boolean;
 }) {
-  const { issued, recipients, pending, condition, issue, setEditOpen } = manager;
+  const { issued, candidates, eligible, policy, issue, setEditOpen, submitting } = manager;
   return (
     <>
       <button className="certificate-banner" onClick={() => setEditOpen(true)}>
@@ -1890,43 +2329,56 @@ function Certificates({
         <span>
           <b>수료 조건</b>
           <small>
-            진도 {condition}% 이상{requiresAttendance ? ' · 출석 80% 이상' : ''}
+            진도 {policy.minProgress}% 이상
+            {policy.requireRequiredLessons ? ' · 필수 차시 완료' : ''}
+            {requiresAttendance && policy.minAttendance !== null
+              ? ` · 출석 ${policy.minAttendance}% 이상`
+              : ''}
             <br />
-            조건 충족 시 발급 대기 등록
+            {policy.issueMode === 'AUTO' ? '조건 충족 시 자동 발급' : '조건 충족 후 강사 확인 발급'}
           </small>
         </span>
         <Settings />
       </button>
       <div className="mini-stats cert-issue-stats">
         <div>
-          발급 대기<b>{pending.length}명</b>
+          발급 가능<b>{eligible.length}명</b>
         </div>
         <div>
           발급 완료<b>{issued.length}명</b>
         </div>
       </div>
-      {recipients.map((a, i) => {
-        const done = issued.includes(a.id);
+      {candidates.map((candidate) => {
+        const done = candidate.eligibility === 'ISSUED';
+        const canIssue = candidate.eligibility === 'ELIGIBLE';
         return (
-          <button className="check-row" disabled={done} onClick={() => issue([a.id])} key={a.id}>
-            <span>{a.name[0]}</span>
+          <button
+            className="check-row"
+            disabled={!canIssue || submitting}
+            onClick={() => void issue([candidate.applicantId])}
+            key={candidate.applicantId}
+          >
+            <span>{candidate.name[0]}</span>
             <b>
-              {a.name}
-              <small>{i ? '진도 92% · 출석 90%' : '진도 100% · 출석 100%'}</small>
+              {candidate.name}
+              <small>
+                진도 {candidate.progress}%
+                {candidate.reasons.length ? ` · ${candidate.reasons.join(' · ')}` : ''}
+              </small>
             </b>
-            <em>
-              <Check />
-              {done ? '발급완료' : '개별 발급'}
+            <em className={candidate.eligibility === 'INELIGIBLE' ? 'absent' : ''}>
+              {candidate.eligibility === 'INELIGIBLE' ? <X /> : <Check />}
+              {done ? '발급완료' : canIssue ? '개별 발급' : '조건 미달'}
             </em>
           </button>
         );
       })}
       <button
         className="primary"
-        disabled={!pending.length}
-        onClick={() => issue(pending.map((item) => item.id))}
+        disabled={!eligible.length || submitting}
+        onClick={() => void issue(eligible.map((item) => item.applicantId))}
       >
-        대기 {pending.length}명 일괄 발급
+        발급 가능 {eligible.length}명 일괄 발급
       </button>
     </>
   );
