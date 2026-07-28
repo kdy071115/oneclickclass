@@ -130,7 +130,6 @@ function getPageTitle(pathname: string, teacher: boolean) {
   if (pathname.startsWith('/learn/classes')) return ['학습', '수강 중인 클래스를 이어서 학습하세요'];
   if (pathname.startsWith('/applicants')) return ['신청자', '신청 현황과 결제 상태를 확인하세요'];
   if (pathname.startsWith('/settlement')) return ['정산 관리', '매출과 정산 예정 금액을 확인하세요'];
-  if (pathname.startsWith('/my/certificates')) return ['수료증', teacher ? '클래스별 수료증을 발급·관리하세요' : '받은 수료증을 모아봤어요'];
   if (pathname.startsWith('/my')) return ['마이', '계정과 이용 현황을 확인하세요'];
   return ['원클릭 클래스', '클래스 운영을 한 곳에서 관리하세요'];
 }

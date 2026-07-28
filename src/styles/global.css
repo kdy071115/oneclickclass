@@ -1835,6 +1835,10 @@ a {
   color: #e03131;
   background: #fff0f0;
 }
+.original-operations .check-row em.absent {
+  color: #e67700;
+  background: #fff4e6;
+}
 .check-row em svg {
   width: 13px;
 }

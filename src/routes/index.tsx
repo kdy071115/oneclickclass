@@ -18,7 +18,6 @@ import {
 } from '../pages/AdvancedFlowsPage';
 import { ApplicantDetailPage } from '../pages/ApplicantDetailPage';
 import { ApplicantsPage } from '../pages/ApplicantsPage';
-import { CertificateViewPage, CertificatesPage } from '../pages/CertificatesPage';
 import { ClassDetailPage } from '../pages/ClassDetailPage';
 import { ClassOperationsPage } from '../pages/ClassOperationsPage';
 import { ClassesPage } from '../pages/ClassesPage';
@@ -77,8 +76,8 @@ export const router = createBrowserRouter([
       { path: '/applicants', element: <ApplicantsPage /> },
       { path: '/applicants/:id', element: <ApplicantDetailPage /> },
       { path: '/my', element: <MyPage /> },
-      { path: '/my/certificates', element: <CertificatesPage /> },
-      { path: '/my/certificates/:id', element: <CertificateViewPage /> },
+      { path: '/my/certificates', element: <Navigate to="/classes" replace /> },
+      { path: '/my/certificates/:id', element: <Navigate to="/classes" replace /> },
       { path: '/notifications', element: <NotificationsPage /> },
       { path: '/settlement', element: <Navigate to="/settlements" replace /> },
       {

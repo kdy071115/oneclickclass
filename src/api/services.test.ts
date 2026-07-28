@@ -187,4 +187,72 @@ describe('instructor mock services', () => {
     await expect(certificateService.recipients('notion')).resolves.toHaveLength(2);
     await expect(certificateService.recipients('unknown-course')).resolves.toEqual([]);
   });
+
+  it('keeps certificate design settings with the issuance policy', async () => {
+    const policy = await certificateService.policy('notion');
+    const updated = {
+      ...policy,
+      template: 'MODERN' as const,
+      accentColor: '#0ca678',
+      signerName: '김지훈 강사',
+      sealImageUrl: 'data:image/png;base64,c2VhbA==',
+    };
+
+    await certificateService.updatePolicy('notion', updated);
+
+    await expect(certificateService.policy('notion')).resolves.toEqual(updated);
+  });
+
+  it('evaluates certificate eligibility and keeps issuance history', async () => {
+    localStorage.setItem(
+      'oneclick.curriculum.notion',
+      JSON.stringify([
+        {
+          id: 'section-1',
+          title: '필수 과정',
+          lessons: [
+            {
+              id: 'lesson-1',
+              title: '필수 강의',
+              description: '',
+              contentType: 'video',
+              contentUrl: 'https://example.com/video',
+              durationMinutes: 10,
+              preview: false,
+              published: true,
+              required: true,
+            },
+          ],
+        },
+      ]),
+    );
+    localStorage.setItem(
+      'oneclick.enrollment.notion',
+      JSON.stringify({ courseApplySeq: '1', progress: 100 }),
+    );
+    localStorage.setItem(
+      'oneclick.lesson-progress.notion.lesson-1',
+      JSON.stringify({ progress: 100 }),
+    );
+
+    await expect(certificateService.candidates('notion')).resolves.toContainEqual(
+      expect.objectContaining({
+        applicantId: '1',
+        eligibility: 'ELIGIBLE',
+        progress: 100,
+        requiredLessonsCompleted: 1,
+      }),
+    );
+
+    const result = await certificateService.issue('notion', ['1', '3']);
+    expect(result.issued).toContainEqual(
+      expect.objectContaining({ applicantId: '1', eligibility: 'ISSUED' }),
+    );
+    expect(result.skipped).toContainEqual(
+      expect.objectContaining({ applicantId: '3', reason: expect.stringContaining('진도 80% 미달') }),
+    );
+    await expect(certificateService.candidates('notion')).resolves.toContainEqual(
+      expect.objectContaining({ applicantId: '1', eligibility: 'ISSUED' }),
+    );
+  });
 });

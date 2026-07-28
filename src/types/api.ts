@@ -56,3 +56,44 @@ export interface ClassSettingsUpdate {
 export interface ApplicantUpdate {
   payment: PaymentStatus;
 }
+
+export type CertificateIssueMode = 'MANUAL' | 'AUTO';
+export type CertificateEligibility = 'ELIGIBLE' | 'INELIGIBLE' | 'ISSUED';
+export type CertificateTemplate = 'CLASSIC' | 'MODERN' | 'MINIMAL';
+
+export interface CertificatePolicy {
+  minProgress: number;
+  requireRequiredLessons: boolean;
+  requireSurvey: boolean;
+  requireExam: boolean;
+  minExamScore: number;
+  minAttendance: number | null;
+  issueMode: CertificateIssueMode;
+  message: string;
+  issuer: string;
+  signerName: string;
+  template: CertificateTemplate;
+  accentColor: string;
+  sealImageUrl?: string;
+}
+
+export interface CertificateCandidate {
+  applicantId: string;
+  name: string;
+  email: string;
+  progress: number;
+  requiredLessonsCompleted: number;
+  requiredLessonsTotal: number;
+  surveyCompleted: boolean;
+  examScore: number | null;
+  attendanceRate: number | null;
+  eligibility: CertificateEligibility;
+  reasons: string[];
+  certificateId?: string;
+  issuedAt?: string;
+}
+
+export interface CertificateIssueResult {
+  issued: CertificateCandidate[];
+  skipped: Array<{ applicantId: string; reason: string }>;
+}

@@ -3,6 +3,9 @@ import type { AuthSession, LoginRequest, SignupRequest } from '../types/auth';
 import type {
   ApplicantUpdate,
   AttendanceRow,
+  CertificateCandidate,
+  CertificateIssueResult,
+  CertificatePolicy,
   ClassSettingsUpdate,
   PageQuery,
   PageResponse,
@@ -64,6 +67,8 @@ const LEGACY_MOCK_CLASS_IDS = new Set([
 const mockSettingsKey = (classId: string) => `oneclick.class-settings.${classId}`;
 const curriculumKey = (classId: string) => `oneclick.curriculum.${classId}`;
 const surveyKey = (classId: string) => `oneclick.surveys.${classId}`;
+const certificatePolicyKey = (classId: string) => `oneclick.certificate-policy.${classId}`;
+const certificateIssuanceKey = (classId: string) => `oneclick.certificate-issuances.${classId}`;
 const classTypeLabel: Record<ClassDraft['type'], string> = {
   online: '온라인',
   live: '라이브',
@@ -279,6 +284,140 @@ const mockApplicantsByClass = (classId: string) => {
   return enrollment && !rows.some((item) => item.id === enrollment.id)
     ? [enrollment, ...rows]
     : rows;
+};
+
+const defaultCertificatePolicy = (classId: string): CertificatePolicy => ({
+  minProgress: 80,
+  requireRequiredLessons: true,
+  requireSurvey: false,
+  requireExam: false,
+  minExamScore: 70,
+  minAttendance: mockClasses().find((item) => item.id === classId)?.type === '온라인' ? null : 80,
+  issueMode: 'MANUAL',
+  message: '위 사람은 본 과정을 성실히 이수하였기에 이 수료증을 수여합니다.',
+  issuer: '원클릭 클래스',
+  signerName: '김지훈 강사',
+  template: 'CLASSIC',
+  accentColor: '#3182f6',
+});
+
+const mockCertificatePolicy = (classId: string): CertificatePolicy => {
+  try {
+    const stored = localStorage.getItem(certificatePolicyKey(classId));
+    return stored
+      ? { ...defaultCertificatePolicy(classId), ...(JSON.parse(stored) as Partial<CertificatePolicy>) }
+      : defaultCertificatePolicy(classId);
+  } catch {
+    return defaultCertificatePolicy(classId);
+  }
+};
+
+type MockCertificateIssuance = {
+  applicantId: string;
+  certificateId: string;
+  issuedAt: string;
+};
+
+const mockCertificateIssuances = (classId: string): MockCertificateIssuance[] => {
+  try {
+    return JSON.parse(localStorage.getItem(certificateIssuanceKey(classId)) ?? '[]') as MockCertificateIssuance[];
+  } catch {
+    return [];
+  }
+};
+
+const mockEnrollmentProgress = (classId: string, applicantId: string) => {
+  try {
+    const stored = localStorage.getItem(`oneclick.enrollment.${classId}`);
+    if (!stored) return 0;
+    const enrollment = JSON.parse(stored) as { courseApplySeq?: string; progress?: number };
+    return enrollment.courseApplySeq === applicantId ? Math.max(0, Math.min(100, enrollment.progress ?? 0)) : 0;
+  } catch {
+    return 0;
+  }
+};
+
+const mockCertificateCandidates = (
+  classId: string,
+  policy = mockCertificatePolicy(classId),
+): CertificateCandidate[] => {
+  const curriculum = mockCurriculum(classId).flatMap((section) => section.lessons);
+  const requiredLessons = curriculum.filter((lesson) => lesson.required);
+  const issuances = mockCertificateIssuances(classId);
+  return mockApplicantsByClass(classId).map((applicant) => {
+    const progress = mockEnrollmentProgress(classId, applicant.id);
+    const requiredLessonsCompleted = requiredLessons.filter((lesson) => {
+      try {
+        const stored = localStorage.getItem(`oneclick.lesson-progress.${classId}.${lesson.id}`);
+        return stored
+          ? (JSON.parse(stored) as { progress?: number }).progress !== undefined &&
+              (JSON.parse(stored) as { progress: number }).progress >= 90
+          : false;
+      } catch {
+        return false;
+      }
+    }).length;
+    const surveyCompleted =
+      sessionStorage.getItem(`oneclick.assessment.${classId}.survey`) === 'done';
+    const examCompleted = sessionStorage.getItem(`oneclick.assessment.${classId}.exam`) === 'done';
+    const examScore = examCompleted ? 100 : null;
+    const attendanceRate = policy.minAttendance === null ? null : 0;
+    const reasons = [
+      ...(progress < policy.minProgress ? [`진도 ${policy.minProgress}% 미달`] : []),
+      ...(policy.requireRequiredLessons && requiredLessonsCompleted < requiredLessons.length
+        ? [`필수 차시 ${requiredLessons.length - requiredLessonsCompleted}개 미완료`]
+        : []),
+      ...(policy.requireSurvey && !surveyCompleted ? ['필수 설문 미제출'] : []),
+      ...(policy.requireExam && (examScore ?? 0) < policy.minExamScore
+        ? [`시험 ${policy.minExamScore}점 미달`]
+        : []),
+      ...(policy.minAttendance !== null && (attendanceRate ?? 0) < policy.minAttendance
+        ? [`출석 ${policy.minAttendance}% 미달`]
+        : []),
+    ];
+    const issuance = issuances.find((item) => item.applicantId === applicant.id);
+    return {
+      applicantId: applicant.id,
+      name: applicant.name,
+      email: applicant.email,
+      progress,
+      requiredLessonsCompleted,
+      requiredLessonsTotal: requiredLessons.length,
+      surveyCompleted,
+      examScore,
+      attendanceRate,
+      eligibility: issuance ? 'ISSUED' : reasons.length ? 'INELIGIBLE' : 'ELIGIBLE',
+      reasons,
+      certificateId: issuance?.certificateId,
+      issuedAt: issuance?.issuedAt,
+    };
+  });
+};
+
+const mockResolvedCertificateCandidates = (classId: string) => {
+  const policy = mockCertificatePolicy(classId);
+  const candidates = mockCertificateCandidates(classId, policy);
+  if (policy.issueMode !== 'AUTO') return candidates;
+  const issuances = mockCertificateIssuances(classId);
+  const eligible = candidates.filter(
+    (candidate) =>
+      candidate.eligibility === 'ELIGIBLE' &&
+      !issuances.some((issuance) => issuance.applicantId === candidate.applicantId),
+  );
+  if (!eligible.length) return candidates;
+  const issuedAt = new Date().toISOString();
+  localStorage.setItem(
+    certificateIssuanceKey(classId),
+    JSON.stringify([
+      ...issuances,
+      ...eligible.map((candidate) => ({
+        applicantId: candidate.applicantId,
+        certificateId: `certificate-${classId}-${candidate.applicantId}`,
+        issuedAt,
+      })),
+    ]),
+  );
+  return mockCertificateCandidates(classId, policy);
 };
 const allMockApplicants = () => {
   const rows = [...applicants];
@@ -905,18 +1044,64 @@ export const examService = {
 };
 
 export const certificateService = {
+  policy: (classId: string): Promise<CertificatePolicy> =>
+    mock
+      ? delay(mockCertificatePolicy(classId))
+      : apiClient
+          .get<CertificatePolicy>(`/classes/${classId}/certificate-policy`)
+          .then((r) => r.data),
+  updatePolicy: (classId: string, policy: CertificatePolicy): Promise<CertificatePolicy> => {
+    if (mock) {
+      localStorage.setItem(certificatePolicyKey(classId), JSON.stringify(policy));
+      return delay(policy);
+    }
+    return apiClient
+      .put<CertificatePolicy>(`/classes/${classId}/certificate-policy`, policy)
+      .then((r) => r.data);
+  },
+  candidates: (classId: string): Promise<CertificateCandidate[]> =>
+    mock
+      ? delay(mockResolvedCertificateCandidates(classId))
+      : apiClient
+          .get<CertificateCandidate[]>(`/classes/${classId}/certificate-candidates`)
+          .then((r) => r.data),
   recipients: (classId: string): Promise<Applicant[]> =>
     mock
       ? delay(mockApplicantsByClass(classId))
       : apiClient
           .get<Applicant[]>(`/classes/${classId}/certificates/recipients`)
           .then((r) => r.data),
-  issue: (classId: string, applicantIds: string[]): Promise<void> =>
-    mock
-      ? delay(undefined)
-      : apiClient
-          .post<void>(`/classes/${classId}/certificates`, { applicantIds })
-          .then((r) => r.data),
+  issue: (classId: string, applicantIds: string[]): Promise<CertificateIssueResult> => {
+    if (mock) {
+      const candidates = mockCertificateCandidates(classId);
+      const issuances = mockCertificateIssuances(classId);
+      const now = new Date().toISOString();
+      const skipped: CertificateIssueResult['skipped'] = [];
+      for (const applicantId of applicantIds) {
+        const candidate = candidates.find((item) => item.applicantId === applicantId);
+        if (!candidate) skipped.push({ applicantId, reason: '발급 대상을 찾을 수 없어요.' });
+        else if (candidate.eligibility === 'INELIGIBLE')
+          skipped.push({ applicantId, reason: candidate.reasons.join(', ') });
+        else if (!issuances.some((item) => item.applicantId === applicantId))
+          issuances.push({
+            applicantId,
+            certificateId: `certificate-${classId}-${applicantId}`,
+            issuedAt: now,
+          });
+      }
+      localStorage.setItem(certificateIssuanceKey(classId), JSON.stringify(issuances));
+      const refreshed = mockCertificateCandidates(classId);
+      return delay({
+        issued: refreshed.filter(
+          (item) => applicantIds.includes(item.applicantId) && item.eligibility === 'ISSUED',
+        ),
+        skipped,
+      });
+    }
+    return apiClient
+      .post<CertificateIssueResult>(`/classes/${classId}/certificates/issue`, { applicantIds })
+      .then((r) => r.data);
+  },
   download: (certificateId: string): Promise<Blob> =>
     apiClient
       .get(`/certificates/${certificateId}/pdf`, { responseType: 'blob' })
