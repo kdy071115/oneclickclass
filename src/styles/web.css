@@ -1507,6 +1507,9 @@
     font-size: 13.5px;
     font-weight: 700;
   }
+  .oc-panel-title .oc-create {
+    color: #fff;
+  }
 
   .oc-hero-title {
     font-size: 27px;
