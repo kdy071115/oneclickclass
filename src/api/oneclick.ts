@@ -4,12 +4,17 @@ import { initialClassDraft } from '../constants/classDraft';
 import { loadClassPreviewPatch } from '../utils/classDraft';
 import type { ExamQuestion, LessonMarker, SurveyQuestion } from '../types/class';
 import { detectContentProvider, type ContentProvider } from '../utils/content';
+import type { ApiError } from '../types/api';
 
 export { detectContentProvider };
 
 const mock = import.meta.env.VITE_USE_MOCK !== 'false';
 const demoCourseIds = new Set(['notion', 'notion-auto', '104', '7KpX92Lm']);
 const delay = <T>(data: T) => new Promise<T>((resolve) => setTimeout(() => resolve(data), 350));
+const nullOnNotFound = (error: unknown): null => {
+  if ((error as Partial<ApiError>)?.status === 404) return null;
+  throw error;
+};
 
 export type OneClickShare = {
   shareToken: string;
@@ -642,58 +647,52 @@ const normalizeCurriculum = (
 
 const normalizeShare = (raw: unknown, shareToken: string): OneClickShare => {
   const root = asRecord(raw);
-  const fallback = mockShare(shareToken);
   const courseActive = pickRecord(root, ['courseActive', 'active', 'courseActiveVO']);
   const courseMaster = pickRecord(root, ['courseMaster', 'master']);
   const instructor = pickRecord(root, ['instructor', 'teacher', 'professor', 'member']);
   const merged = { ...root, ...courseMaster, ...courseActive };
-  const price = pickNumber(
+  const courseActiveSeq = pickString(
     merged,
-    ['price', 'educationCost', 'tuition', 'coursePrice'],
-    fallback.price,
+    ['courseActiveSeq', 'course_active_seq', 'activeSeq'],
   );
-  const capacity = pickNumber(
+  const title = pickString(
     merged,
-    ['capacity', 'courseMemberCnt', 'limitCnt', 'recruitCnt'],
-    fallback.capacity,
+    ['title', 'courseActiveTitle', 'courseMasterTitle', 'courseTitle'],
   );
+  if (!courseActiveSeq || !title) {
+    throw {
+      code: 'INVALID_SHARE_RESPONSE',
+      message: '강의 정보를 확인하지 못했어요.',
+      status: 502,
+    } satisfies ApiError;
+  }
+  const price = pickNumber(merged, ['price', 'educationCost', 'tuition', 'coursePrice']);
+  const capacity = pickNumber(merged, ['capacity', 'courseMemberCnt', 'limitCnt', 'recruitCnt']);
   const confirmedCount = pickNumber(
     merged,
     ['confirmedCount', 'confirmedSeatCount', 'enrolled', 'takeCnt'],
-    fallback.confirmedCount,
   );
-  const heldCount = pickNumber(merged, ['heldCount', 'validHeldCount'], fallback.heldCount);
+  const heldCount = pickNumber(merged, ['heldCount', 'validHeldCount']);
   const recruitmentStatus = pickString(
     merged,
     ['recruitmentStatus'],
-    fallback.recruitmentStatus,
+    'PRIVATE',
   ) as OneClickShare['recruitmentStatus'];
   return {
     shareToken: pickString(root, ['shareToken', 'token'], shareToken),
-    courseActiveSeq: pickString(
-      merged,
-      ['courseActiveSeq', 'course_active_seq', 'activeSeq'],
-      fallback.courseActiveSeq,
-    ),
+    courseActiveSeq,
     courseMasterSeq: pickString(
       merged,
       ['courseMasterSeq', 'course_master_seq', 'masterSeq'],
-      fallback.courseMasterSeq,
     ),
-    title: pickString(
-      merged,
-      ['title', 'courseActiveTitle', 'courseMasterTitle', 'courseTitle'],
-      fallback.title,
-    ),
+    title,
     summary: pickString(
       merged,
       ['summary', 'courseActiveSummary', 'courseSummary', 'subtitle'],
-      fallback.summary,
     ),
     description: pickString(
       merged,
       ['description', 'courseActiveDescription', 'intro', 'contents'],
-      fallback.description,
     ),
     price,
     capacity,
@@ -720,32 +719,25 @@ const normalizeShare = (raw: unknown, shareToken: string): OneClickShare => {
     instructorName: pickString(
       instructor,
       ['instructorName', 'memberFullName', 'profName', 'name'],
-      fallback.instructorName,
+      '강사 안내 예정',
     ),
     scheduleText: pickString(
       merged,
       ['scheduleText', 'studyPeriodText', 'coursePeriodText', 'schedule'],
-      fallback.scheduleText,
+      '일정 안내 예정',
     ),
     locationText: pickString(
       merged,
       ['locationText', 'educationPlace', 'place', 'classroom'],
-      fallback.locationText,
     ),
-    requiresApproval: pickBoolean(
-      merged,
-      ['requiresApproval', 'approvalYn'],
-      fallback.requiresApproval,
-    ),
+    requiresApproval: pickBoolean(merged, ['requiresApproval', 'approvalYn']),
     difficulty: pickString(
       merged,
       ['difficulty', 'difficultyName', 'levelName'],
-      fallback.difficulty,
+      '난이도 안내 예정',
     ),
-    highlights: stringArray(merged, ['highlights', 'learningPoints', 'objectives']).length
-      ? stringArray(merged, ['highlights', 'learningPoints', 'objectives'])
-      : fallback.highlights,
-    curriculum: normalizeCurriculum(merged, fallback.curriculum),
+    highlights: stringArray(merged, ['highlights', 'learningPoints', 'objectives']),
+    curriculum: normalizeCurriculum(merged, []),
   };
 };
 
@@ -1186,7 +1178,7 @@ export const oneclickService = {
       return apiClient
         .get<unknown>(`/oneclick/learn/${courseActiveSeq}`)
         .then((r) => normalizeEnrollment(r.data, courseActiveSeq))
-        .catch(() => null);
+        .catch(nullOnNotFound);
     const value = localStorage.getItem(oneclickEnrollmentKey(courseActiveSeq));
     if (!value) return delay(null);
     const enrollment = JSON.parse(value) as OneClickEnrollment;
@@ -1197,7 +1189,7 @@ export const oneclickService = {
       return apiClient
         .get<unknown>(`/oneclick/learn/${courseActiveSeq}`)
         .then((r) => normalizeEnrollment(r.data, courseActiveSeq))
-        .catch(() => null);
+        .catch(nullOnNotFound);
     const value = localStorage.getItem(oneclickEnrollmentKey(courseActiveSeq));
     return delay(
       value
@@ -1210,7 +1202,7 @@ export const oneclickService = {
       return apiClient
         .get<unknown>(`/oneclick/learn/${courseActiveSeq}/room`)
         .then((r) => normalizeLearnRoom(r.data, courseActiveSeq))
-        .catch(() => null);
+        .catch(nullOnNotFound);
     const value = localStorage.getItem(oneclickEnrollmentKey(courseActiveSeq));
     if (!value) return delay(null);
     const enrollment = normalizeStoredEnrollment(

@@ -3,7 +3,7 @@ import { clearSession, getAccessToken, getSession, updateAccessToken } from '../
 import type { ApiError } from '../types/api';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL;
-const withCredentials = import.meta.env.VITE_API_WITH_CREDENTIALS === 'true';
+const withCredentials = import.meta.env.VITE_API_WITH_CREDENTIALS !== 'false';
 
 export const apiClient = axios.create({
   baseURL,
