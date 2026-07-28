@@ -155,6 +155,31 @@ test('강의자 전역 메뉴에서 수강생용 수료증 화면을 노출하�
   await expect(page.getByRole('heading', { name: '수료증 관리' })).toBeVisible();
 });
 
+test('넓은 화면에서도 대시보드 KPI 카드 레이아웃을 유지한다', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop');
+  await page.setViewportSize({ width: 1920, height: 900 });
+  await page.goto(`${baseUrl}/dashboard`);
+
+  await expect(page.locator('.oc-kpi-card')).toHaveCount(4);
+  const layout = await page.locator('.oc-kpi-grid').evaluate((element) => {
+    const card = element.querySelector('.oc-kpi-card');
+    return {
+      gridDisplay: getComputedStyle(element).display,
+      gridWidth: element.getBoundingClientRect().width,
+      cardDisplay: card ? getComputedStyle(card).display : '',
+      cardWidth: card?.getBoundingClientRect().width ?? 0,
+      scrollWidth: document.documentElement.scrollWidth,
+      viewportWidth: window.innerWidth,
+    };
+  });
+
+  expect(layout.gridDisplay).toBe('grid');
+  expect(layout.cardDisplay).toBe('flex');
+  expect(layout.gridWidth).toBeGreaterThan(0);
+  expect(layout.cardWidth).toBeGreaterThan(250);
+  expect(layout.scrollWidth).toBeLessThanOrEqual(layout.viewportWidth);
+});
+
 test('강의자 운영 화면의 주요 액션이 실제 상태를 바꾼다', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop');
   await page.setViewportSize({ width: 1440, height: 900 });
