@@ -4,15 +4,17 @@ import { describe, expect, it } from 'vitest';
 import { LandingPage } from './LandingPage';
 
 describe('LandingPage', () => {
-  it('핵심 카피와 가입 경로를 보여주고 모션 미지원 환경에서도 내용을 공개한다', () => {
-    const { container } = render(
+  it('핵심 카피와 가입 경로, 실제 서비스 화면을 보여준다', () => {
+    render(
       <MemoryRouter>
         <LandingPage />
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole('heading', { name: /강의 만들기,\s*이렇게 쉬웠나요/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /강의 개설부터\s*수료까지 한곳에서/ })).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: /무료로 시작하기/ })[0]).toHaveAttribute('href', '/signup');
-    expect(container.querySelector('.landing-reveal')).toHaveClass('is-visible');
+    expect(screen.getByRole('img', { name: '원클릭 클래스의 실제 강의 생성 화면' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '원클릭 클래스의 실제 신청자 관리 화면' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '원클릭 클래스의 실제 모바일 수강 신청 화면' })).toBeInTheDocument();
   });
 });
