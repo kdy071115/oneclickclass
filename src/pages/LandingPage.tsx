@@ -1,21 +1,21 @@
 import {
   ArrowRight,
+  BatteryFull,
   Check,
-  ClipboardCheck,
-  LayoutDashboard,
-  ListChecks,
+  Signal,
+  Wifi,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import createClassScreen from '../assets/landing/create-class.png';
 import enrollmentMobileScreen from '../assets/landing/enrollment-mobile.png';
 import operationsScreen from '../assets/landing/operations.png';
+import { classCreationSteps } from '../constants/classCreation';
 
 const navItems = [
-  ['flow', '강의 개설'],
   ['operations', '운영'],
-  ['learner', '학습'],
-  ['trust', '주요 기능'],
+  ['learner', '학습자'],
+  ['flow', '강의 개설'],
 ] as const;
 
 const flowSteps = [
@@ -37,13 +37,13 @@ const flowSteps = [
 ] as const;
 
 const learnerSteps = [
-  ['링크 열기', '앱 설치 없이 바로 확인'],
-  ['본인 확인', '휴대전화로 신청 내역 연결'],
-  ['수강 시작', '저장된 위치에서 이어보기'],
+  ['링크 열기', '앱 설치 없이 강의 확인'],
+  ['신청 정보', '필요한 정보만 간단히 입력'],
+  ['신청 완료', '결제 결과와 신청 내역 확인'],
 ] as const;
 
 export function LandingPage() {
-  const [activeSection, setActiveSection] = useState('flow');
+  const [activeSection, setActiveSection] = useState('operations');
 
   useEffect(() => {
     document.documentElement.classList.add('landing-scroll');
@@ -102,17 +102,17 @@ export function LandingPage() {
       </header>
 
       <div id="landing-content">
-        <section className="landing-hero" id="flow" aria-labelledby="landing-hero-title">
+        <section className="landing-hero" aria-labelledby="landing-hero-title">
           <div className="landing-container landing-hero-grid">
             <div className="landing-hero-copy">
-              <p className="landing-eyebrow">강의 운영 플랫폼</p>
+              <p className="landing-eyebrow">강의 운영 플랫폼, 원클릭 클래스</p>
               <h1 id="landing-hero-title">
-                강의 개설부터<br />
-                수료까지 한곳에서
+                강의는 쉽게 열고<br />
+                운영은 한 번에
               </h1>
               <p className="landing-hero-description">
-                5단계 강의 개설, 신청자와 결제 상태, QR 출석,<br />
-                학습 진도와 수료증을 하나의 흐름에서 관리하세요.
+                개설부터 신청·결제·출석·학습·수료까지<br />
+                {' '}복잡한 강의 운영을 하나의 흐름으로 관리하세요.
               </p>
               <div className="landing-hero-actions">
                 <Link className="landing-button landing-button-primary" to="/signup">
@@ -123,34 +123,29 @@ export function LandingPage() {
                 </a>
               </div>
               <p className="landing-hero-note">
-                <Check size={15} /> 별도 설치 없이 시작
+                <Check size={15} /> 카드 등록 없이 시작
                 <span aria-hidden="true">·</span>
-                <Check size={15} /> 모바일 신청·학습 지원
+                <Check size={15} /> 별도 설치 없음
               </p>
             </div>
 
-            <figure className="landing-product-shot landing-product-shot-hero">
-              <img src={createClassScreen} alt="원클릭 클래스의 실제 강의 생성 화면" />
-            </figure>
-          </div>
-        </section>
-
-        <section className="landing-section landing-flow-section" aria-labelledby="flow-title">
-          <div className="landing-container">
-            <div className="landing-section-heading">
-              <p className="landing-kicker">강의 개설</p>
-              <h2 id="flow-title">기본 정보부터 신청 링크까지<br />순서대로 이어집니다</h2>
-              <p>필요한 정보를 입력하면 다음 작업이 같은 흐름 안에서 이어집니다.</p>
+            <div className="landing-product-showcase">
+              <figure className="landing-product-shot landing-product-shot-hero">
+                <figcaption>실제 제품 화면 · 5단계 강의 개설</figcaption>
+                <img src={createClassScreen} alt="원클릭 클래스의 실제 강의 생성 화면" />
+              </figure>
+              <ol className="landing-create-step-preview" aria-label="강의 개설 5단계">
+                {classCreationSteps.map(([title, description], index) => (
+                  <li className={index === 0 ? 'active' : undefined} key={title}>
+                    <span>{index + 1}</span>
+                    <div>
+                      <b>{title.replace('\n', ' ')}</b>
+                      <p>{description}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
             </div>
-            <ol className="landing-flow-rail">
-              {flowSteps.map((step) => (
-                <li key={step.number}>
-                  <span>{step.number}</span>
-                  <h3>{step.title}</h3>
-                  <p>{step.description}</p>
-                </li>
-              ))}
-            </ol>
           </div>
         </section>
 
@@ -168,6 +163,7 @@ export function LandingPage() {
             </div>
 
             <figure className="landing-product-shot landing-product-shot-operations">
+              <figcaption>실제 제품 화면 · 신청자 및 결제 상태</figcaption>
               <img src={operationsScreen} alt="원클릭 클래스의 실제 신청자 관리 화면" />
             </figure>
           </div>
@@ -176,13 +172,21 @@ export function LandingPage() {
         <section className="landing-section landing-learner" id="learner" aria-labelledby="learner-title">
           <div className="landing-container landing-feature-grid reverse">
             <figure className="landing-mobile-shot">
+              <div className="landing-mobile-status" aria-hidden="true">
+                <b>9:41</b>
+                <span>
+                  <Signal />
+                  <Wifi />
+                  <BatteryFull />
+                </span>
+              </div>
               <img src={enrollmentMobileScreen} alt="원클릭 클래스의 실제 모바일 수강 신청 화면" />
             </figure>
 
             <div className="landing-feature-copy">
               <p className="landing-kicker">학습자 화면</p>
-              <h2 id="learner-title">신청한 링크에서<br />바로 이어서 학습해요</h2>
-              <p>공유받은 링크에서 강의를 확인하고 신청한 뒤, 같은 화면 흐름에서 학습을 계속할 수 있어요.</p>
+              <h2 id="learner-title">링크 하나로<br />신청과 결제까지</h2>
+              <p>학습자는 앱 설치 없이 강의를 확인하고, 필요한 정보를 입력해 신청을 완료합니다.</p>
               <ol className="landing-learner-steps">
                 {learnerSteps.map(([title, description], index) => (
                   <li key={title}>
@@ -195,42 +199,38 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section className="landing-section landing-trust" id="trust" aria-labelledby="trust-title">
+        <section className="landing-section landing-flow-section" id="flow" aria-labelledby="flow-title">
           <div className="landing-container">
             <div className="landing-section-heading">
-              <p className="landing-kicker">주요 기능</p>
-              <h2 id="trust-title">개설 이후 운영까지<br />한곳에서 이어집니다</h2>
-              <p>강의자가 반복해서 확인하는 운영 업무를 실제 진행 순서에 맞춰 연결했습니다.</p>
+              <p className="landing-kicker">강의 개설</p>
+              <h2 id="flow-title">처음이어도<br />순서대로 만들 수 있어요</h2>
+              <p>기본 정보와 콘텐츠를 입력하고, 신청자에게 공유할 링크를 발행하세요.</p>
             </div>
-            <div className="landing-trust-grid">
-              <article>
-                <LayoutDashboard />
-                <h3>신청·결제·출석 통합</h3>
-                <p>신청자 상태와 결제 여부, 현장 QR 출석을 같은 운영 화면에서 확인합니다.</p>
-              </article>
-              <article>
-                <ListChecks />
-                <h3>5단계 강의 개설</h3>
-                <p>진행 방식과 일정, 가격, 신청 항목을 순서대로 입력하고 임시 저장합니다.</p>
-              </article>
-              <article>
-                <ClipboardCheck />
-                <h3>진도·수료 연결</h3>
-                <p>차시별 학습 진도를 저장하고 수료 조건 확인과 수료증 발급까지 이어집니다.</p>
-              </article>
-            </div>
+            <ol className="landing-flow-rail">
+              {flowSteps.map((step) => (
+                <li key={step.number}>
+                  <span>{step.number}</span>
+                  <h3>{step.title}</h3>
+                  <p>{step.description}</p>
+                </li>
+              ))}
+            </ol>
           </div>
         </section>
 
         <section className="landing-final-cta" aria-labelledby="final-cta-title">
           <div className="landing-container">
             <div>
-              <p>강의 운영을 한곳에서</p>
-              <h2 id="final-cta-title">강의를 만들고<br />신청 링크를 발행하세요.</h2>
+              <p>계정 생성은 무료입니다</p>
+              <h2 id="final-cta-title">첫 강의를 만들고<br />신청 링크를 발행하세요.</h2>
+              <small><Check /> 카드 등록 없이 바로 시작</small>
             </div>
-            <Link className="landing-button landing-button-light" to="/signup">
-              무료로 시작하기 <ArrowRight size={19} />
-            </Link>
+            <div className="landing-final-action">
+              <Link className="landing-button landing-button-light" to="/signup">
+                무료 계정 만들기 <ArrowRight size={19} />
+              </Link>
+              <small>가입 후 바로 강의를 만들 수 있어요</small>
+            </div>
           </div>
         </section>
       </div>
@@ -242,10 +242,6 @@ export function LandingPage() {
           <small>© 2026 OneClick Class</small>
         </div>
       </footer>
-
-      <Link className="landing-mobile-cta" to="/signup">
-        무료로 시작하기 <ArrowRight size={18} />
-      </Link>
     </main>
   );
 }
