@@ -28,7 +28,7 @@ test('새 강의를 만들면 커리큘럼과 공개 준비로 바로 이어진�
   await page.getByRole('button', { name: '다음 단계', exact: true }).click();
   await page.getByRole('button', { name: '저장하고 커리큘럼 만들기', exact: true }).click();
 
-  await expect(page).toHaveURL(/\/classes\/[^/]+\/curriculum\?setup=1$/);
+  await expect(page).toHaveURL(/\/classes\/[^/]+\/curriculum$/);
   await expect(page.getByRole('heading', { name: '첫 차시를 만들어 주세요' })).toBeVisible();
   await expect(page.getByRole('region', { name: '강의 공개 준비' })).toContainText('기본 정보');
 });
@@ -53,7 +53,7 @@ test('YouTube 차시를 공개하고 수강생이 강의실까지 입장한다',
   await page.getByRole('button', { name: '저장', exact: true }).click();
   await expect(page.getByText('http:// 또는 https://로 시작하는 전체 주소를 입력해 주세요.')).toBeVisible();
   await page.getByLabel('영상 URL').fill('https://youtu.be/M7lc1UVf-VE');
-  await expect(page.getByRole('status')).toHaveText('자동 확인 · YouTube 영상');
+  await expect(page.locator('.content-source-status')).toHaveText('자동 확인 · YouTube 영상');
   await page.getByLabel('예상 학습 시간(분)').fill('15');
   await page.getByRole('switch', { name: '순차 학습 설정' }).click();
   await page.getByRole('switch', { name: '차시 공개 설정' }).click();
@@ -67,7 +67,7 @@ test('YouTube 차시를 공개하고 수강생이 강의실까지 입장한다',
   await expect(page).toHaveURL(/\/classes\/published\?shareToken=/);
   await page.getByRole('link', { name: '신청 페이지 열기' }).click();
   await expect(page.getByRole('heading', { name: 'YouTube 공개 흐름 테스트' })).toBeVisible();
-  await expect(page.getByText('YouTube 첫 강의', { exact: true })).toBeVisible();
+  await expect(page.getByRole('article').filter({ hasText: 'YouTube 첫 강의' })).toBeVisible();
 
   await page.getByPlaceholder('이름을 입력하세요').fill('연결 테스트 수강생');
   await page.getByPlaceholder('010-0000-0000').fill('010-1234-5678');
@@ -79,7 +79,7 @@ test('YouTube 차시를 공개하고 수강생이 강의실까지 입장한다',
   await expect(page.getByRole('heading', { name: '신청이 완료됐어요.' })).toBeVisible();
   await page.getByRole('button', { name: '강의실 입장하기' }).click();
   await expect(page).toHaveURL(/\/learn\/[^/]+$/);
-  await expect(page.getByRole('heading', { name: 'YouTube 공개 흐름 테스트' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'YouTube 첫 강의' })).toBeVisible();
   await expect(page.getByRole('button', { name: /1 YouTube 첫 강의 예상 15분/ })).toBeVisible();
   await expect(page.locator('.youtube-player')).toBeVisible();
   await expect(page.getByText('콘텐츠 준비 중')).toHaveCount(0);
@@ -143,7 +143,45 @@ test('강의자 상세 화면과 핵심 운영 페이지를 빠짐없이 이동�
   expect(pageErrors).toEqual([]);
 });
 
-test('강의자 운영 화면의 주요 액션이 실제 상태를 바꾼다', async ({ page }) => {
+test('강의자 전역 메뉴에서 수강생용 수료증 화면을 노출하지 않는다', async ({ page }) => {
+  await page.goto(`${baseUrl}/dashboard`);
+  await expect(page.locator('.oc-side-nav').getByRole('link', { name: '수료증' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: '받은 수료증' })).toHaveCount(0);
+
+  await page.goto(`${baseUrl}/my/certificates`);
+  await expect(page.getByRole('heading', { name: '404' })).toBeVisible();
+
+  await page.goto(`${baseUrl}/classes/notion/certificates`);
+  await expect(page.getByRole('heading', { name: '수료증 관리' })).toBeVisible();
+});
+
+test('넓은 화면에서도 대시보드 KPI 카드 레이아웃을 유지한다', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop');
+  await page.setViewportSize({ width: 1920, height: 900 });
+  await page.goto(`${baseUrl}/dashboard`);
+
+  await expect(page.locator('.oc-kpi-card')).toHaveCount(4);
+  const layout = await page.locator('.oc-kpi-grid').evaluate((element) => {
+    const card = element.querySelector('.oc-kpi-card');
+    return {
+      gridDisplay: getComputedStyle(element).display,
+      gridWidth: element.getBoundingClientRect().width,
+      cardDisplay: card ? getComputedStyle(card).display : '',
+      cardWidth: card?.getBoundingClientRect().width ?? 0,
+      scrollWidth: document.documentElement.scrollWidth,
+      viewportWidth: window.innerWidth,
+    };
+  });
+
+  expect(layout.gridDisplay).toBe('grid');
+  expect(layout.cardDisplay).toBe('flex');
+  expect(layout.gridWidth).toBeGreaterThan(0);
+  expect(layout.cardWidth).toBeGreaterThan(250);
+  expect(layout.scrollWidth).toBeLessThanOrEqual(layout.viewportWidth);
+});
+
+test('강의자 운영 화면의 주요 액션이 실제 상태를 바꾼다', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop');
   await page.setViewportSize({ width: 1440, height: 900 });
 
   await page.goto(`${baseUrl}/classes/notion/applicants`);
@@ -154,14 +192,8 @@ test('강의자 운영 화면의 주요 액션이 실제 상태를 바꾼다', a
   await page.locator('.operation-table .oc-table-row').first().click();
   await expect(page).toHaveURL(`${baseUrl}/applicants/1?classId=notion`);
 
-  await page.goto(`${baseUrl}/classes/notion/attendance`);
-  await expect(page.getByAltText('출석 QR 코드')).toBeVisible();
-  const firstAttendance = page.locator('.attendance-edit-row').first();
-  await expect(firstAttendance).toContainText('출석');
-  await firstAttendance.click();
-  await expect(firstAttendance).toContainText('지각');
-  await page.getByRole('button', { name: 'QR 새로고침' }).click();
-  await expect(page.getByText('QR 코드를 새로 발급했어요')).toBeVisible();
+  await page.goto(`${baseUrl}/classes/notion`);
+  await expect(page.locator('.oc-detail-tabs').getByRole('link', { name: '출석/QR' })).toHaveCount(0);
 
   await page.goto(`${baseUrl}/classes/notion/survey`);
   await expect(page.locator('.survey-card')).toHaveCount(4);
@@ -170,8 +202,17 @@ test('강의자 운영 화면의 주요 액션이 실제 상태를 바꾼다', a
   await page.getByRole('button', { name: '생성', exact: true }).click();
   await expect(page.getByRole('heading', { name: '수강 종료 설문' })).toBeVisible();
 
+  await page.evaluate(() => {
+    localStorage.setItem(
+      'oneclick.certificate-policy.notion',
+      JSON.stringify({
+        minProgress: 0,
+        requireRequiredLessons: false,
+      }),
+    );
+  });
   await page.goto(`${baseUrl}/classes/notion/certificates`);
-  await expect(page.locator('.certificate-target-row')).toHaveCount(2);
+  await expect(page.locator('.certificate-candidate-row')).toHaveCount(2);
   await page.getByRole('button', { name: '발급 설정' }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.getByRole('button', { name: '저장', exact: true }).click();

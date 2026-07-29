@@ -14,7 +14,6 @@ import type {
 } from '../types/api';
 import {
   applicants,
-  certificates,
   classDetail,
   classes,
   dashboard,
@@ -28,7 +27,6 @@ import {
 } from '../constants/mockData';
 import type {
   Applicant,
-  CertificateItem,
   ClassDetail,
   ClassDraft,
   ClassItem,
@@ -507,7 +505,7 @@ export const authService = {
   },
   async refresh(refreshToken: string) {
     return (
-      await apiClient.post<Pick<AuthSession, 'accessToken'>>('/auth/refresh', { refreshToken })
+      await apiClient.post<{ accessToken: string }>('/auth/refresh', { refreshToken })
     ).data;
   },
   async logout(refreshToken?: string) {
@@ -813,10 +811,6 @@ export const detailService = {
     mock
       ? delay(examQuestions)
       : apiClient.get<ExamQuestion[]>('/exams/current/questions').then((r) => r.data),
-  certificates: (): Promise<CertificateItem[]> =>
-    mock
-      ? delay(certificates)
-      : apiClient.get<CertificateItem[]>('/certificates').then((r) => r.data),
 };
 export const curriculumService = {
   list: (classId: string): Promise<CurriculumSection[]> =>
@@ -981,6 +975,7 @@ export const attendanceService = {
     if (mock) return () => undefined;
     const source = new EventSource(
       `${import.meta.env.VITE_API_BASE_URL ?? ''}/classes/${classId}/attendance/stream`,
+      { withCredentials: true },
     );
     source.onmessage = (event) => onCheckin(JSON.parse(event.data) as AttendanceRow);
     return () => source.close();
@@ -1139,6 +1134,7 @@ export const notificationService = {
     if (mock) return () => undefined;
     const source = new EventSource(
       `${import.meta.env.VITE_API_BASE_URL ?? ''}/notifications/stream`,
+      { withCredentials: true },
     );
     source.onmessage = (event) => onNotification(JSON.parse(event.data) as NotificationItem);
     return () => source.close();

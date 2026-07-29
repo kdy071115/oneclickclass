@@ -1507,6 +1507,9 @@
     font-size: 13.5px;
     font-weight: 700;
   }
+  .oc-panel-title .oc-create {
+    color: #fff;
+  }
 
   .oc-hero-title {
     font-size: 27px;
@@ -4423,9 +4426,33 @@
     background: var(--color-tint-green);
     color: var(--color-success);
   }
-  .certificate-candidate-row > em.issued {
+  .certificate-issued-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .certificate-issued-actions em.issued {
+    width: fit-content;
+    padding: 6px 9px;
+    border-radius: 6px;
     background: var(--color-tint-green);
     color: var(--color-success);
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+  .certificate-issued-actions button {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 34px;
+    padding: 0 11px;
+    border-radius: 9px;
+    background: var(--color-tint-blue);
+    color: var(--color-primary);
+    font-size: 12px;
+    font-weight: 800;
   }
   .certificate-candidate-row > em.not-eligible {
     background: var(--color-tint-orange);

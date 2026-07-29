@@ -1,7 +1,6 @@
 import type {
   Applicant,
   BillingHistory,
-  CertificateItem,
   ClassDetail,
   ClassItem,
   Dashboard,
@@ -67,6 +66,35 @@ export const dashboard: Dashboard = {
   todayClasses: 2,
   pendingPayments: 3,
   pendingAmount: 135000,
+  monthlyRevenue: 2145000,
+  monthlyRevenueChange: '전월 대비 +18%',
+  activeStudents: 52,
+  newMembers: 12,
+  enrollmentTrend: [
+    { label: '2월', value: 4 },
+    { label: '3월', value: 7 },
+    { label: '4월', value: 5 },
+    { label: '5월', value: 9 },
+    { label: '6월', value: 14 },
+    { label: '7월', value: 16 },
+  ],
+  memberTrend: [
+    { label: '2월', value: 2 },
+    { label: '3월', value: 3 },
+    { label: '4월', value: 5 },
+    { label: '5월', value: 8 },
+    { label: '6월', value: 10 },
+    { label: '7월', value: 12 },
+  ],
+  todaySchedule: [
+    {
+      time: '20:00',
+      meridiem: '오후',
+      title: '노션으로 시작하는 업무 자동화 · 2주차',
+      meta: '수강생 24명',
+      badge: '온라인',
+    },
+  ],
   classes,
   applicants,
   studentStats: [
@@ -170,32 +198,6 @@ export const examQuestions: ExamQuestion[] = [
     text: '자동화 결과를 점검하는 가장 좋은 방법은?',
     choices: ['한 번에 배포', '작은 범위로 테스트', '설명서 생략', '권한 전체 공개'],
     answer: 1,
-  },
-];
-export const certificates: CertificateItem[] = [
-  {
-    id: '0',
-    title: '데이터 시각화 마스터',
-    completedAt: '2026.06',
-    attendance: 100,
-    score: 94,
-    color: '#4c82f7',
-  },
-  {
-    id: '1',
-    title: 'UX 리서치 실무 4주',
-    completedAt: '2026.05',
-    attendance: 92,
-    score: 88,
-    color: '#7048e8',
-  },
-  {
-    id: '2',
-    title: '사진 보정 클래스',
-    completedAt: '2026.03',
-    attendance: 96,
-    score: 0,
-    color: '#0ca678',
   },
 ];
 export const notifications: NotificationItem[] = [

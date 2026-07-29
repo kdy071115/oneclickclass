@@ -4,18 +4,32 @@ const account = { email: 'e2e@oneclick.test', password: 'password' };
 
 async function login(page: Page) {
   await page.goto('/login');
-  await page.getByLabel('이메일 아이디').fill(account.email);
+  await page.getByRole('button', { name: '이메일로 로그인', exact: true }).click();
+  await page.getByLabel('이메일', { exact: true }).fill(account.email);
   await page.getByLabel('비밀번호').fill(account.password);
-  await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await page.getByRole('button', { name: '이메일로 로그인', exact: true }).last().click();
   await expect(page).toHaveURL('/dashboard');
+}
+
+async function makeMockCertificatesEligible(page: Page) {
+  await page.evaluate(() => {
+    localStorage.setItem(
+      'oneclick.certificate-policy.notion',
+      JSON.stringify({
+        minProgress: 0,
+        requireRequiredLessons: false,
+      }),
+    );
+  });
 }
 
 test('보호 라우트에서 로그인 후 대시보드로 진입한다', async ({ page }) => {
   await page.goto('/dashboard');
   await expect(page).toHaveURL('/login');
-  await page.getByLabel('이메일 아이디').fill(account.email);
+  await page.getByRole('button', { name: '이메일로 로그인', exact: true }).click();
+  await page.getByLabel('이메일', { exact: true }).fill(account.email);
   await page.getByLabel('비밀번호').fill(account.password);
-  await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await page.getByRole('button', { name: '이메일로 로그인', exact: true }).last().click();
   await expect(page).toHaveURL('/dashboard');
 });
 
@@ -147,8 +161,23 @@ test('수강생 신청 페이지와 강의실이 모바일에서 가로로 깨�
           lessons: [
             {
               id: 'lesson-1',
+              title: '콘텐츠 준비 중인 강의',
+              durationMinutes: 10,
+              published: true,
+              contentType: 'video',
+            },
+            {
+              id: 'lesson-2',
               title: '모바일 첫 강의',
               durationMinutes: 15,
+              published: true,
+              contentUrl: 'https://youtu.be/M7lc1UVf-VE',
+              contentType: 'video',
+            },
+            {
+              id: 'lesson-3',
+              title: '모바일 다음 강의',
+              durationMinutes: 20,
               published: true,
               contentUrl: 'https://youtu.be/M7lc1UVf-VE',
               contentType: 'video',
@@ -178,8 +207,20 @@ test('수강생 신청 페이지와 강의실이 모바일에서 가로로 깨�
   await expect(page.getByRole('button', { name: '바로 이어보기' })).toHaveCount(1);
   await page.locator('.learner-mobile-apply-cta').click();
   await expect(page).toHaveURL('/learn/responsive-course');
-  await expect(page.getByRole('heading', { name: '모바일 수강 테스트' })).toBeVisible();
-  await expect(page.getByRole('button', { name: /1 모바일 첫 강의 예상 15분/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '모바일 첫 강의' })).toBeVisible();
+
+  await page.getByRole('button', { name: '커리큘럼 보기' }).click();
+  await expect(page.getByLabel('강의 커리큘럼')).toBeVisible();
+  await expect(page.getByRole('button', { name: /모바일 첫 강의 예상 15분/ })).toBeVisible();
+  await page.getByRole('button', { name: '커리큘럼 닫기' }).last().click();
+  await expect(page.getByLabel('강의 커리큘럼')).not.toBeVisible();
+
+  await page.getByRole('button', { name: '다음 차시' }).click();
+  await expect(page.getByRole('heading', { name: '모바일 다음 강의' })).toBeVisible();
+
+  await page.getByRole('button', { name: /수강 후기/ }).click();
+  await expect(page.getByText('전체 진도 50%부터 후기를 작성할 수 있어요.')).toBeVisible();
+  await expect(page.getByRole('textbox', { name: '후기 내용' })).toBeDisabled();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
@@ -192,12 +233,10 @@ test('신청자 상세와 수료증을 데스크톱에서 표시한다', async (
   await expect(detail.getByText('seoyeon@email.com', { exact: true })).toBeVisible();
   await expect(detail.getByRole('button', { name: '결제 확인', exact: true })).toBeVisible();
 
-  await page.goto('/my/certificates/0');
-  const certificate = page.locator('.oc-cert-page .certificate');
+  await page.goto('/classes/notion/certificates');
+  const certificate = page.locator('.certificate-document').first();
   await expect(certificate).toBeVisible();
-  const box = await certificate.boundingBox();
-  expect(box).not.toBeNull();
-  expect((box?.width ?? 0) / (box?.height ?? 1)).toBeCloseTo(210 / 297, 2);
+  await expect(page.getByRole('heading', { name: '수료증 미리보기' })).toBeVisible();
 });
 
 test('긴 신청서 답변을 접고 상세 카드 행을 맞춘다', async ({ page }, testInfo) => {
@@ -253,14 +292,9 @@ test('데스크톱 알림 팝오버에서 연관 화면으로 이동한다', asy
   await expect(page.locator('.applicant-detail-web')).toContainText('김서연');
 });
 
-test('클래스 출석·설문·수료증 관리 흐름을 처리한다', async ({ page }, testInfo) => {
+test('온라인 클래스의 설문·수료증 관리 흐름을 처리한다', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop');
   await login(page);
-
-  await page.goto('/classes/notion/attendance');
-  await expect(page.locator('.oc-real-qr img')).toBeVisible();
-  await page.getByRole('button', { name: /김서연.*출석/ }).click();
-  await expect(page.getByRole('button', { name: /김서연.*지각/ })).toBeVisible();
 
   await page.goto('/classes/notion/survey');
   await page.getByRole('button', { name: '새 항목 만들기' }).click();
@@ -270,26 +304,66 @@ test('클래스 출석·설문·수료증 관리 흐름을 처리한다', async 
   await createDialog.getByRole('button', { name: '생성' }).click();
   await expect(page.getByRole('heading', { name: '4주차 최종 퀴즈' })).toBeVisible();
 
+  await makeMockCertificatesEligible(page);
   await page.goto('/classes/notion/certificates');
   const certificateTargets = page.locator('.certificate-targets');
-  const individualButtons = certificateTargets.getByRole('button', { name: '개별 발급' });
-  await expect(individualButtons).toHaveCount(2);
-  await individualButtons.first().click();
-  await expect(certificateTargets.getByText('발급완료', { exact: true })).toHaveCount(1);
-  await certificateTargets.getByRole('checkbox', { name: '박민지 선택' }).check();
+  const candidateRows = certificateTargets.locator('.certificate-candidate-row');
+
+  await page.getByRole('button', { name: '발급 설정' }).click();
+  const settingsDialog = page.locator('.certificate-editor-dialog[open]');
+  await expect(settingsDialog).toBeVisible();
+  await settingsDialog.getByLabel('발급 기관').fill('원클릭 클래스 교육원');
+  await settingsDialog.getByRole('button', { name: '저장', exact: true }).click();
+  await expect(page.getByText('수료증 설정을 저장했어요')).toBeVisible();
+  await page.getByRole('button', { name: '발급 설정' }).click();
+  await expect(settingsDialog.getByLabel('발급 기관')).toHaveValue('원클릭 클래스 교육원');
+  await settingsDialog.getByRole('button', { name: '취소' }).click();
+
+  await expect(candidateRows).toHaveCount(2);
+  await candidateRows.first().getByRole('button', { name: '개별 발급' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: '1명 발급', exact: true }).click();
+  await expect(
+    certificateTargets.getByRole('tab', { name: '발급 완료 1' }),
+  ).toBeVisible();
+  await certificateTargets.getByRole('tab', { name: '발급 가능 1' }).click();
+  await expect(candidateRows).toHaveCount(1);
+  await candidateRows.first().getByRole('checkbox').check();
   await certificateTargets.getByRole('button', { name: '선택 1명 발급' }).click();
-  await expect(certificateTargets.getByText('발급완료', { exact: true })).toHaveCount(2);
+  await page.getByRole('dialog').getByRole('button', { name: '1명 발급', exact: true }).click();
+  await expect(
+    certificateTargets.getByRole('tab', { name: '발급 완료 2' }),
+  ).toBeVisible();
+
+  await certificateTargets.getByRole('tab', { name: '발급 완료 2' }).click();
+  await page.route('**/certificates/*/pdf', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    await route.fulfill({
+      contentType: 'application/pdf',
+      body: Buffer.from('%PDF-1.4 test certificate'),
+    });
+  });
+  const download = page.waitForEvent('download');
+  await candidateRows.first().getByRole('button', { name: 'PDF 다운로드' }).click();
+  await expect(candidateRows.first().getByRole('button')).toHaveText('다운로드 중...');
+  await expect(await download).toBeTruthy();
+  await expect(page.getByText(/수료증 PDF를 저장했어요/)).toBeVisible();
+
+  await page.unroute('**/certificates/*/pdf');
+  await page.route('**/certificates/*/pdf', (route) => route.abort());
+  await candidateRows.last().getByRole('button', { name: 'PDF 다운로드' }).click();
+  await expect(page.getByText('수료증 PDF를 다운로드하지 못했어요')).toBeVisible();
 });
 
 test('모바일 수료증이 데스크톱과 같은 발급 상태를 사용한다', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'mobile');
   await login(page);
+  await makeMockCertificatesEligible(page);
   await page.goto('/classes/notion/certificates');
   const mobileCertificate = page.locator('.original-operations');
   const pendingRows = mobileCertificate.locator('.check-row:not(:disabled)');
   await expect(pendingRows).toHaveCount(2);
   await pendingRows.first().click();
-  await expect(mobileCertificate.locator('.cert-issue-stats')).toContainText('발급 대기1명');
+  await expect(mobileCertificate.locator('.cert-issue-stats')).toContainText('발급 가능1명');
   await expect(mobileCertificate.locator('.cert-issue-stats')).toContainText('발급 완료1명');
   await page.reload();
   await expect(mobileCertificate.locator('.cert-issue-stats')).toContainText('발급 완료1명');

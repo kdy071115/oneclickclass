@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { authService } from '../api/services';
 import { setSession } from '../auth/session';
 import { PageHeader } from '../components/common/PageHeader';
@@ -107,63 +107,6 @@ export function SignupPage() {
           {submitting ? '가입 중...' : '가입 완료'}
         </button>
       </form>
-    </main>
-  );
-}
-
-export function GuestPage() {
-  const [phone, setPhone] = useState('');
-  const [code, setCode] = useState('');
-  const [sent, setSent] = useState(false);
-  const [result, setResult] = useState(false);
-  const canSearch = sent && phone.replace(/\D/g, '').length >= 10 && code.length >= 6;
-
-  return (
-    <main className="standalone framed">
-      <section className="page guest">
-        <StatusBar />
-        <PageHeader title="" />
-        <div className="guest-title">
-          <i>✓</i>
-          <h1>신청 정보 확인</h1>
-          <p>신청할 때 입력한 휴대전화 번호로 이어볼 수 있어요</p>
-        </div>
-        <label>
-          휴대전화 번호
-          <input
-            inputMode="tel"
-            placeholder="010-0000-0000"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-          />
-        </label>
-        <label>
-          인증코드
-          <div>
-            <input
-              inputMode="numeric"
-              placeholder="6자리 인증코드"
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            />
-            <button onClick={() => setSent(true)}>코드 전송</button>
-          </div>
-        </label>
-        {sent && <div className="guest-code-link">인증코드를 전송했어요. 데모 코드는 123456입니다.</div>}
-        <button className="primary" disabled={!canSearch} onClick={() => setResult(true)}>
-          신청조회
-        </button>
-        {result && (
-          <section className="guest-result">
-            <b>노션으로 시작하는 업무 자동화</b>
-            <small>수강 가능 · 이전 위치 3강 14분 27초</small>
-          </section>
-        )}
-        <p>공유받은 신청 링크에서 바로 수강을 시작할 수 있어요.</p>
-        <Link className="secondary" to="/s/notion-auto">
-          신청 링크로 이동
-        </Link>
-      </section>
     </main>
   );
 }

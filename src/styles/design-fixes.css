@@ -3,6 +3,32 @@
   align-items: center;
   gap: 5px;
 }
+
+@media (min-width: 900px) {
+  .oc-stack > .oc-kpi-grid {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .oc-stack > .oc-kpi-grid > .oc-kpi-card {
+    position: relative;
+    min-width: 0;
+    min-height: 112px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 18px 20px;
+    border-radius: 16px;
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1180px) {
+  .oc-stack > .oc-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 .system-icons svg {
   width: 18px;
   height: 12px;
@@ -2399,13 +2425,17 @@
 }
 .learner-curriculum-section,
 .learner-lesson-section {
+  width: 100%;
   display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 9px;
   margin: 0;
   padding: 12px 14px;
+  border: 0;
+  border-radius: 0;
   background: linear-gradient(90deg, #eef6ff 0%, #f7fbff 100%);
+  text-align: left;
 }
 .learner-curriculum-section:first-child,
 .learner-panel-title + .learner-lesson-group { margin-top: 4px; }
@@ -2443,7 +2473,7 @@
 .learner-curriculum-section small,
 .learner-lesson-section small { color: #8b95a1; font-size: 12px; font-weight: 800; }
 .learner-lesson-section {
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
   gap: 8px;
   padding: 12px;
   background: #f8fbff;
@@ -2454,13 +2484,18 @@
   height: 30px;
 }
 .learner-lesson-section b {
-  min-width: 0;
+  min-width: max-content;
 }
 .learner-lesson-section strong {
-  display: none;
+  display: block;
 }
 .learner-lesson-section small {
   white-space: nowrap;
+}
+.learner-lesson-section > svg {
+  width: 16px;
+  height: 16px;
+  color: #8b95a1;
 }
 .learner-curriculum-row {
   display: grid;
@@ -2814,7 +2849,9 @@
   font-weight: 900;
 }
 .learner-player {
-  height: 224px;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
   border-radius: 22px;
   background: linear-gradient(135deg, #191f28, #343a46);
   color: #fff;
@@ -2824,7 +2861,8 @@
   overflow: hidden;
 }
 .learner-player.is-empty {
-  height: 190px;
+  min-height: 190px;
+  aspect-ratio: auto;
 }
 .learner-player button {
   width: 72px;
@@ -3166,23 +3204,27 @@
 }
 .learner-room-tools {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 .learner-room-tools button {
-  min-height: 100px;
-  padding: 14px;
-  border: 1px solid #edf0f3;
-  border-radius: 18px;
+  min-height: 72px;
+  padding: 12px;
+  border: 1px solid #e8edf3;
+  border-radius: 14px;
   background: #fff;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
   text-align: left;
-  box-shadow: 0 8px 26px #17202c0a;
+  box-shadow: none;
 }
 .learner-room-tools svg {
-  width: 36px;
-  height: 36px;
-  padding: 8px;
-  border-radius: 12px;
+  width: 32px;
+  height: 32px;
+  padding: 7px;
+  border-radius: 10px;
   background: #eff6ff;
   color: #3182f6;
 }
@@ -3191,7 +3233,7 @@
   display: block;
 }
 .learner-room-tools b {
-  margin-top: 10px;
+  margin-top: 0;
   font-size: 14px;
 }
 .learner-room-tools small {
@@ -3200,8 +3242,34 @@
   font-size: 12px;
 }
 .learner-lesson-panel {
-  margin-top: 14px;
-  padding: 22px;
+  position: fixed;
+  z-index: 32;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: min(78dvh, 720px);
+  margin: 0;
+  padding: 18px;
+  overflow-y: auto;
+  border-radius: 22px 22px 0 0;
+  transform: translateY(105%);
+  visibility: hidden;
+  pointer-events: none;
+  transition: transform 0.2s ease, visibility 0s linear 0.2s;
+  overscroll-behavior: contain;
+}
+.learner-lesson-panel.open {
+  transform: translateY(0);
+  visibility: visible;
+  pointer-events: auto;
+  transition-delay: 0s;
+}
+.learner-curriculum-backdrop {
+  position: fixed;
+  z-index: 31;
+  inset: 0;
+  border: 0;
+  background: rgba(15, 23, 42, 0.42);
 }
 .learner-panel-title {
   display: flex;
@@ -3209,9 +3277,29 @@
   justify-content: space-between;
   margin-bottom: 16px;
 }
+.learner-panel-title > div {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
 .learner-panel-title small {
   color: #8b95a1;
   font-weight: 800;
+}
+.learner-curriculum-close {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: #f2f4f6;
+  color: #4e5968;
+}
+.learner-curriculum-close svg {
+  width: 18px;
+  height: 18px;
 }
 .learner-lesson {
   width: 100%;
@@ -3276,6 +3364,28 @@
   width: 20px;
   color: #3182f6;
   flex: none;
+}
+
+.learner-application-state {
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+}
+.learner-application-state h2,
+.learner-application-state p {
+  margin: 0;
+}
+.learner-application-state p {
+  color: #6b7684;
+  font-size: 14px;
+}
+.learner-application-state .spinner {
+  width: 24px;
+  height: 24px;
 }
 
 .learner-player-meta {
@@ -3691,6 +3801,13 @@
   margin-bottom: 9px;
   font-size: 13px;
 }
+.learner-progress-grid {
+  display: grid;
+  gap: 14px;
+}
+.learner-progress-grid > div {
+  min-width: 0;
+}
 .learner-progress-card .student-progress-head b {
   flex: none;
 }
@@ -3705,6 +3822,103 @@
   height: 100%;
   border-radius: inherit;
   background: #3182f6;
+}
+.learner-progress-grid > div:first-child .oc-progress i {
+  background: #0ca678;
+}
+.learner-navigation {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #edf0f3;
+}
+.learner-navigation button {
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: #f8f9fb;
+  color: #4e5968;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 900;
+}
+.learner-navigation button:last-child {
+  justify-self: stretch;
+}
+.learner-navigation button:first-child {
+  justify-self: stretch;
+}
+.learner-navigation button:disabled {
+  color: #adb5bd;
+  cursor: not-allowed;
+}
+.learner-navigation svg {
+  width: 16px;
+  height: 16px;
+}
+.learner-navigation .learner-curriculum-toggle {
+  background: #eff6ff;
+  color: #3182f6;
+}
+.learner-completion-card {
+  padding: 16px;
+  border: 1px solid #b7ead9;
+  border-radius: 16px;
+  background: #f0fbf7;
+  color: #087f5b;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+.learner-completion-card > svg {
+  width: 28px;
+  height: 28px;
+}
+.learner-completion-card b,
+.learner-completion-card p {
+  margin: 0;
+}
+.learner-completion-card b {
+  color: #191f28;
+  font-size: 15px;
+}
+.learner-completion-card p {
+  margin-top: 4px;
+  color: #4e7467;
+  font-size: 13px;
+}
+.learner-completion-card > div:last-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.learner-completion-card button {
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 900;
+}
+.learner-completion-card button svg {
+  width: 16px;
+  height: 16px;
+}
+.learner-completion-card .secondary {
+  background: #fff;
+  color: #4e5968;
+}
+.learner-review-form :is(textarea, button):disabled {
+  cursor: not-allowed;
 }
 .learner-tool-empty {
   margin: 0;
@@ -3968,18 +4182,14 @@
     grid-template-columns: repeat(2, 1fr);
   }
   .learner-room-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 360px;
-    gap: 22px;
-    align-items: start;
-    width: min(calc(100% - 96px), 1200px);
+    width: min(calc(100% - 96px), 900px);
     padding: 28px 0 70px;
   }
   .learner-player {
-    height: 430px;
+    height: auto;
   }
   .learner-player.is-empty {
-    height: 250px;
+    min-height: 250px;
   }
   .learner-room-main {
     gap: 16px;
@@ -3987,13 +4197,45 @@
   .learner-room-tools.has-reviews {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
-  .learner-lesson-panel {
-    position: sticky;
-    top: 92px;
-    margin-top: 0;
-  }
   .learner-progress-card h1 {
     font-size: 30px;
+  }
+}
+
+@media (min-width: 1180px) {
+  .learner-room-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: 22px;
+    align-items: start;
+    width: min(calc(100% - 96px), 1200px);
+  }
+  .learner-lesson-panel {
+    position: sticky;
+    z-index: auto;
+    top: 92px;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    max-height: calc(100dvh - 116px);
+    margin-top: 0;
+    padding: 22px;
+    border-radius: 18px;
+    transform: none;
+    visibility: visible;
+    pointer-events: auto;
+  }
+  .learner-curriculum-close,
+  .learner-curriculum-backdrop,
+  .learner-curriculum-toggle {
+    display: none !important;
+  }
+  .learner-navigation {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .learner-progress-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
   }
 }
 
@@ -4032,7 +4274,7 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .learner-room-tools button {
-    min-height: 86px;
+    min-height: 70px;
     padding: 12px;
     border-radius: 12px;
   }
@@ -4043,7 +4285,27 @@
     border-radius: 9px;
   }
   .learner-room-tools b {
-    margin-top: 7px;
+    margin-top: 0;
+  }
+  .learner-navigation {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .learner-navigation .learner-curriculum-toggle {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+  .learner-completion-card {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .learner-completion-card > div:last-child {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+  .learner-lesson-section {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+  }
+  .learner-lesson-section b {
+    display: none;
   }
   .learner-quick-stats {
     grid-template-columns: 1fr 1fr;
