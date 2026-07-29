@@ -23,6 +23,28 @@ async function makeMockCertificatesEligible(page: Page) {
   });
 }
 
+test('공개 랜딩에서 가입·로그인 경로를 제공하고 화면 폭을 유지한다', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: /강의 만들기,\s*이렇게 쉬웠나요/ })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+
+  await page.goto('/#create');
+  await expect(page.getByRole('heading', { name: /세 단계면\s*신청 링크가 완성돼요/ })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.scrollY > 0)).toBe(true);
+
+  await page.goto('/');
+  await page.getByRole('link', { name: /무료로 시작하기/ }).first().click();
+  await expect(page).toHaveURL('/signup');
+
+  if ((page.viewportSize()?.width ?? 0) >= 900) {
+    await page.goto('/');
+    await page.getByRole('link', { name: '로그인', exact: true }).click();
+    await expect(page).toHaveURL('/login');
+  }
+});
+
 test('보호 라우트에서 로그인 후 대시보드로 진입한다', async ({ page }) => {
   await page.goto('/dashboard');
   await expect(page).toHaveURL('/login');
@@ -66,6 +88,8 @@ test('공개 신청 페이지에서 필수 신청 정보를 검증한다', async
   });
   await page.goto('/s/e2e-paid-application');
   await expect(page.getByRole('heading', { name: '필수 신청 정보 테스트' })).toBeVisible();
+  await expect(page.getByText('일정', { exact: true })).toHaveCount(2);
+  await expect(page.getByText('수강 방식', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: '휴대전화 확인하기' }).click();
   await expect(page.getByText('이름을 입력해 주세요.')).toBeVisible();
   await page.getByPlaceholder('이름을 입력하세요').fill('테스트 수강생');

@@ -239,7 +239,7 @@ export function PublicEnrollmentPage() {
   } = useCourseBookmark(share?.courseActiveSeq, Boolean(existing));
   const [activeSection, setActiveSection] = useState<'learn' | 'curriculum' | 'reviews'>(() => {
     const section = location.hash.slice(1);
-    return section === 'curriculum' || section === 'reviews' ? section : 'learn';
+    return section === 'learn' || section === 'reviews' ? section : 'curriculum';
   });
   useEffect(() => {
     let alive = true;
@@ -269,7 +269,7 @@ export function PublicEnrollmentPage() {
     };
   }, [shareToken]);
   useEffect(() => {
-    const sections = ['learn', 'curriculum', 'reviews']
+    const sections = ['curriculum', 'learn', 'reviews']
       .map((id) => document.getElementById(id))
       .filter((section): section is HTMLElement => Boolean(section));
     const updateActiveSection = () => {
@@ -353,7 +353,11 @@ export function PublicEnrollmentPage() {
   };
   const title = share?.title || draft.title || '강의 정보 준비 중';
   const summary = share?.summary || draft.summary || '강의 소개를 준비하고 있어요.';
-  const priceText = share?.paymentType === 'PAID' ? `${share.price.toLocaleString()}원` : '무료';
+  const priceText = !share
+    ? '확인 중'
+    : share.paymentType === 'PAID'
+      ? `${share.price.toLocaleString()}원`
+      : '무료';
   const capacityText = share
     ? `${share.confirmedCount} / ${share.capacity}명`
     : `0 / ${draft.capacity}명`;
@@ -361,6 +365,13 @@ export function PublicEnrollmentPage() {
   const curriculum = share?.curriculum ?? [];
   const curriculumGroups = groupCurriculumItems(curriculum);
   const showCurriculum = curriculum.length > 0;
+  const curriculumMinutes = curriculum.reduce(
+    (total, item) => total + parseDurationMinutes(item.durationText),
+    0,
+  );
+  const curriculumSummary = showCurriculum
+    ? formatSectionSummary(curriculum.length, curriculumMinutes)
+    : '공개 예정';
   const resumeCourseActiveSeq = existing?.courseActiveSeq || share?.courseActiveSeq;
   const resumeLearning = async () => {
     if (canEnterLearnerRoom(existing) && showCurriculum && isValidCourseId(resumeCourseActiveSeq)) {
@@ -436,7 +447,14 @@ export function PublicEnrollmentPage() {
   const reviewAverage = reviews.length
     ? (reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1)
     : '0.0';
-  const highlights = share?.highlights ?? [];
+  const highlights = Array.from(
+    new Set([
+      ...(share?.highlights ?? []),
+      ...curriculum.map((item) => item.description || item.title),
+    ]),
+  )
+    .filter((item) => item && item !== share?.description)
+    .slice(0, 3);
   const remainingSeats = share?.remainingSeats ?? draft.capacity;
   const mobileCtaText = !share || !existingChecked
     ? '신청 정보 확인 중...'
@@ -446,10 +464,12 @@ export function PublicEnrollmentPage() {
       : '강의 준비 상태 확인'
     : existing
       ? '신청 상태 확인하기'
-      : share?.paymentType === 'PAID'
-        ? `${priceText} 결제하고 신청`
-        : `무료로 신청 · 잔여 ${remainingSeats}명`;
-  const mobileCtaDisabled = !share || !existingChecked;
+      : disabled
+        ? '신청 마감'
+        : share?.paymentType === 'PAID'
+          ? '수강 신청하기'
+          : '무료로 신청하기';
+  const mobileCtaDisabled = !share || !existingChecked || (disabled && !existing);
   const moveToApplication = () => {
     if (existing && !showNewApplication) {
       if (canEnterLearnerRoom(existing)) return void resumeLearning();
@@ -496,48 +516,111 @@ export function PublicEnrollmentPage() {
               <Heart fill={bookmarked ? 'currentColor' : 'none'} />
               <span>{bookmarked ? '관심 저장됨' : '관심 클래스'}</span>
             </button>
-            <div>
-              <span className="learner-badge">{disabled ? '모집 마감' : '모집중'}</span>
-              <h1>{title}</h1>
-              <p>{summary}</p>
-              <div className="learner-quick-stats">
-                <span>
-                  <b>{share?.instructorName || '강사 안내'}</b>
-                  <small>강사</small>
-                </span>
-                <span>
-                  <b>{share?.difficulty || '초급'}</b>
-                  <small>난이도</small>
-                </span>
-                <span>
-                  <b>{share?.scheduleText || '자유 수강'}</b>
-                  <small>수강 방식</small>
-                </span>
-              </div>
+            <div className="learner-media-content">
+              <i><Play fill="currentColor" /></i>
+              <b>클래스 미리보기</b>
             </div>
           </div>
+          <section className="learner-course-overview">
+            <span className="learner-badge">{disabled ? '모집 마감' : '모집중'}</span>
+            <h1>{title}</h1>
+            <p>{summary}</p>
+            <div className="learner-instructor-profile">
+              <i><UserRound /></i>
+              <span>
+                <small>강사 · {share?.difficulty || '난이도 안내 예정'}</small>
+                <b>{share?.instructorName || '강사 안내 예정'}</b>
+              </span>
+            </div>
+            <dl className="learner-course-meta">
+              <div>
+                <dt><CalendarDays /> 일정</dt>
+                <dd>{share?.scheduleText || '일정 안내 예정'}</dd>
+              </div>
+              <div>
+                <dt><MapPin /> 장소</dt>
+                <dd>{share?.locationText || '장소 안내 예정'}</dd>
+              </div>
+              <div>
+                <dt><UserRound /> 남은 자리</dt>
+                <dd>{disabled ? '모집 마감' : `${remainingSeats}자리`}</dd>
+              </div>
+            </dl>
+          </section>
           {bookmarkError && <p className="learner-bookmark-error" role="status">{bookmarkError}</p>}
-          <button
-            className="learner-mobile-apply-cta"
-            type="button"
-            disabled={mobileCtaDisabled}
-            onClick={moveToApplication}
-          >
-            {mobileCtaText}
-          </button>
+          <div className={`learner-mobile-apply-bar ${existing ? 'is-existing' : ''}`}>
+            {!existing && (
+              <span>
+                <small>수강료</small>
+                <strong>{priceText}</strong>
+              </span>
+            )}
+            <button
+              className="learner-mobile-apply-cta"
+              type="button"
+              disabled={mobileCtaDisabled}
+              onClick={moveToApplication}
+            >
+              {mobileCtaText}
+            </button>
+          </div>
           <div className="learner-tabs" aria-label="강의 정보">
-            <a className={activeSection === 'learn' ? 'active' : ''} href="#learn">
-              소개
-            </a>
-            <a className={activeSection === 'curriculum' ? 'active' : ''} href="#curriculum">
+            <a
+              className={activeSection === 'curriculum' ? 'active' : ''}
+              aria-current={activeSection === 'curriculum' ? 'location' : undefined}
+              href="#curriculum"
+            >
               커리큘럼
             </a>
-            <a className={activeSection === 'reviews' ? 'active' : ''} href="#reviews">
+            <a
+              className={activeSection === 'learn' ? 'active' : ''}
+              aria-current={activeSection === 'learn' ? 'location' : undefined}
+              href="#learn"
+            >
+              소개
+            </a>
+            <a
+              className={activeSection === 'reviews' ? 'active' : ''}
+              aria-current={activeSection === 'reviews' ? 'location' : undefined}
+              href="#reviews"
+            >
               후기
             </a>
           </div>
+          <section className="learner-section" id="curriculum">
+            <div className="learner-section-heading">
+              <h2>커리큘럼</h2>
+              {showCurriculum && <small>{curriculumSummary}</small>}
+            </div>
+            {!showCurriculum ? (
+              <p className="curriculum-empty">상세 커리큘럼은 강의자가 준비한 뒤 안내해 드려요.</p>
+            ) : (
+              <div className="learner-curriculum">
+                {curriculumGroups.map((section, sectionIndex) => (
+                  <section className="learner-curriculum-group" key={section.key}>
+                    <header className="learner-curriculum-section">
+                      <span>{String(sectionIndex + 1).padStart(2, '0')}</span>
+                      <b>섹션 {sectionIndex + 1}</b>
+                      <strong>{section.title}</strong>
+                      <small>공개 {formatSectionSummary(section.items.length, section.totalMinutes)}</small>
+                    </header>
+                    {section.items.map((lesson, lessonIndex) => (
+                      <article className="learner-curriculum-row" key={lesson.lessonId}>
+                        <i>{curriculum.indexOf(lesson) + 1}</i>
+                        <span><b>{sectionIndex + 1}-{lessonIndex + 1} · {lesson.title}</b><small>{lesson.description}</small></span>
+                        <em>{lesson.durationText}</em>
+                      </article>
+                    ))}
+                  </section>
+                ))}
+              </div>
+            )}
+          </section>
           <section className="learner-section" id="learn">
-            <h2>이런 걸 배워요</h2>
+            <h2>수강 후 이런 결과를 만들어요</h2>
+            {share?.description && share.description !== summary && (
+              <p className="learner-section-intro">{share.description}</p>
+            )}
             {highlights.length ? (
               <div className="learner-highlight-list">
                 {highlights.map((item) => (
@@ -549,32 +632,6 @@ export function PublicEnrollmentPage() {
               </div>
             ) : (
               <p className="curriculum-empty">강의 소개를 준비하고 있어요.</p>
-            )}
-          </section>
-          <section className="learner-section" id="curriculum">
-            <h2>커리큘럼</h2>
-            {!showCurriculum ? (
-              <p className="curriculum-empty">상세 커리큘럼은 강의자가 준비한 뒤 안내해 드려요.</p>
-            ) : (
-              <div className="learner-curriculum">
-                {curriculumGroups.map((section, sectionIndex) => (
-                  <section className="learner-curriculum-group" key={section.key}>
-                    <header className="learner-curriculum-section">
-                      <span>{String(sectionIndex + 1).padStart(2, '0')}</span>
-                      <b>섹션 {sectionIndex + 1}</b>
-                      <strong>{section.title}</strong>
-                      <small>{formatSectionSummary(section.items.length, section.totalMinutes)}</small>
-                    </header>
-                    {section.items.map((lesson, lessonIndex) => (
-                      <article className="learner-curriculum-row" key={lesson.lessonId}>
-                        <i><Play size={14} fill="currentColor" /></i>
-                        <span><b>{sectionIndex + 1}-{lessonIndex + 1} · {lesson.title}</b><small>{lesson.description}</small></span>
-                        <em>{lesson.durationText}</em>
-                      </article>
-                    ))}
-                  </section>
-                ))}
-              </div>
             )}
           </section>
           <section className="learner-section" id="reviews">
@@ -804,7 +861,7 @@ export function PublicEnrollmentPage() {
             <div>
               <CalendarDays />
               <span>
-                <small>수강 방식</small>
+                <small>일정</small>
                 <b>{share?.scheduleText || '확인 중'}</b>
               </span>
             </div>
