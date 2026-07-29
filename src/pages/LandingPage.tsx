@@ -132,7 +132,9 @@ export function LandingPage() {
             <div className="landing-product-showcase">
               <figure className="landing-product-shot landing-product-shot-hero">
                 <figcaption>실제 제품 화면 · 5단계 강의 개설</figcaption>
-                <img src={createClassScreen} alt="원클릭 클래스의 실제 강의 생성 화면" />
+                <div className="landing-product-shot-crop">
+                  <img src={createClassScreen} alt="원클릭 클래스의 실제 강의 생성 화면" />
+                </div>
               </figure>
               <ol className="landing-create-step-preview" aria-label="강의 개설 5단계">
                 {classCreationSteps.map(([title, description], index) => (
