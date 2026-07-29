@@ -304,40 +304,14 @@
 }
 
 .landing-product-shot-operations {
-  aspect-ratio: 2;
+  aspect-ratio: 1.7;
   border-color: rgba(255, 255, 255, 0.12);
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.26);
 }
 
-.landing-product-shot-operations .landing-product-shot-crop img {
-  position: absolute;
-  top: -60%;
-  left: 50%;
-  width: auto;
-  max-width: none;
-  height: 155%;
-  object-fit: contain;
-  transform: translateX(-49%);
-}
-
-.landing-product-shot-attendance {
-  aspect-ratio: 1.5;
-  box-shadow: 0 14px 38px rgba(31, 55, 85, 0.09);
-}
-
-.landing-product-shot-attendance img {
-  object-fit: contain;
-  transform: none;
-}
-
-.landing-product-shot-dashboard {
-  aspect-ratio: 1.95;
-  box-shadow: 0 14px 38px rgba(31, 55, 85, 0.09);
-}
-
-.landing-product-shot-dashboard img {
-  object-fit: contain;
-  transform: none;
+.landing-product-shot-operations img {
+  object-position: 60% center;
+  transform: scale(1.12);
 }
 
 .landing-product-shot figcaption {
@@ -943,7 +917,7 @@
 }
 
 .landing-flow-section {
-  background: #f5f7fa;
+  background: var(--color-surface);
 }
 
 .landing-flow-rail {
@@ -981,7 +955,6 @@
 }
 
 .landing-operations {
-  padding: clamp(72px, 5vw, 84px) 0;
   background: #191f28;
   color: var(--color-surface);
 }
@@ -1000,28 +973,6 @@
 
 .landing-feature-grid.reverse {
   grid-template-columns: minmax(0, 1.18fr) minmax(340px, 0.82fr);
-}
-
-.landing-dashboard {
-  background: var(--color-surface);
-}
-
-.landing-attendance {
-  background: #f5f7fa;
-}
-
-.landing-feature-grid.media-first {
-  grid-template-columns: minmax(0, 1.18fr) minmax(340px, 0.82fr);
-}
-
-.landing-feature-grid.media-first .landing-feature-copy {
-  grid-column: 2;
-  grid-row: 1;
-}
-
-.landing-feature-grid.media-first .landing-product-shot {
-  grid-column: 1;
-  grid-row: 1;
 }
 
 .landing-feature-copy ul {
@@ -1526,19 +1477,6 @@
     grid-template-columns: 1fr;
   }
 
-  .landing-feature-grid.media-first .landing-feature-copy,
-  .landing-feature-grid.media-first .landing-product-shot {
-    grid-column: 1;
-  }
-
-  .landing-feature-grid.media-first .landing-feature-copy {
-    grid-row: 1;
-  }
-
-  .landing-feature-grid.media-first .landing-product-shot {
-    grid-row: 2;
-  }
-
   .landing-hero-copy {
     max-width: 760px;
     margin: 0 auto;
@@ -1630,23 +1568,7 @@
   }
 
   .landing-product-shot-operations {
-    aspect-ratio: 1.45;
-  }
-
-  .landing-product-shot-operations .landing-product-shot-crop img {
-    transform: translateX(-45%);
-  }
-
-  .landing-product-shot-attendance {
-    aspect-ratio: 1.42;
-  }
-
-  .landing-product-shot-dashboard {
-    aspect-ratio: 1.5;
-  }
-
-  .landing-mobile-shot {
-    width: min(100%, 300px);
+    aspect-ratio: 1.15;
   }
 
   .landing-create-step-preview {
@@ -1684,6 +1606,15 @@
     width: calc(50% - 6px);
     grid-column: 1 / -1;
     justify-self: center;
+  }
+
+  .landing-product-shot-operations img {
+    object-position: 40% center;
+    transform: scale(1.18);
+  }
+
+  .landing-mobile-shot {
+    width: min(100%, 300px);
   }
 
   .landing-demo-tabs {
