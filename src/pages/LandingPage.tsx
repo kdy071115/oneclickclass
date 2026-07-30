@@ -6,72 +6,85 @@ import {
   Check,
   CheckCircle2,
   ChevronRight,
-  CircleDollarSign,
   ClipboardCheck,
-  FileCheck2,
   GraduationCap,
   LayoutDashboard,
-  Link2,
-  ListChecks,
+  Maximize2,
+  Menu,
   MonitorSmartphone,
   Play,
-  QrCode,
-  Send,
-  ShieldCheck,
   Users,
   WalletCards,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import attendanceMobileScreen from '../assets/landing/attendance-mobile.png';
+import attendanceScreen from '../assets/landing/attendance.png';
+import certificatesScreen from '../assets/landing/certificates.jpg';
 import createClassScreen from '../assets/landing/create-class.png';
+import dashboardScreen from '../assets/landing/dashboard.jpg';
+import enrollmentMobileScreen from '../assets/landing/enrollment-mobile.png';
+import learnerRoomMobileScreen from '../assets/landing/learner-room-mobile.png';
+import operationsMobileScreen from '../assets/landing/operations-mobile.jpg';
+import operationsScreen from '../assets/landing/operations.jpg';
+import settlementsScreen from '../assets/landing/settlements.jpg';
 import { StatusBadge } from '../components/common/StatusBadge';
+import { Modal } from '../components/ui';
 import { classCreationSteps } from '../constants/classCreation';
-import { applicants, classes, classDetail, dashboard } from '../constants/mockData';
+import { classes, classDetail, dashboard } from '../constants/mockData';
 import { won } from '../utils/format';
 
 const navItems = [
-  ['product', '제품'],
   ['create', '강의 만들기'],
-  ['operations', '운영'],
   ['learner', '학습자 경험'],
+  ['product', '강사 홈'],
+  ['operations', '운영'],
 ] as const;
 
-const launchStages = [
-  {
-    number: '01',
-    title: '기본 정보 만들기',
-    description: '수강 방식과 일정, 가격, 신청 질문을 순서대로 입력해요.',
-  },
-  {
-    number: '02',
-    title: '커리큘럼 구성하기',
-    description: '섹션과 차시를 추가하고 공개할 콘텐츠만 골라요.',
-  },
-  {
-    number: '03',
-    title: '신청 링크 공유하기',
-    description: '학습자 화면을 미리 보고 바로 링크를 발행해요.',
-  },
-] as const;
+type ImagePreview = {
+  title: string;
+  images: { src: string; alt: string }[];
+};
 
 const operationGroups = [
   {
+    step: '01',
     icon: Users,
-    title: '신청과 결제',
-    description: '신청자 정보와 승인, 결제 상태를 한 목록에서 확인해요.',
+    caption: '신청자 및 결제 상태',
+    title: '신청 확인',
+    description: '신청자 정보와 승인 여부, 결제 상태를 한 목록에서 확인해요.',
     items: ['신청자 관리', '결제 상태', '알림 발송'],
+    image: operationsScreen,
+    mobileImage: operationsMobileScreen,
+    imageAlt: '원클릭 클래스의 실제 신청자 관리 화면',
+    secondaryImage: null,
+    secondaryImageAlt: null,
   },
   {
+    step: '02',
     icon: ClipboardCheck,
+    caption: '실시간 QR 출석',
     title: '수업 운영',
     description: '현장 QR 출석부터 온라인 진도, 설문과 시험까지 이어져요.',
     items: ['출석 QR', '학습 진도', '설문·시험'],
+    image: attendanceScreen,
+    mobileImage: attendanceMobileScreen,
+    imageAlt: '원클릭 클래스의 실제 QR 출석 관리 화면',
+    secondaryImage: null,
+    secondaryImageAlt: null,
   },
   {
+    step: '03',
     icon: GraduationCap,
-    title: '수료와 정산',
-    description: '수료 기준을 확인하고 수료증 발급과 정산을 마무리해요.',
-    items: ['수료 기준', '수료증', '정산 관리'],
+    caption: '수료증 발급 및 정산 확인',
+    title: '수료·정산 마무리',
+    description: '수료 기준을 확인하고 수료증 발급과 정산까지 마무리해요.',
+    items: ['수료 기준', '수료증 발급', '정산 확인'],
+    image: settlementsScreen,
+    mobileImage: null,
+    imageAlt: '원클릭 클래스의 실제 정산 관리 화면',
+    secondaryImage: certificatesScreen,
+    secondaryImageAlt: '원클릭 클래스의 실제 수료증 발급 관리 화면',
   },
 ] as const;
 
@@ -86,7 +99,10 @@ const course = classes[0];
 const schedule = dashboard.todaySchedule?.[0];
 
 export function LandingPage() {
-  const [activeSection, setActiveSection] = useState('product');
+  const [activeSection, setActiveSection] = useState('');
+  const [activeOperation, setActiveOperation] = useState(0);
+  const [imagePreview, setImagePreview] = useState<ImagePreview | null>(null);
+  const operationGalleryRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     document.documentElement.classList.add('landing-scroll');
@@ -94,6 +110,7 @@ export function LandingPage() {
     const sections = navItems
       .map(([id]) => document.getElementById(id))
       .filter((section): section is HTMLElement => Boolean(section));
+    const hero = document.querySelector<HTMLElement>('.landing-hero');
 
     if (!('IntersectionObserver' in window)) {
       revealItems.forEach((item) => item.classList.add('is-visible'));
@@ -116,20 +133,52 @@ export function LandingPage() {
         const visible = entries
           .filter((entry) => entry.isIntersecting)
           .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-        if (visible) setActiveSection(visible.target.id);
+        if (visible) {
+          const nextHash = `#${visible.target.id}`;
+          setActiveSection(visible.target.id);
+          if (window.location.hash !== nextHash) {
+            window.history.replaceState(window.history.state, '', nextHash);
+          }
+        }
       },
       { rootMargin: '-25% 0px -60%', threshold: [0, 0.25, 0.6] },
+    );
+    const heroObserver = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        setActiveSection('');
+        if (window.location.hash) {
+          window.history.replaceState(
+            window.history.state,
+            '',
+            `${window.location.pathname}${window.location.search}`,
+          );
+        }
+      },
+      { threshold: 0.25 },
     );
 
     revealItems.forEach((item) => revealObserver.observe(item));
     sections.forEach((section) => sectionObserver.observe(section));
+    if (hero) heroObserver.observe(hero);
 
     return () => {
       document.documentElement.classList.remove('landing-scroll');
       revealObserver.disconnect();
       sectionObserver.disconnect();
+      heroObserver.disconnect();
     };
   }, []);
+
+  const scrollToOperation = (index: number) => {
+    const gallery = operationGalleryRef.current;
+    if (!gallery) return;
+    gallery.scrollTo({
+      left: (gallery.scrollWidth / operationGroups.length) * index,
+      behavior: 'smooth',
+    });
+    setActiveOperation(index);
+  };
 
   return (
     <main className="landing-page" id="top">
@@ -140,7 +189,9 @@ export function LandingPage() {
       <header className="landing-nav">
         <div className="landing-container landing-nav-inner">
           <a className="landing-brand" href="#top" aria-label="원클릭 클래스 홈">
-            <span aria-hidden="true"><Check size={16} strokeWidth={3} /></span>
+            <span aria-hidden="true">
+              <Check size={16} strokeWidth={3} />
+            </span>
             원클릭 클래스
           </a>
           <nav aria-label="랜딩 페이지 메뉴">
@@ -155,9 +206,37 @@ export function LandingPage() {
               </a>
             ))}
           </nav>
+          <details className="landing-mobile-menu">
+            <summary aria-label="랜딩 페이지 메뉴 열기">
+              <Menu size={20} />
+            </summary>
+            <nav aria-label="모바일 랜딩 페이지 메뉴">
+              {navItems.map(([id, label]) => (
+                <a
+                  className={activeSection === id ? 'active' : ''}
+                  href={`#${id}`}
+                  aria-current={activeSection === id ? 'location' : undefined}
+                  onClick={(event) =>
+                    event.currentTarget.closest('details')?.removeAttribute('open')
+                  }
+                  key={id}
+                >
+                  {label}
+                </a>
+              ))}
+              <Link className="landing-mobile-login" to="/login">
+                로그인
+              </Link>
+            </nav>
+          </details>
           <div className="landing-nav-actions">
-            <Link className="landing-login" to="/login">로그인</Link>
-            <Link className="landing-button landing-button-primary landing-button-small" to="/signup">
+            <Link className="landing-login" to="/login">
+              로그인
+            </Link>
+            <Link
+              className="landing-button landing-button-primary landing-button-small"
+              to="/signup"
+            >
               무료로 시작하기
             </Link>
           </div>
@@ -168,21 +247,25 @@ export function LandingPage() {
         <section className="landing-hero" aria-labelledby="landing-hero-title">
           <div className="landing-container">
             <div className="landing-hero-copy">
-              <p className="landing-eyebrow"><CheckCircle2 size={16} /> 복잡한 LMS 없이 시작하세요</p>
+              <p className="landing-eyebrow">
+                <CheckCircle2 size={16} /> 복잡한 LMS 없이 시작하세요
+              </p>
               <h1 id="landing-hero-title">
-                강의 만들기,<br />
+                강의 만들기,
+                <br />
                 <span>이렇게 쉬웠나요?</span>
               </h1>
               <p className="landing-hero-description">
-                생성부터 신청·출석·수료까지 하나의 흐름으로.<br />
+                생성부터 신청·출석·수료까지 하나의 흐름으로.
+                <br />
                 복잡한 LMS 없이, 링크 하나로 끝내세요.
               </p>
               <div className="landing-hero-actions">
                 <Link className="landing-button landing-button-primary" to="/signup">
                   무료로 시작하기 <ArrowRight size={18} />
                 </Link>
-                <a className="landing-button landing-button-secondary" href="#product">
-                  <Play size={17} fill="currentColor" /> 데모 보기
+                <a className="landing-button landing-button-secondary" href="#create">
+                  <Play size={17} fill="currentColor" /> 제품 화면 보기
                 </a>
               </div>
               <p className="landing-hero-note">
@@ -192,15 +275,22 @@ export function LandingPage() {
               </p>
             </div>
 
-            <div className="landing-hero-preview" aria-label="강사 대시보드와 학습자 신청 화면 예시">
+            <div
+              className="landing-hero-preview"
+              aria-label="강사 대시보드와 학습자 신청 화면 예시"
+            >
               <div className="landing-dashboard-frame">
                 <div className="landing-window-bar">
-                  <span /><span /><span />
+                  <span />
+                  <span />
+                  <span />
                   <small>oneclickclass.kr</small>
                 </div>
                 <div className="landing-dashboard-shell">
                   <aside>
-                    <div className="landing-mini-brand"><Check size={12} strokeWidth={3} /></div>
+                    <div className="landing-mini-brand">
+                      <Check size={12} strokeWidth={3} />
+                    </div>
                     <LayoutDashboard className="active" size={17} />
                     <BookOpen size={17} />
                     <Users size={17} />
@@ -212,29 +302,43 @@ export function LandingPage() {
                         <small>오늘의 운영 현황</small>
                         <h2>이지훈 강사님, 안녕하세요</h2>
                       </div>
-                      <span><Bell size={15} /><i /></span>
+                      <span>
+                        <Bell size={15} />
+                        <i />
+                      </span>
                     </header>
                     <div className="landing-preview-kpis">
                       <article className="blue">
                         <small>신규 신청</small>
-                        <strong>{dashboard.newApplicants}<em>건</em></strong>
+                        <strong>
+                          {dashboard.newApplicants}
+                          <em>건</em>
+                        </strong>
                         <span>오늘 접수</span>
                       </article>
                       <article className="orange">
                         <small>결제 대기</small>
-                        <strong>{dashboard.pendingPayments}<em>건</em></strong>
+                        <strong>
+                          {dashboard.pendingPayments}
+                          <em>건</em>
+                        </strong>
                         <span>{won(dashboard.pendingAmount ?? 0)}</span>
                       </article>
                       <article className="purple">
                         <small>진행중 클래스</small>
-                        <strong>{dashboard.todayClasses}<em>개</em></strong>
+                        <strong>
+                          {dashboard.todayClasses}
+                          <em>개</em>
+                        </strong>
                         <span>오늘 일정</span>
                       </article>
                     </div>
                     <div className="landing-preview-panel">
                       <div className="landing-preview-panel-title">
                         <strong>오늘 일정</strong>
-                        <span>전체보기 <ChevronRight size={12} /></span>
+                        <span>
+                          전체보기 <ChevronRight size={12} />
+                        </span>
                       </div>
                       {schedule && (
                         <div className="landing-schedule-row">
@@ -244,7 +348,9 @@ export function LandingPage() {
                             <b>{schedule.title}</b>
                             <small>{schedule.meta}</small>
                           </div>
-                          <button type="button" aria-label="강의실 입장 예시">입장</button>
+                          <span className="landing-schedule-action" aria-hidden="true">
+                            입장
+                          </span>
                         </div>
                       )}
                     </div>
@@ -252,11 +358,17 @@ export function LandingPage() {
                       <div>
                         <StatusBadge>{course.status}</StatusBadge>
                         <b>{course.title}</b>
-                        <small>{course.type} · {course.date}</small>
+                        <small>
+                          {course.type} · {course.date}
+                        </small>
                       </div>
                       <span>
-                        <small>신청 {course.enrolled}/{course.capacity}</small>
-                        <i><em style={{ width: `${course.enrolled / course.capacity * 100}%` }} /></i>
+                        <small>
+                          신청 {course.enrolled}/{course.capacity}
+                        </small>
+                        <i>
+                          <em style={{ width: `${(course.enrolled / course.capacity) * 100}%` }} />
+                        </i>
                       </span>
                     </div>
                   </div>
@@ -275,11 +387,22 @@ export function LandingPage() {
                     <h3>{classDetail.title}</h3>
                     <p>{classDetail.summary}</p>
                     <dl>
-                      <div><dt><CalendarDays size={13} /> 일정</dt><dd>{course.date}</dd></div>
-                      <div><dt><MonitorSmartphone size={13} /> 장소</dt><dd>{classDetail.location}</dd></div>
+                      <div>
+                        <dt>
+                          <CalendarDays size={13} /> 일정
+                        </dt>
+                        <dd>{course.date}</dd>
+                      </div>
+                      <div>
+                        <dt>
+                          <MonitorSmartphone size={13} /> 장소
+                        </dt>
+                        <dd>{classDetail.location}</dd>
+                      </div>
                     </dl>
                     <div className="landing-phone-price">
-                      <span>수강료</span><b>{won(classDetail.price)}</b>
+                      <span>수강료</span>
+                      <b>{won(classDetail.price)}</b>
                     </div>
                   </div>
                   <div className="landing-phone-cta">클래스 신청하기</div>
@@ -289,88 +412,40 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section className="landing-section landing-product" id="product" aria-labelledby="product-title">
-          <div className="landing-container">
-            <div className="landing-section-heading landing-reveal">
-              <p className="landing-kicker">INSTRUCTOR HOME</p>
-              <h2 id="product-title">분석보다 먼저,<br />오늘 할 일을 보여줘요</h2>
-              <p>복잡한 숫자 대신 새 신청, 결제 대기, 오늘 수업처럼 지금 움직여야 할 상태를 앞에 둡니다.</p>
-            </div>
-
-            <div className="landing-product-grid landing-reveal">
-              <div className="landing-action-board">
-                <header>
-                  <div>
-                    <span className="landing-live-dot" /> 오늘의 클래스
-                    <h3>놓치면 안 되는 운영 항목</h3>
-                  </div>
-                  <button type="button" aria-label="운영 알림 예시"><Bell size={18} /></button>
-                </header>
-                <div className="landing-action-cards">
-                  <article className="urgent">
-                    <span><CircleDollarSign size={20} /></span>
-                    <div><small>확인이 필요해요</small><b>결제 대기 {dashboard.pendingPayments}건</b></div>
-                    <ChevronRight size={18} />
-                  </article>
-                  <article>
-                    <span><Users size={20} /></span>
-                    <div><small>방금 들어왔어요</small><b>새 신청자 {dashboard.newApplicants}명</b></div>
-                    <ChevronRight size={18} />
-                  </article>
-                  <article>
-                    <span><CalendarDays size={20} /></span>
-                    <div><small>오늘 오후 8:00</small><b>{classDetail.title}</b></div>
-                    <ChevronRight size={18} />
-                  </article>
-                </div>
-                <div className="landing-activity">
-                  <div><span><Check size={14} /></span><p><b>박민지</b>님의 결제가 완료됐어요</p><time>방금</time></div>
-                  <div><span><Send size={13} /></span><p>수업 안내 알림이 발송됐어요</p><time>1시간 전</time></div>
-                </div>
-              </div>
-
-              <div className="landing-product-points">
-                <article>
-                  <span>01</span>
-                  <div><h3>상태가 먼저 보여요</h3><p>준비중, 모집중, 결제대기처럼 다음 행동을 바로 판단할 수 있어요.</p></div>
-                </article>
-                <article>
-                  <span>02</span>
-                  <div><h3>필요한 곳으로 바로 이동해요</h3><p>카드를 누르면 신청자, 출석, 정산 화면으로 자연스럽게 이어져요.</p></div>
-                </article>
-                <article>
-                  <span>03</span>
-                  <div><h3>데스크톱에 맞게 넓게 봐요</h3><p>운영 목록은 넉넉하게, 중요한 상태는 작고 선명하게 정리했어요.</p></div>
-                </article>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="landing-section landing-create" id="create" aria-labelledby="create-title">
+        <section
+          className="landing-section landing-create"
+          id="create"
+          aria-labelledby="create-title"
+        >
           <div className="landing-container">
             <div className="landing-section-heading centered landing-reveal">
-              <p className="landing-kicker">HOW IT WORKS</p>
-              <h2 id="create-title">세 단계면 신청 링크가 완성돼요</h2>
-              <p>한 번에 모든 걸 설정하지 않아도 괜찮아요. 지금 필요한 정보부터 순서대로 안내합니다.</p>
+              <p className="landing-kicker">강의 만드는 방법</p>
+              <h2 id="create-title">다섯 단계로 신청 링크를 완성해요</h2>
+              <p>질문에 답하듯 필요한 정보를 입력하면 공개할 수 있는 신청 페이지가 완성됩니다.</p>
             </div>
-
-            <ol className="landing-launch-stages landing-reveal">
-              {launchStages.map((stage, index) => (
-                <li className={index === 0 ? 'active' : ''} key={stage.number}>
-                  <span>{stage.number}</span>
-                  <div>
-                    <h3>{stage.title}</h3>
-                    <p>{stage.description}</p>
-                  </div>
-                  {index < launchStages.length - 1 && <ChevronRight aria-hidden="true" />}
-                </li>
-              ))}
-            </ol>
 
             <div className="landing-product-showcase landing-reveal">
               <figure className="landing-product-shot landing-product-shot-hero">
-                <figcaption>실제 제품 화면 · 5단계 강의 개설</figcaption>
+                <figcaption>
+                  <span>실제 제품 화면 · 5단계 강의 개설</span>
+                  <button
+                    type="button"
+                    aria-label="5단계 강의 개설 화면 확대 보기"
+                    onClick={() =>
+                      setImagePreview({
+                        title: '5단계 강의 개설',
+                        images: [
+                          {
+                            src: createClassScreen,
+                            alt: '원클릭 클래스의 실제 5단계 강의 개설 화면',
+                          },
+                        ],
+                      })
+                    }
+                  >
+                    <Maximize2 size={14} /> 확대 보기
+                  </button>
+                </figcaption>
                 <div className="landing-product-shot-crop">
                   <img src={createClassScreen} alt="원클릭 클래스의 실제 5단계 강의 개설 화면" />
                 </div>
@@ -390,127 +465,325 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section className="landing-section landing-operations" id="operations" aria-labelledby="operations-title">
-          <div className="landing-container">
-            <div className="landing-section-heading landing-reveal">
-              <p className="landing-kicker">OPERATIONS</p>
-              <h2 id="operations-title">신청 이후의 운영도<br />한 흐름으로 관리해요</h2>
-              <p>기능을 따로 찾아다니지 않도록 클래스의 시작, 진행, 완료 순서에 맞춰 묶었습니다.</p>
-            </div>
-
-            <div className="landing-operation-groups landing-reveal">
-              {operationGroups.map(({ icon: Icon, title, description, items }) => (
-                <article key={title}>
-                  <span><Icon size={22} /></span>
-                  <h3>{title}</h3>
-                  <p>{description}</p>
-                  <ul>{items.map((item) => <li key={item}><Check size={14} /> {item}</li>)}</ul>
-                </article>
-              ))}
-            </div>
-
-            <div className="landing-operations-preview landing-reveal">
-              <div className="landing-applicant-panel">
-                <header>
-                  <div><small>신청자 관리</small><h3>{classDetail.title}</h3></div>
-                  <button type="button"><Send size={15} /> 알림 보내기</button>
-                </header>
-                <div className="landing-applicant-summary">
-                  <span><small>전체 신청</small><b>{course.enrolled}명</b></span>
-                  <span><small>결제 완료</small><b>{course.enrolled - dashboard.pendingPayments}명</b></span>
-                  <span><small>승인 대기</small><b>{dashboard.newApplicants}명</b></span>
-                </div>
-                <div className="landing-applicant-table" role="table" aria-label="신청자 관리 화면 예시">
-                  <div className="heading" role="row">
-                    <span>신청자</span><span>신청 시각</span><span>결제</span><span>상태</span>
-                  </div>
-                  {applicants.map((applicant, index) => (
-                    <div role="row" key={applicant.id}>
-                      <span><i>{applicant.name.slice(0, 1)}</i><b>{applicant.name}</b></span>
-                      <span>{applicant.appliedAt}</span>
-                      <span><StatusBadge>{applicant.payment}</StatusBadge></span>
-                      <span><StatusBadge>{index === 0 ? '승인대기' : '진행중'}</StatusBadge></span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <aside className="landing-qr-panel">
-                <span className="landing-qr-icon"><QrCode size={92} strokeWidth={1.3} /></span>
-                <StatusBadge>진행중</StatusBadge>
-                <h3>출석 QR</h3>
-                <p>수강생이 휴대폰으로 스캔하면 출석 상태가 바로 반영돼요.</p>
-                <button type="button">QR 크게 보기</button>
-              </aside>
-            </div>
-          </div>
-        </section>
-
-        <section className="landing-section landing-learner" id="learner" aria-labelledby="learner-title">
+        <section
+          className="landing-section landing-learner"
+          id="learner"
+          aria-labelledby="learner-title"
+        >
           <div className="landing-container landing-learner-grid">
             <div className="landing-learner-copy landing-reveal">
-              <p className="landing-kicker">LEARNER EXPERIENCE</p>
-              <h2 id="learner-title">공유한 링크 하나가<br />학습까지 이어져요</h2>
-              <p>학습자는 모바일에서 강의를 확인하고 신청한 뒤, 같은 흐름에서 바로 학습을 계속할 수 있어요.</p>
+              <p className="landing-kicker">학습자 경험</p>
+              <h2 id="learner-title">
+                공유한 링크 하나가
+                <br />
+                학습까지 이어져요
+              </h2>
+              <p>
+                학습자는 모바일에서 강의를 확인하고 신청한 뒤, 같은 흐름에서 바로 학습을 계속할 수
+                있어요.
+              </p>
               <ol className="landing-journey">
                 {learnerJourney.map(([title, description], index) => (
                   <li key={title}>
                     <span>{index + 1}</span>
-                    <div><b>{title}</b><p>{description}</p></div>
+                    <div>
+                      <b>{title}</b>
+                      <p>{description}</p>
+                    </div>
                   </li>
                 ))}
               </ol>
             </div>
 
-            <div className="landing-learner-phone landing-reveal" aria-label="모바일 학습자 화면 예시">
-              <div className="landing-learner-device">
-                <div className="landing-device-top"><span>9:41</span><i /></div>
-                <div className="landing-learner-cover">
-                  <Play size={30} fill="currentColor" />
-                  <span>온라인 클래스</span>
-                </div>
-                <div className="landing-learner-content">
-                  <StatusBadge>{course.status}</StatusBadge>
-                  <h3>{classDetail.title}</h3>
-                  <p>{classDetail.summary}</p>
-                  <div className="landing-learner-instructor"><i>이</i><span><small>강사</small><b>{classDetail.instructor}</b></span></div>
-                  <dl>
-                    <div><dt><CalendarDays size={15} /> 일정</dt><dd>{course.date}</dd></div>
-                    <div><dt><MonitorSmartphone size={15} /> 장소</dt><dd>{classDetail.location}</dd></div>
-                    <div><dt><Users size={15} /> 남은 자리</dt><dd>{course.capacity - course.enrolled}자리</dd></div>
-                  </dl>
-                  <div className="landing-curriculum">
-                    <div><b>커리큘럼</b><small>총 {classDetail.sessions}회</small></div>
-                    {classDetail.curriculum.slice(0, 2).map((lesson, index) => (
-                      <p key={lesson.id}><span>{index + 1}</span><b>{lesson.title}</b><small>{lesson.durationText}</small></p>
-                    ))}
+            <div
+              className="landing-learner-visual landing-reveal"
+              aria-label="신청부터 학습까지의 실제 모바일 화면"
+            >
+              <div className="landing-learner-screens">
+                <article className="landing-learner-screen-card">
+                  <div className="landing-learner-screen-label">
+                    <span>
+                      <b>01</b> 링크에서 신청
+                    </span>
+                    <button
+                      type="button"
+                      aria-label="모바일 수강 신청 화면 확대 보기"
+                      onClick={() =>
+                        setImagePreview({
+                          title: '모바일 수강 신청',
+                          images: [
+                            {
+                              src: enrollmentMobileScreen,
+                              alt: '원클릭 클래스의 실제 모바일 수강 신청 화면',
+                            },
+                          ],
+                        })
+                      }
+                    >
+                      <Maximize2 size={14} /> 확대
+                    </button>
                   </div>
-                </div>
-                <div className="landing-learner-sticky">
-                  <span><small>수강료</small><b>{won(classDetail.price)}</b></span>
-                  <button type="button">신청하기</button>
-                </div>
+                  <figure className="landing-mobile-shot">
+                    <img
+                      src={enrollmentMobileScreen}
+                      alt="원클릭 클래스의 실제 모바일 수강 신청 화면"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </figure>
+                </article>
+
+                <article className="landing-learner-screen-card">
+                  <div className="landing-learner-screen-label">
+                    <span>
+                      <b>02</b> 수강실에서 이어보기
+                    </span>
+                    <button
+                      type="button"
+                      aria-label="모바일 수강실 화면 확대 보기"
+                      onClick={() =>
+                        setImagePreview({
+                          title: '모바일 수강실',
+                          images: [
+                            {
+                              src: learnerRoomMobileScreen,
+                              alt: '원클릭 클래스의 실제 모바일 수강실 화면',
+                            },
+                          ],
+                        })
+                      }
+                    >
+                      <Maximize2 size={14} /> 확대
+                    </button>
+                  </div>
+                  <figure className="landing-mobile-shot">
+                    <img
+                      src={learnerRoomMobileScreen}
+                      alt="원클릭 클래스의 실제 모바일 수강실 화면"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </figure>
+                </article>
               </div>
-              <span className="landing-share-chip"><Link2 size={16} /> 링크 공유 완료</span>
             </div>
           </div>
         </section>
 
-        <section className="landing-section landing-trust" aria-labelledby="trust-title">
+        <section
+          className="landing-section landing-product"
+          id="product"
+          aria-labelledby="product-title"
+        >
           <div className="landing-container">
-            <div className="landing-section-heading centered landing-reveal">
-              <p className="landing-kicker">CALM & CLEAR</p>
-              <h2 id="trust-title">누구에게나 분명한 화면을 만들었어요</h2>
-              <p>작은 화면, 키보드 탐색, 처리 중인 순간까지 사용자가 현재 상태를 놓치지 않게 안내합니다.</p>
+            <div className="landing-section-heading landing-reveal">
+              <p className="landing-kicker">강사용 홈</p>
+              <h2 id="product-title">
+                운영 현황과 오늘 할 일을
+                <br />
+                한눈에 보여줘요
+              </h2>
+              <p>이번 달 매출, 신규 신청, 진행 중 클래스와 오늘 일정을 한 화면에 정리합니다.</p>
             </div>
-            <div className="landing-trust-grid landing-reveal">
-              <article><MonitorSmartphone size={24} /><h3>어디서든 편안하게</h3><p>데스크톱 운영과 모바일 신청 화면이 각각의 사용 환경에 맞게 반응해요.</p></article>
-              <article><ShieldCheck size={24} /><h3>상태를 숨기지 않게</h3><p>성공, 오류, 빈 화면, 처리 중 상태를 색상과 문장으로 함께 알려줘요.</p></article>
-              <article><ListChecks size={24} /><h3>다음 행동이 분명하게</h3><p>한 섹션에는 하나의 핵심 행동을 두고 키보드 포커스도 선명하게 보여요.</p></article>
+
+            <div className="landing-product-grid landing-reveal">
+              <div className="landing-dashboard-view">
+                <p>핵심 운영 화면을 먼저 보고, 전체 화면은 확대해서 확인하세요.</p>
+                <figure className="landing-product-shot landing-product-shot-dashboard">
+                  <figcaption>
+                    <span>실제 제품 화면 · 오늘의 운영 대시보드</span>
+                    <button
+                      type="button"
+                      aria-label="오늘의 운영 대시보드 화면 확대 보기"
+                      onClick={() =>
+                        setImagePreview({
+                          title: '오늘의 운영 대시보드',
+                          images: [
+                            {
+                              src: dashboardScreen,
+                              alt: '원클릭 클래스의 실제 운영 대시보드 화면',
+                            },
+                          ],
+                        })
+                      }
+                    >
+                      <Maximize2 size={14} /> 확대 보기
+                    </button>
+                  </figcaption>
+                  <div className="landing-product-shot-crop">
+                    <img
+                      src={dashboardScreen}
+                      alt="원클릭 클래스의 실제 운영 대시보드 화면"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </div>
+                </figure>
+              </div>
+
+              <div className="landing-product-points">
+                <article>
+                  <span>01</span>
+                  <div>
+                    <h3>운영 지표를 한눈에 봐요</h3>
+                    <p>이번 달 매출과 신규 신청, 진행 중 클래스를 한 줄에서 비교해요.</p>
+                  </div>
+                </article>
+                <article>
+                  <span>02</span>
+                  <div>
+                    <h3>오늘 일정을 바로 확인해요</h3>
+                    <p>수업 시간, 방식, 수강생 수를 확인하고 강의실로 바로 들어가요.</p>
+                  </div>
+                </article>
+                <article>
+                  <span>03</span>
+                  <div>
+                    <h3>필요한 화면으로 연결돼요</h3>
+                    <p>각 카드를 선택하면 신청자, 결제, 클래스 운영 화면으로 이어져요.</p>
+                  </div>
+                </article>
+              </div>
             </div>
-            <div className="landing-state-preview landing-reveal" aria-label="서비스 상태 안내 화면 예시">
-              <span className="success"><CheckCircle2 size={18} /><b>저장 완료</b><small>변경한 내용이 안전하게 저장됐어요.</small></span>
-              <span className="error"><FileCheck2 size={18} /><b>입력을 확인해 주세요</b><small>모집 종료일은 시작일보다 빨라요.</small></span>
-              <button type="button" disabled><span className="landing-loading-dot" /> 게시 중...</button>
+          </div>
+        </section>
+
+        <section
+          className="landing-section landing-operations"
+          id="operations"
+          aria-labelledby="operations-title"
+        >
+          <div className="landing-container">
+            <div className="landing-section-heading landing-reveal">
+              <p className="landing-kicker">클래스 운영</p>
+              <h2 id="operations-title">
+                신청부터 출석, 수료까지
+                <br />
+                하나의 클래스에서 관리해요
+              </h2>
+              <p>
+                신청과 결제를 확인하고 수업을 운영한 뒤, 수료증 발급까지 같은 흐름에서 이어집니다.
+              </p>
+            </div>
+
+            <p className="landing-gallery-hint" id="operations-gallery-help">
+              <span aria-hidden="true">←</span> 옆으로 넘기거나 방향키로 세 단계를 확인하세요
+              <span aria-hidden="true">→</span>
+            </p>
+            <div
+              className="landing-operations-gallery landing-reveal"
+              role="region"
+              aria-label="운영 제품 화면"
+              aria-describedby="operations-gallery-help"
+              tabIndex={0}
+              ref={operationGalleryRef}
+              onScroll={(event) => {
+                const gallery = event.currentTarget;
+                const next = Math.round(
+                  gallery.scrollLeft / (gallery.scrollWidth / operationGroups.length),
+                );
+                setActiveOperation(Math.max(0, Math.min(operationGroups.length - 1, next)));
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+                event.preventDefault();
+                const direction = event.key === 'ArrowRight' ? 1 : -1;
+                scrollToOperation(
+                  Math.max(0, Math.min(operationGroups.length - 1, activeOperation + direction)),
+                );
+              }}
+            >
+              {operationGroups.map((group) => {
+                const Icon = group.icon;
+                return (
+                  <article className="landing-operation-step" key={group.title}>
+                    <figure className="landing-product-shot">
+                      <figcaption>
+                        <span>
+                          <b>{group.step}</b> {group.caption}
+                        </span>
+                        <button
+                          type="button"
+                          aria-label={`${group.caption} 화면 확대 보기`}
+                          onClick={() =>
+                            setImagePreview({
+                              title: group.caption,
+                              images: [
+                                ...(group.secondaryImage
+                                  ? [
+                                      {
+                                        src: group.secondaryImage,
+                                        alt: group.secondaryImageAlt ?? '',
+                                      },
+                                    ]
+                                  : []),
+                                { src: group.image, alt: group.imageAlt },
+                              ],
+                            })
+                          }
+                        >
+                          <Maximize2 size={14} /> 확대
+                        </button>
+                      </figcaption>
+                      <div
+                        className={`landing-product-shot-crop${group.secondaryImage ? ' landing-operation-composite' : ''}`}
+                      >
+                        <picture>
+                          {group.mobileImage && (
+                            <source media="(max-width: 640px)" srcSet={group.mobileImage} />
+                          )}
+                          <img
+                            src={group.image}
+                            alt={group.imageAlt}
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        </picture>
+                        {group.secondaryImage && (
+                          <img
+                            className="landing-operation-secondary-screen"
+                            src={group.secondaryImage}
+                            alt={group.secondaryImageAlt ?? ''}
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        )}
+                      </div>
+                    </figure>
+                    <div className="landing-operation-step-copy">
+                      <span aria-hidden="true">
+                        <Icon size={22} />
+                      </span>
+                      <div>
+                        <h3>{group.title}</h3>
+                        <p>{group.description}</p>
+                        <ul>
+                          {group.items.map((item) => (
+                            <li key={item}>
+                              <Check size={14} /> {item}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+
+            <div className="landing-operation-pagination" aria-label="운영 화면 선택">
+              {operationGroups.map((group, index) => (
+                <button
+                  type="button"
+                  className={activeOperation === index ? 'active' : undefined}
+                  aria-label={`${group.step} ${group.caption} 보기`}
+                  aria-current={activeOperation === index ? 'step' : undefined}
+                  onClick={() => scrollToOperation(index)}
+                  key={group.step}
+                >
+                  <span />
+                </button>
+              ))}
             </div>
           </div>
         </section>
@@ -518,9 +791,16 @@ export function LandingPage() {
         <section className="landing-final-cta" aria-labelledby="final-cta-title">
           <div className="landing-container landing-reveal">
             <div>
-              <p>LMS를 몰라도 괜찮아요</p>
-              <h2 id="final-cta-title">첫 강의,<br />복잡하게 시작하지 마세요.</h2>
-              <span>기본 정보를 입력하고 커리큘럼을 구성하면 바로 신청 링크를 공유할 수 있어요.</span>
+              <p>다섯 단계면 신청 링크가 완성돼요</p>
+              <h2 id="final-cta-title">
+                첫 강의를 지금,
+                <br />
+                가볍게 열어보세요.
+              </h2>
+              <span>
+                제목과 일정부터 입력하세요. 공개 전까지 언제든 수정하고, 준비가 끝나면 링크로 바로
+                공유할 수 있어요.
+              </span>
             </div>
             <Link className="landing-button landing-button-light" to="/signup">
               무료로 시작하기 <ArrowRight size={19} />
@@ -531,15 +811,37 @@ export function LandingPage() {
 
       <footer className="landing-footer">
         <div className="landing-container">
-          <a className="landing-brand" href="#top"><span><Check size={15} strokeWidth={3} /></span>원클릭 클래스</a>
+          <a className="landing-brand" href="#top">
+            <span>
+              <Check size={15} strokeWidth={3} />
+            </span>
+            원클릭 클래스
+          </a>
           <p>강의 개설부터 신청·출석·수료까지, 한곳에서.</p>
           <small>© 2026 OneClick Class</small>
         </div>
       </footer>
 
-      <Link className="landing-mobile-cta" to="/signup">
-        무료로 시작하기 <ArrowRight size={18} />
-      </Link>
+      <Modal
+        className="landing-image-dialog"
+        open={Boolean(imagePreview)}
+        title={imagePreview?.title ?? '제품 화면'}
+        onClose={() => setImagePreview(null)}
+      >
+        {imagePreview && (
+          <div
+            className={
+              imagePreview.images.length > 1
+                ? 'landing-image-dialog-grid'
+                : 'landing-image-dialog-grid single'
+            }
+          >
+            {imagePreview.images.map((image) => (
+              <img src={image.src} alt={image.alt} key={image.src} />
+            ))}
+          </div>
+        )}
+      </Modal>
     </main>
   );
 }
