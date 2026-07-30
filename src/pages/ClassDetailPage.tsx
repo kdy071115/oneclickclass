@@ -442,11 +442,25 @@ export function ClassDetailPage() {
 
       <div className="page subpage class-dashboard original-detail">
         <PageHeader title="" backTo="/classes" />
-        <div className="class-cover" />
+        <div
+          className="class-cover"
+          style={thumbnail ? { backgroundImage: `url(${thumbnail})` } : undefined}
+          aria-hidden="true"
+        />
         <h1>{detail?.title || '강의 정보를 불러오는 중이에요'}</h1>
         <p className="muted">
           신청 {enrolled} / {capacity}명 · {detail?.recruitEndDate || '마감일 미정'}
         </p>
+        <div className="mobile-class-actions">
+          <button type="button" onClick={copyShare}>
+            <Link2 />
+            신청 링크 복사
+          </button>
+          <Link to={`/classes/${id}/curriculum`}>
+            <ClipboardList />
+            커리큘럼 관리
+          </Link>
+        </div>
         <div className="dashboard-grid">
           {mobileMenus.map(([path, Icon, title, desc]) => (
             <Link to={`/classes/${id}/${path}`} key={path}>
