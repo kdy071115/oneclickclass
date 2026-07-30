@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react';
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter, Navigate, Outlet, redirect } from 'react-router-dom';
 import { AppLayout } from '../layouts/AppLayout';
 import { AuthLayout } from '../layouts/AuthLayout';
 import { NotFoundPage, RouteErrorPage } from '../pages/NotFoundPage';
@@ -7,12 +7,11 @@ import { ProtectedRoute, RoleGuard } from './guards';
 
 type PageModule = Record<string, unknown>;
 
-const lazyPage = <T extends PageModule>(
-  load: () => Promise<T>,
-  name: keyof T,
-) => async () => ({
-  Component: (await load())[name] as ComponentType,
-});
+const lazyPage =
+  <T extends PageModule>(load: () => Promise<T>, name: keyof T) =>
+  async () => ({
+    Component: (await load())[name] as ComponentType,
+  });
 
 const accountPage = (name: keyof typeof import('../pages/AccountPages')) =>
   lazyPage(() => import('../pages/AccountPages'), name);
@@ -38,140 +37,153 @@ const operations = [
   'certificates',
 ].map((path) => ({ path: `/classes/:id/${path}`, lazy: classOperationsPage }));
 
+const routeHydrateFallback = (
+  <main className="route-hydrate-fallback" role="status" aria-live="polite">
+    <span className="spinner" aria-hidden="true" />
+    <p>화면을 준비하고 있어요.</p>
+  </main>
+);
+
 export const router = createBrowserRouter([
   {
-    path: '/',
-    lazy: lazyPage(() => import('../pages/LandingPage'), 'LandingPage'),
-    errorElement: <RouteErrorPage />,
-  },
-  {
-    errorElement: <RouteErrorPage />,
-    element: (
-      <ProtectedRoute>
-        <AppLayout />
-      </ProtectedRoute>
-    ),
+    hydrateFallbackElement: routeHydrateFallback,
+    element: <Outlet />,
     children: [
-      { path: '/dashboard', lazy: lazyPage(() => import('../pages/HomePage'), 'HomePage') },
-      { path: '/classes', lazy: lazyPage(() => import('../pages/ClassesPage'), 'ClassesPage') },
       {
-        path: '/classes/:id',
-        lazy: lazyPage(() => import('../pages/ClassDetailPage'), 'ClassDetailPage'),
+        path: '/',
+        lazy: lazyPage(() => import('../pages/LandingPage'), 'LandingPage'),
+        errorElement: <RouteErrorPage />,
       },
       {
-        path: '/classes/:id/curriculum',
-        lazy: lazyPage(() => import('../pages/CurriculumPage'), 'CurriculumPage'),
+        errorElement: <RouteErrorPage />,
+        element: (
+          <ProtectedRoute>
+            <AppLayout />
+          </ProtectedRoute>
+        ),
+        children: [
+          { path: '/dashboard', lazy: lazyPage(() => import('../pages/HomePage'), 'HomePage') },
+          { path: '/classes', lazy: lazyPage(() => import('../pages/ClassesPage'), 'ClassesPage') },
+          {
+            path: '/classes/:id',
+            lazy: lazyPage(() => import('../pages/ClassDetailPage'), 'ClassDetailPage'),
+          },
+          {
+            path: '/classes/:id/curriculum',
+            lazy: lazyPage(() => import('../pages/CurriculumPage'), 'CurriculumPage'),
+          },
+          { path: '/classes/:id/preview', lazy: previewPage('PreviewPage') },
+          { path: '/classes/published', lazy: advancedPage('PublishDonePage') },
+          ...operations,
+          {
+            path: '/classes/:id/attendance/qr',
+            lazy: lazyPage(() => import('../pages/QrPage'), 'QrPage'),
+          },
+          { path: '/classes/:id/exams/:examId', lazy: advancedPage('ExamResultPage') },
+          {
+            path: '/classes/:id/exams/:examId/:personId',
+            lazy: advancedPage('ExamTakerPage'),
+          },
+          {
+            path: '/classes/:id/certificates/setup',
+            loader: ({ params }) => redirect(`/classes/${params.id}/certificates`),
+          },
+          {
+            path: '/applicants',
+            lazy: lazyPage(() => import('../pages/ApplicantsPage'), 'ApplicantsPage'),
+          },
+          {
+            path: '/applicants/:id',
+            lazy: lazyPage(() => import('../pages/ApplicantDetailPage'), 'ApplicantDetailPage'),
+          },
+          { path: '/my', lazy: lazyPage(() => import('../pages/MyPage'), 'MyPage') },
+          { path: '/notifications', lazy: accountPage('NotificationsPage') },
+          { path: '/settlement', element: <Navigate to="/settlements" replace /> },
+          {
+            path: '/settlements',
+            lazy: async () => {
+              const { SettlementPage } = await import('../pages/AccountPages');
+              return {
+                Component: () => (
+                  <RoleGuard allowed={['teacher']}>
+                    <SettlementPage />
+                  </RoleGuard>
+                ),
+              };
+            },
+          },
+          { path: '/notification-settings', lazy: accountPage('NotificationSettingsPage') },
+          { path: '/support', lazy: accountPage('SupportPage') },
+          { path: '/settings', lazy: accountPage('SettingsPage') },
+          { path: '/payment', lazy: accountPage('PaymentPage') },
+          { path: '/attendance/select', lazy: advancedPage('AttendPickerPage') },
+        ],
       },
-      { path: '/classes/:id/preview', lazy: previewPage('PreviewPage') },
-      { path: '/classes/published', lazy: advancedPage('PublishDonePage') },
-      ...operations,
       {
-        path: '/classes/:id/attendance/qr',
-        lazy: lazyPage(() => import('../pages/QrPage'), 'QrPage'),
-      },
-      { path: '/classes/:id/exams/:examId', lazy: advancedPage('ExamResultPage') },
-      {
-        path: '/classes/:id/exams/:examId/:personId',
-        lazy: advancedPage('ExamTakerPage'),
+        path: '/s/:shareToken',
+        lazy: previewPage('PublicEnrollmentPage'),
+        errorElement: <RouteErrorPage />,
       },
       {
-        path: '/classes/:id/certificates/setup',
-        lazy: advancedPage('CertificateSetupPage'),
+        path: '/s/:shareToken/complete',
+        lazy: previewPage('EnrollmentCompletePage'),
+        errorElement: <RouteErrorPage />,
       },
       {
-        path: '/applicants',
-        lazy: lazyPage(() => import('../pages/ApplicantsPage'), 'ApplicantsPage'),
+        path: '/learn/:id',
+        lazy: previewPage('LearnerRoomPage'),
+        errorElement: <RouteErrorPage />,
       },
       {
-        path: '/applicants/:id',
-        lazy: lazyPage(() => import('../pages/ApplicantDetailPage'), 'ApplicantDetailPage'),
+        path: '/favorites',
+        lazy: lazyPage(() => import('../pages/LearnerFavoritesPage'), 'LearnerFavoritesPage'),
+        errorElement: <RouteErrorPage />,
       },
-      { path: '/my', lazy: lazyPage(() => import('../pages/MyPage'), 'MyPage') },
-      { path: '/notifications', lazy: accountPage('NotificationsPage') },
-      { path: '/settlement', element: <Navigate to="/settlements" replace /> },
       {
-        path: '/settlements',
+        path: '/learn/survey/take',
+        lazy: studentPage('SurveyTakePage'),
+        errorElement: <RouteErrorPage />,
+      },
+      {
+        path: '/learn/survey/done',
+        lazy: studentPage('SurveyDonePage'),
+        errorElement: <RouteErrorPage />,
+      },
+      {
+        path: '/learn/exam/take',
+        lazy: studentPage('ExamTakePage'),
+        errorElement: <RouteErrorPage />,
+      },
+      {
+        path: '/learn/exam/result',
+        lazy: studentPage('ExamResultStudentPage'),
+        errorElement: <RouteErrorPage />,
+      },
+      {
+        path: '/classes/new',
+        errorElement: <RouteErrorPage />,
         lazy: async () => {
-          const { SettlementPage } = await import('../pages/AccountPages');
+          const { CreateClassPage } = await import('../pages/CreateClassPage');
           return {
             Component: () => (
-              <RoleGuard allowed={['teacher']}>
-                <SettlementPage />
-              </RoleGuard>
+              <ProtectedRoute>
+                <RoleGuard allowed={['teacher']}>
+                  <CreateClassPage />
+                </RoleGuard>
+              </ProtectedRoute>
             ),
           };
         },
       },
-      { path: '/notification-settings', lazy: accountPage('NotificationSettingsPage') },
-      { path: '/support', lazy: accountPage('SupportPage') },
-      { path: '/settings', lazy: accountPage('SettingsPage') },
-      { path: '/payment', lazy: accountPage('PaymentPage') },
-      { path: '/attendance/select', lazy: advancedPage('AttendPickerPage') },
+      {
+        errorElement: <RouteErrorPage />,
+        element: <AuthLayout />,
+        children: [
+          { path: '/login', lazy: lazyPage(() => import('../pages/LoginPage'), 'LoginPage') },
+          { path: '/signup', lazy: lazyPage(() => import('../pages/SignupPage'), 'SignupPage') },
+        ],
+      },
+      { path: '*', element: <NotFoundPage /> },
     ],
   },
-  {
-    path: '/s/:shareToken',
-    lazy: previewPage('PublicEnrollmentPage'),
-    errorElement: <RouteErrorPage />,
-  },
-  {
-    path: '/s/:shareToken/complete',
-    lazy: previewPage('EnrollmentCompletePage'),
-    errorElement: <RouteErrorPage />,
-  },
-  {
-    path: '/learn/:id',
-    lazy: previewPage('LearnerRoomPage'),
-    errorElement: <RouteErrorPage />,
-  },
-  {
-    path: '/favorites',
-    lazy: lazyPage(() => import('../pages/LearnerFavoritesPage'), 'LearnerFavoritesPage'),
-    errorElement: <RouteErrorPage />,
-  },
-  {
-    path: '/learn/survey/take',
-    lazy: studentPage('SurveyTakePage'),
-    errorElement: <RouteErrorPage />,
-  },
-  {
-    path: '/learn/survey/done',
-    lazy: studentPage('SurveyDonePage'),
-    errorElement: <RouteErrorPage />,
-  },
-  {
-    path: '/learn/exam/take',
-    lazy: studentPage('ExamTakePage'),
-    errorElement: <RouteErrorPage />,
-  },
-  {
-    path: '/learn/exam/result',
-    lazy: studentPage('ExamResultStudentPage'),
-    errorElement: <RouteErrorPage />,
-  },
-  {
-    path: '/classes/new',
-    errorElement: <RouteErrorPage />,
-    lazy: async () => {
-      const { CreateClassPage } = await import('../pages/CreateClassPage');
-      return {
-        Component: () => (
-          <ProtectedRoute>
-            <RoleGuard allowed={['teacher']}>
-              <CreateClassPage />
-            </RoleGuard>
-          </ProtectedRoute>
-        ),
-      };
-    },
-  },
-  {
-    errorElement: <RouteErrorPage />,
-    element: <AuthLayout />,
-    children: [
-      { path: '/login', lazy: lazyPage(() => import('../pages/LoginPage'), 'LoginPage') },
-      { path: '/signup', lazy: lazyPage(() => import('../pages/SignupPage'), 'SignupPage') },
-    ],
-  },
-  { path: '*', element: <NotFoundPage /> },
 ]);

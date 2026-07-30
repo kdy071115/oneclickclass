@@ -776,6 +776,20 @@ a {
 .mobile-filter-chips {
   margin-bottom: 8px;
 }
+.mobile-filter-scroll {
+  position: relative;
+}
+.mobile-filter-scroll::after {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  top: 15px;
+  right: 0;
+  bottom: 8px;
+  width: 36px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, #fff 78%);
+}
 .mobile-applicant-list {
   overflow: hidden;
   border: 1px solid var(--line);
@@ -873,6 +887,21 @@ a {
   color: var(--muted);
   text-align: center;
   gap: 6px;
+}
+.route-hydrate-fallback {
+  min-height: 100dvh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  background: #f8f9fb;
+  color: var(--muted);
+  text-align: center;
+}
+.route-hydrate-fallback p {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
 }
 .spinner {
   width: 30px;

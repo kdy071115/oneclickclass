@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 type YouTubePlayerApi = {
   destroy: () => void;
@@ -74,7 +74,8 @@ export function YouTubePlayer({
   onTimeChange,
   onDuration,
 }: YouTubePlayerProps) {
-  const wrapperRef = useRef<HTMLDivElement>(null);
+  const mountRef = useRef<HTMLDivElement>(null);
+  const [ready, setReady] = useState(false);
   const onPlayingChangeRef = useRef(onPlayingChange);
   const onProgressRef = useRef(onProgress);
   const onTimeChangeRef = useRef(onTimeChange);
@@ -89,14 +90,15 @@ export function YouTubePlayer({
     let progressTimer: number | undefined;
     let timeTimer: number | undefined;
     let active = true;
-    const wrapper = wrapperRef.current;
+    const mountHost = mountRef.current;
+    setReady(false);
     const report = (target: YouTubePlayerApi, playing: boolean, ended = false) =>
       onProgressRef.current(target.getCurrentTime(), target.getDuration(), playing, ended);
 
     void loadYouTubeApi().then((YT) => {
-      if (!active || !wrapper) return;
+      if (!active || !mountHost) return;
       const mount = document.createElement('div');
-      wrapper.replaceChildren(mount);
+      mountHost.replaceChildren(mount);
       player = new YT.Player(mount, {
         videoId,
         host: 'https://www.youtube-nocookie.com',
@@ -113,6 +115,7 @@ export function YouTubePlayer({
         },
         events: {
           onReady: ({ target }) => {
+            setReady(true);
             if (startSeconds > 0) target.seekTo(startSeconds, true);
             const duration = target.getDuration();
             if (duration > 0) onDurationRef.current?.(duration);
@@ -143,5 +146,19 @@ export function YouTubePlayer({
     };
   }, [startSeconds, videoId]);
 
-  return <div className="youtube-player" ref={wrapperRef} onContextMenu={(event) => event.preventDefault()} />;
+  return (
+    <div
+      className="youtube-player"
+      aria-busy={!ready}
+      onContextMenu={(event) => event.preventDefault()}
+    >
+      {!ready && (
+        <div className="youtube-player-loading" role="status">
+          <span className="spinner" aria-hidden="true" />
+          <span>영상을 준비하고 있어요.</span>
+        </div>
+      )}
+      <div className="youtube-player-mount" ref={mountRef} />
+    </div>
+  );
 }

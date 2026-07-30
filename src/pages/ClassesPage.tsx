@@ -151,18 +151,20 @@ export function ClassesPage() {
             <option value="status">상태순</option>
           </select>
         </div>
-        <div className="chips">
-          {classFilters.map((x) => (
-            <button
-              className={filter === x ? 'active' : ''}
-              type="button"
-              aria-pressed={filter === x}
-              onClick={() => setFilter(x)}
-              key={x}
-            >
-              {x}
-            </button>
-          ))}
+        <div className="mobile-filter-scroll">
+          <div className="chips mobile-filter-chips" aria-label="클래스 상태 필터">
+            {classFilters.map((x) => (
+              <button
+                className={filter === x ? 'active' : ''}
+                type="button"
+                aria-pressed={filter === x}
+                onClick={() => setFilter(x)}
+                key={x}
+              >
+                {x}
+              </button>
+            ))}
+          </div>
         </div>
         <AsyncState
           loading={loading}
