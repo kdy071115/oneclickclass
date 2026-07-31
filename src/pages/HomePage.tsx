@@ -98,7 +98,7 @@ export function HomePage() {
             <div className="oc-hero-title">{userName}님, 안녕하세요</div>
             <div className="oc-hero-sub">
               {!classesLoading && classItems.length === 0
-                ? '첫 강의를 만들고 클래스 운영을 시작해보세요'
+                ? '첫 클래스를 만들고 운영을 시작해보세요'
                 : '오늘의 클래스 운영 현황을 한눈에 확인하세요'}
             </div>
 
@@ -110,12 +110,12 @@ export function HomePage() {
               <section className="oc-panel">
                 <EmptyState
                   icon={<BookOpen size={32} />}
-                  title="아직 만든 강의가 없어요"
-                  description="강의를 만들면 신청 현황, 매출, 통계를 한눈에 확인할 수 있어요"
+                  title="아직 만든 클래스가 없어요"
+                  description="클래스를 만들면 신청 현황, 매출, 통계를 한눈에 확인할 수 있어요"
                   action={
                     <Link className="ui-button ui-button-primary" to="/classes/new">
                       <Plus size={16} />
-                      강의 만들기
+                      클래스 만들기
                     </Link>
                   }
                 />
@@ -402,7 +402,7 @@ export function HomePage() {
               </Link>
               <Link to="/classes/new">
                 <Plus />
-                <b>강의 만들기</b>
+                <b>클래스 만들기</b>
                 <small>1분이면 완성</small>
               </Link>
             </div>

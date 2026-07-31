@@ -90,7 +90,7 @@ export function AppLayout() {
             {teacher && hasClasses && (
               <Link className="oc-create" to="/classes/new">
                 <Plus size={18} />
-                강의 만들기
+                클래스 만들기
               </Link>
             )}
           </header>
@@ -106,7 +106,7 @@ export function AppLayout() {
                 <small>{label}</small>
               </NavLink>
             ))}
-            <Link className="nav-create" to="/classes/new" aria-label="강의 만들기">
+            <Link className="nav-create" to="/classes/new" aria-label="클래스 만들기">
               <Plus size={27} />
             </Link>
             <NavLink to="/applicants">

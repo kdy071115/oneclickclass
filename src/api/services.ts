@@ -51,6 +51,7 @@ import {
   loadClassPreview,
   loadClassPreviewPatch,
 } from '../utils/classDraft';
+import { formatClassSchedule } from '../utils/classCreation';
 const mock = import.meta.env.VITE_USE_MOCK !== 'false';
 const delay = <T>(data: T) => new Promise<T>((resolve) => setTimeout(() => resolve(data), 350));
 const MOCK_CLASSES_KEY = 'oneclick.mock.classes';
@@ -131,7 +132,7 @@ const previewClassItem = (id: string): ClassItem => {
     title: draft.title || enrollmentTitle || untitledClassLabel,
     status: classStatus(lifecycleStatus, settings.recruitmentStatus),
     type: classTypeLabel[draft.type],
-    date: draft.startDate || '일정 미정',
+    date: formatClassSchedule(draft.startDate),
     enrolled: hasEnrollment ? 1 : 0,
     capacity: draft.capacity,
     color: '#3182f6',
@@ -162,6 +163,7 @@ const mockClasses = () => {
       lifecycleStatus,
       status: classStatus(lifecycleStatus, recruitmentStatus),
       capacity: settings.capacity,
+      date: formatClassSchedule(item.date),
     };
   });
 };
@@ -542,7 +544,7 @@ export const classService = {
       title: draft.title,
       status: '준비중' as const,
       type: classTypeLabel[draft.type],
-      date: draft.startDate || '일정 미정',
+      date: formatClassSchedule(draft.startDate),
       capacity: draft.capacity,
       enrolled: 0,
       thumbnail: draft.thumbnail,
@@ -563,7 +565,8 @@ export const classService = {
       ...draft,
       id,
       type: draft.type ? classTypeLabel[draft.type] : current.type,
-      date: draft.startDate || current.date,
+      date:
+        draft.startDate === undefined ? current.date : formatClassSchedule(draft.startDate),
     } as ClassItem;
     saveMockClasses([item, ...savedMockClasses().filter((saved) => saved.id !== id)]);
     return delay(item);
@@ -703,7 +706,7 @@ export const detailService = {
           title: item?.title || draft.title || untitledClassLabel,
           status: item?.status || '준비중',
           type: item?.type || classTypeLabel[draft.type],
-          date: item?.date || draft.startDate || '일정 미정',
+          date: item?.date || formatClassSchedule(draft.startDate),
           enrolled: item?.enrolled || 0,
           capacity: item?.capacity || draft.capacity,
           color: item?.color || '#3182f6',
@@ -754,6 +757,10 @@ export const detailService = {
       lifecycleStatus,
       status: classStatus(lifecycleStatus, recruitmentStatus),
       title: item?.title ?? baseDetail.title,
+      date:
+        draftPatch?.startDate === undefined
+          ? formatClassSchedule(item?.date || baseDetail.date)
+          : formatClassSchedule(draftPatch.startDate),
       summary: draftPatch?.summary?.trim() ? draftPatch.summary : baseDetail.summary,
       description: draftPatch?.description?.trim()
         ? draftPatch.description

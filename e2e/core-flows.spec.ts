@@ -36,10 +36,15 @@ test('보호 라우트에서 로그인 후 대시보드로 진입한다', async 
 test('강의 생성 단계 검증과 정산 화면을 이동한다', async ({ page }) => {
   await login(page);
   await page.goto('/classes/new');
-  const nextName = (page.viewportSize()?.width ?? 0) >= 900 ? '다음 단계' : '다음';
-  await page.getByRole('button', { name: nextName, exact: true }).click();
-  await page.getByRole('button', { name: nextName, exact: true }).click();
-  await expect(page.locator('.form-error:visible')).toHaveText('강의 제목을 입력해 주세요.');
+  await expect(page.getByRole('button', { name: '이전', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '다음', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: /^온라인 / }).click();
+  await page.getByRole('button', { name: '다음', exact: true }).click();
+  await expect(page.getByRole('button', { name: '다음', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: '자료 없이 직접 작성하기', exact: true }).click();
+  await page.getByRole('button', { name: '다음', exact: true }).click();
+  await expect(page.getByLabel('클래스 제목', { exact: true })).toBeFocused();
+  await expect(page.getByText('클래스 제목을 입력해 주세요.', { exact: true })).toBeVisible();
   await page.goto('/settlements');
   if ((page.viewportSize()?.width ?? 0) >= 900) {
     await expect(page.getByRole('button', { name: 'CSV 내보내기' })).toBeVisible();
@@ -369,18 +374,22 @@ test('모바일 수료증이 데스크톱과 같은 발급 상태를 사용한�
   await expect(mobileCertificate.locator('.cert-issue-stats')).toContainText('발급 완료1명');
 });
 
-test('데스크톱 강의 일정 캘린더에서 날짜를 선택한다', async ({ page }, testInfo) => {
+test('데스크톱 온라인 클래스에는 참가비 설정만 표시한다', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop');
   await login(page);
   await page.goto('/classes/new');
-  await page.getByLabel('강의 제목').fill('일정 테스트 강의');
-  await page.getByRole('button', { name: '다음 단계', exact: true }).click();
-  await page.getByRole('button', { name: '다음 단계', exact: true }).click();
-  const scheduleButton = page.getByRole('button', { name: '강의 일정', exact: true });
-  await scheduleButton.click();
-  await expect(page.getByText('강의 일정을 골라주세요', { exact: true })).toBeVisible();
-  const today = new Date();
-  await page.getByRole('button', { name: String(today.getDate()), exact: true }).click();
-  const selected = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  await expect(scheduleButton).toContainText(selected);
+  await page.getByRole('button', { name: /^온라인 / }).click();
+  await page.getByRole('button', { name: '다음', exact: true }).click();
+  await page.getByRole('button', { name: '자료 없이 직접 작성하기', exact: true }).click();
+  await page.getByLabel(/클래스 제목/).fill('온라인 설정 테스트');
+  await page
+    .getByLabel(/클래스 소개/)
+    .fill('온라인 클래스의 세부 설정 항목을 확인하는 소개입니다.');
+  await page
+    .getByPlaceholder('클래스에서 배우는 내용을 자유롭게 적어 주세요.')
+    .fill('온라인 클래스에서 꼭 필요한 참가비 설정만 노출되는지 확인합니다.');
+  await page.getByRole('button', { name: '다음', exact: true }).click();
+  await expect(page.getByLabel('참가비', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('참가인원', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: '클래스 장소' })).toHaveCount(0);
 });
