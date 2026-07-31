@@ -9,6 +9,7 @@ import {
   ClipboardCheck,
   GraduationCap,
   LayoutDashboard,
+  Link2,
   Maximize2,
   Menu,
   MonitorSmartphone,
@@ -23,8 +24,6 @@ import attendanceScreen from '../assets/landing/attendance.png';
 import certificatesScreen from '../assets/landing/certificates.jpg';
 import createClassScreen from '../assets/landing/create-class.png';
 import dashboardScreen from '../assets/landing/dashboard.jpg';
-import enrollmentMobileScreen from '../assets/landing/enrollment-mobile.png';
-import learnerRoomMobileScreen from '../assets/landing/learner-room-mobile.png';
 import operationsMobileScreen from '../assets/landing/operations-mobile.jpg';
 import operationsScreen from '../assets/landing/operations.jpg';
 import settlementsScreen from '../assets/landing/settlements.jpg';
@@ -496,76 +495,75 @@ export function LandingPage() {
             </div>
 
             <div
-              className="landing-learner-visual landing-reveal"
-              aria-label="신청부터 학습까지의 실제 모바일 화면"
+              className="landing-learner-phone landing-reveal"
+              role="img"
+              aria-label="공유 링크에서 클래스 정보를 확인하고 신청하는 모바일 화면 예시"
             >
-              <div className="landing-learner-screens">
-                <article className="landing-learner-screen-card">
-                  <div className="landing-learner-screen-label">
+              <div className="landing-learner-device" aria-hidden="true">
+                <div className="landing-device-top">
+                  <span>9:41</span>
+                  <i />
+                </div>
+                <div className="landing-learner-cover">
+                  <Play size={30} fill="currentColor" />
+                  <span>온라인 클래스</span>
+                </div>
+                <div className="landing-learner-content">
+                  <StatusBadge>{course.status}</StatusBadge>
+                  <h3>{classDetail.title}</h3>
+                  <p>{classDetail.summary}</p>
+                  <div className="landing-learner-instructor">
+                    <i>이</i>
                     <span>
-                      <b>01</b> 링크에서 신청
+                      <small>강사</small>
+                      <b>{classDetail.instructor}</b>
                     </span>
-                    <button
-                      type="button"
-                      aria-label="모바일 수강 신청 화면 확대 보기"
-                      onClick={() =>
-                        setImagePreview({
-                          title: '모바일 수강 신청',
-                          images: [
-                            {
-                              src: enrollmentMobileScreen,
-                              alt: '원클릭 클래스의 실제 모바일 수강 신청 화면',
-                            },
-                          ],
-                        })
-                      }
-                    >
-                      <Maximize2 size={14} /> 확대
-                    </button>
                   </div>
-                  <figure className="landing-mobile-shot">
-                    <img
-                      src={enrollmentMobileScreen}
-                      alt="원클릭 클래스의 실제 모바일 수강 신청 화면"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  </figure>
-                </article>
-
-                <article className="landing-learner-screen-card">
-                  <div className="landing-learner-screen-label">
-                    <span>
-                      <b>02</b> 수강실에서 이어보기
-                    </span>
-                    <button
-                      type="button"
-                      aria-label="모바일 수강실 화면 확대 보기"
-                      onClick={() =>
-                        setImagePreview({
-                          title: '모바일 수강실',
-                          images: [
-                            {
-                              src: learnerRoomMobileScreen,
-                              alt: '원클릭 클래스의 실제 모바일 수강실 화면',
-                            },
-                          ],
-                        })
-                      }
-                    >
-                      <Maximize2 size={14} /> 확대
-                    </button>
+                  <dl>
+                    <div>
+                      <dt>
+                        <CalendarDays size={15} /> 일정
+                      </dt>
+                      <dd>{course.date}</dd>
+                    </div>
+                    <div>
+                      <dt>
+                        <MonitorSmartphone size={15} /> 장소
+                      </dt>
+                      <dd>{classDetail.location}</dd>
+                    </div>
+                    <div>
+                      <dt>
+                        <Users size={15} /> 남은 자리
+                      </dt>
+                      <dd>{course.capacity - course.enrolled}자리</dd>
+                    </div>
+                  </dl>
+                  <div className="landing-curriculum">
+                    <div>
+                      <b>커리큘럼</b>
+                      <small>총 {classDetail.sessions}회</small>
+                    </div>
+                    {classDetail.curriculum.slice(0, 2).map((lesson, index) => (
+                      <p key={lesson.id}>
+                        <span>{index + 1}</span>
+                        <b>{lesson.title}</b>
+                        <small>{lesson.durationText}</small>
+                      </p>
+                    ))}
                   </div>
-                  <figure className="landing-mobile-shot">
-                    <img
-                      src={learnerRoomMobileScreen}
-                      alt="원클릭 클래스의 실제 모바일 수강실 화면"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  </figure>
-                </article>
+                </div>
+                <div className="landing-learner-sticky">
+                  <span>
+                    <small>수강료</small>
+                    <b>{won(classDetail.price)}</b>
+                  </span>
+                  <span className="landing-learner-apply">신청하기</span>
+                </div>
               </div>
+              <span className="landing-share-chip" aria-hidden="true">
+                <Link2 size={16} /> 링크 공유 완료
+              </span>
             </div>
           </div>
         </section>
