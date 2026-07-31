@@ -68,7 +68,7 @@ export function ClassDetailPage() {
   const { id = 'notion' } = useParams();
   const [detail, setDetail] = useState<ClassDetail>();
   const [error, setError] = useState('');
-  const thumbnail = getClassThumbnail(id);
+  const thumbnail = detail?.thumbnail || getClassThumbnail(id);
   const [toast, setToast] = useState('');
   const [shareQrUrl, setShareQrUrl] = useState('');
   const sharePath = `/s/${detail?.shareToken || (id === 'notion' ? 'notion-auto' : id)}`;
@@ -99,7 +99,7 @@ export function ClassDetailPage() {
     BarChart3,
     '설문·시험',
     reviewCount
-      ? `후기 ${reviewCount}개 · 만족 ${detail?.rating || '-'}`
+      ? `후기 ${reviewCount}개 · 평점 ${(detail?.rating || 0).toFixed(1)}/5`
       : '항목 만들기 · 결과 확인',
   ]);
   const applicantTrend = detail?.applicantTrend || [];
@@ -442,11 +442,53 @@ export function ClassDetailPage() {
 
       <div className="page subpage class-dashboard original-detail">
         <PageHeader title="" backTo="/classes" />
-        <div className="class-cover" />
+        <div
+          className={`class-cover ${thumbnail ? 'has-thumbnail' : 'is-placeholder'}`}
+          style={thumbnail ? { backgroundImage: `url(${thumbnail})` } : undefined}
+        >
+          <span>
+            <b>{detail?.status || '상태 확인 중'}</b>
+            <small>
+              {detail
+                ? detail.publicOn
+                  ? '신청 페이지 공개'
+                  : '신청 페이지 비공개'
+                : '강의 정보를 불러오고 있어요'}
+            </small>
+          </span>
+        </div>
         <h1>{detail?.title || '강의 정보를 불러오는 중이에요'}</h1>
         <p className="muted">
           신청 {enrolled} / {capacity}명 · {detail?.recruitEndDate || '마감일 미정'}
         </p>
+        <Link
+          className={`mobile-curriculum-overview ${
+            detail && !curriculum.length ? 'empty' : ''
+          }`}
+          to={`/classes/${id}/curriculum`}
+        >
+          <i>
+            <ClipboardList />
+          </i>
+          <span>
+            <b>커리큘럼·차시 관리</b>
+            <strong>
+              {!detail
+                ? '커리큘럼을 불러오는 중이에요'
+                : curriculum.length
+                  ? `${curriculumGroups.length}개 섹션 · ${curriculum.length}개 차시`
+                  : '아직 등록된 차시가 없어요'}
+            </strong>
+            <small>
+              {!detail
+                ? '잠시만 기다려 주세요'
+                : curriculum.length
+                  ? `공개 ${publishedLessons}개 · 미공개 ${curriculum.length - publishedLessons}개`
+                  : '첫 차시를 만들어 강의를 준비하세요'}
+            </small>
+          </span>
+          <em aria-hidden="true">›</em>
+        </Link>
         <div className="dashboard-grid">
           {mobileMenus.map(([path, Icon, title, desc]) => (
             <Link to={`/classes/${id}/${path}`} key={path}>
@@ -470,7 +512,7 @@ export function ClassDetailPage() {
             <Settings />
           </i>
           <span>
-            <b>강의 관리</b>
+            <b>기본 정보·공개 설정</b>
             <small>정보 수정 · 공개 상태 · 모집 마감</small>
           </span>
         </Link>
@@ -478,6 +520,10 @@ export function ClassDetailPage() {
           <Eye />
           수강생 화면 미리보기
         </Link>
+        <button className="mobile-share-action" type="button" onClick={copyShare}>
+          <Link2 />
+          신청 링크 복사
+        </button>
       </div>
     </>
   );

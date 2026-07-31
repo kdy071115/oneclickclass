@@ -288,6 +288,30 @@ describe('oneclick learner service', () => {
     });
   });
 
+  it('replaces generic public section titles with their section order', async () => {
+    localStorage.setItem(
+      'oneclick.curriculum.course-with-generic-sections',
+      JSON.stringify([
+        {
+          id: 'section-1',
+          title: '커리큘럼',
+          lessons: [{ id: 'lesson-1', title: '기초 이해', durationMinutes: 10, published: true }],
+        },
+        {
+          id: 'section-2',
+          title: '커리큘럼',
+          lessons: [{ id: 'lesson-2', title: '실전 적용', durationMinutes: 20, published: true }],
+        },
+      ]),
+    );
+
+    const share = await oneclickService.share('course-with-generic-sections');
+    expect(share.curriculum).toEqual([
+      expect.objectContaining({ sectionTitle: '전체 과정' }),
+      expect.objectContaining({ sectionTitle: '섹션 2' }),
+    ]);
+  });
+
   it('maps the notion public token to the instructor course curriculum', async () => {
     localStorage.setItem(
       'oneclick.curriculum.notion',

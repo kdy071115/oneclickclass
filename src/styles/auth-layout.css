@@ -15,5 +15,6 @@
   .oc-auth-content { display: block; min-height: 100dvh; padding: 0; background: #fff; }
   .oc-auth-content > .standalone { width: 100%; min-height: 100dvh; height: 100dvh; background: #fff; }
   .oc-auth-content > .standalone > section, .oc-auth-content > .standalone > form { width: 100%; min-height: 100dvh; height: 100dvh; max-height: none; border-radius: 0; }
-  .oc-auth-content .statusbar { display: flex; }
+  .oc-auth-content .statusbar { display: none; }
+  .oc-auth-content .standalone.framed .auth { padding-top: 32px !important; }
 }

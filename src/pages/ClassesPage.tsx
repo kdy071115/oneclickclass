@@ -4,19 +4,27 @@ import { Link } from 'react-router-dom';
 import { classService } from '../api/services';
 import { AsyncState } from '../components/common/AsyncState';
 import { ClassCard } from '../components/feature/ClassCard';
-import { Badge, IconButton, Table, type TableColumn } from '../components/ui';
+import { Badge, IconButton, SearchInput, Table, type TableColumn } from '../components/ui';
 import { useAsync } from '../hooks/useAsync';
 import type { ClassItem, ClassStatus } from '../types/class';
 import { getStatusTone } from '../utils/status';
 import { getClassThumbnail } from '../utils/classThumbnail';
+
+const classFilters = ['전체', '준비중', '모집중', '모집 마감', '진행중', '종료'] as const;
+
 export function ClassesPage() {
   const load = useCallback(() => classService.list(), []);
   const { data = [], loading, error, retry } = useAsync(load);
   const [filter, setFilter] = useState<'전체' | ClassStatus>('전체');
+  const [query, setQuery] = useState('');
   const [sort, setSort] = useState<'title' | 'status'>('title');
   const [direction, setDirection] = useState<'asc' | 'desc'>('asc');
   const [view, setView] = useState<'table' | 'cards'>('cards');
-  const shown = filter === '전체' ? data : data.filter((x) => x.status === filter);
+  const shown = data.filter(
+    (item) =>
+      (filter === '전체' || item.status === filter) &&
+      item.title.toLocaleLowerCase('ko-KR').includes(query.trim().toLocaleLowerCase('ko-KR')),
+  );
   const sorted = [...shown].sort(
     (a, b) => a[sort].localeCompare(b[sort]) * (direction === 'asc' ? 1 : -1),
   );
@@ -81,7 +89,7 @@ export function ClassesPage() {
         </div>
         <div className="class-list-toolbar">
           <div className="oc-filters">
-            {(['전체', '준비중', '모집중', '모집 마감', '진행중', '종료'] as const).map((x) => (
+            {classFilters.map((x) => (
               <button className={filter === x ? 'active' : ''} onClick={() => setFilter(x)} key={x}>
                 {x}
               </button>
@@ -128,22 +136,50 @@ export function ClassesPage() {
         <div className="title-row">
           <h1>클래스</h1>
         </div>
-        <div className="chips">
-          {(['전체', '준비중', '모집중', '모집 마감', '진행중', '종료'] as const).map((x) => (
-            <button className={filter === x ? 'active' : ''} onClick={() => setFilter(x)} key={x}>
-              {x}
-            </button>
-          ))}
+        <div className="mobile-list-controls">
+          <SearchInput
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="클래스명 검색"
+          />
+          <select
+            aria-label="클래스 정렬"
+            value={sort}
+            onChange={(event) => setSort(event.target.value as 'title' | 'status')}
+          >
+            <option value="title">이름순</option>
+            <option value="status">상태순</option>
+          </select>
+        </div>
+        <div className="mobile-filter-scroll">
+          <div className="chips mobile-filter-chips" aria-label="클래스 상태 필터">
+            {classFilters.map((x) => (
+              <button
+                className={filter === x ? 'active' : ''}
+                type="button"
+                aria-pressed={filter === x}
+                onClick={() => setFilter(x)}
+                key={x}
+              >
+                {x}
+              </button>
+            ))}
+          </div>
         </div>
         <AsyncState
           loading={loading}
           error={error}
-          empty={!loading && !error && !shown.length}
+          empty={!loading && !error && !sorted.length}
           onRetry={retry}
         />
-        {shown.map((c) => (
-          <ClassCard item={c} key={c.id} />
-        ))}
+        {!loading && !error && sorted.length > 0 && (
+          <>
+            <div className="mobile-result-count">{sorted.length}개 클래스</div>
+            {sorted.map((item) => (
+              <ClassCard item={item} key={item.id} />
+            ))}
+          </>
+        )}
       </div>
     </>
   );

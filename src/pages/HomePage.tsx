@@ -366,7 +366,7 @@ export function HomePage() {
                 강의 {data.todayClasses}개가 있어요
               </strong>
               <span>
-                오늘 일정 보기 <ChevronRight size={15} />
+                출석 체크 시작 <ChevronRight size={15} />
               </span>
               <i />
             </button>
@@ -447,7 +447,7 @@ export function HomePage() {
             </div>
             <div className="student-stack">
               {studentInProgress.map((c) => (
-                <button className="student-class-card" onClick={() => nav(`/learn/classes/${c.id}`)} key={c.id}>
+                <button className="student-class-card" onClick={() => nav(`/learn/${c.id}`)} key={c.id}>
                   <i style={{ background: `linear-gradient(135deg,${c.color},color-mix(in srgb, ${c.color}, white 35%))` }} />
                   <span>
                     <b>{c.title}</b>

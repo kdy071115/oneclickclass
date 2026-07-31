@@ -13,7 +13,6 @@ import {
   CreditCard,
   ExternalLink,
   FileText,
-  Heart,
   LockKeyhole,
   MapPin,
   Megaphone,
@@ -46,7 +45,7 @@ import { loadClassDraft, loadClassPreview } from '../utils/classDraft';
 import { classService, curriculumService, detailService } from '../api/services';
 import type { ClassDetail, CurriculumSection } from '../types/class';
 import { getPublishIssues, type PublishIssue } from '../utils/classReadiness';
-import { useCourseBookmark } from '../hooks/useCourseBookmark';
+import { getEnrollmentAction } from '../utils/enrollmentAction';
 import { ConfirmDialog } from '../components/ui';
 import { YouTubePlayer } from '../components/YouTubePlayer';
 
@@ -87,8 +86,14 @@ const formatSectionSummary = (count: number, minutes: number) => {
   return `${count}개 차시 · ${minutes}분`;
 };
 
-const groupCurriculumItems = <T extends { sectionId?: string; sectionTitle?: string; durationText: string }>(items: T[]) =>
-  items.reduce<Array<{ key: string; title: string; items: T[]; totalMinutes: number }>>((groups, item, index) => {
+const groupCurriculumItems = <
+  T extends { sectionId?: string; sectionTitle?: string; durationText: string },
+>(
+  items: T[],
+) => {
+  const groups = items.reduce<
+    Array<{ key: string; title: string; items: T[]; totalMinutes: number }>
+  >((groups, item, index) => {
     const title = item.sectionTitle || '커리큘럼';
     const key = item.sectionId || item.sectionTitle || `default-${index}`;
     const previous = groups[groups.length - 1];
@@ -105,6 +110,16 @@ const groupCurriculumItems = <T extends { sectionId?: string; sectionTitle?: str
     });
     return groups;
   }, []);
+  return groups.map((group, index) => ({
+    ...group,
+    title:
+      !group.title.trim() || group.title.trim() === '커리큘럼'
+        ? index === 0
+          ? '전체 과정'
+          : `섹션 ${index + 1}`
+        : group.title,
+  }));
+};
 
 const hasLessonContent = (lesson: OneClickLesson) =>
   Boolean(lesson.contentUrl || lesson.resources?.length);
@@ -113,7 +128,9 @@ const getResumeLessonIndex = (room: OneClickLearnRoom) => {
   const available = (lesson: OneClickLesson) =>
     !lesson.locked && lesson.playable && hasLessonContent(lesson);
   const savedIndex = room.resumeLessonId
-    ? room.lessons.findIndex((lesson) => lesson.lessonId === room.resumeLessonId && available(lesson))
+    ? room.lessons.findIndex(
+        (lesson) => lesson.lessonId === room.resumeLessonId && available(lesson),
+      )
     : -1;
   if (savedIndex >= 0) return savedIndex;
   const legacyIndex = Number.parseInt(room.lastPosition, 10) - 1;
@@ -130,12 +147,11 @@ const getResumeLessonIndex = (room: OneClickLearnRoom) => {
   return completedIndex >= 0 ? completedIndex : 0;
 };
 
-const getLessonDisplayNumber = (
-  groups: Array<{ items: OneClickLesson[] }>,
-  lessonId: string,
-) => {
+const getLessonDisplayNumber = (groups: Array<{ items: OneClickLesson[] }>, lessonId: string) => {
   for (let sectionIndex = 0; sectionIndex < groups.length; sectionIndex += 1) {
-    const lessonIndex = groups[sectionIndex].items.findIndex((lesson) => lesson.lessonId === lessonId);
+    const lessonIndex = groups[sectionIndex].items.findIndex(
+      (lesson) => lesson.lessonId === lessonId,
+    );
     if (lessonIndex >= 0) return `${sectionIndex + 1}-${lessonIndex + 1}`;
   }
   return '1-1';
@@ -223,20 +239,17 @@ export function PublicEnrollmentPage() {
   const [verificationCode, setVerificationCode] = useState('');
   const [verificationHint, setVerificationHint] = useState('');
   const [error, setError] = useState('');
-  const [errorTarget, setErrorTarget] = useState<'name' | 'phone' | 'privacy' | 'payment' | 'verification' | ''>('');
+  const [errorTarget, setErrorTarget] = useState<
+    'name' | 'phone' | 'privacy' | 'payment' | 'verification' | ''
+  >('');
   const [submitting, setSubmitting] = useState(false);
   const [applicationFocus, setApplicationFocus] = useState(false);
+  const [applicationStarted, setApplicationStarted] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const phoneInputRef = useRef<HTMLInputElement>(null);
   const verificationInputRef = useRef<HTMLInputElement>(null);
   const privacyInputRef = useRef<HTMLInputElement>(null);
   const paymentInputRef = useRef<HTMLInputElement>(null);
-  const {
-    bookmarked,
-    loading: bookmarkLoading,
-    error: bookmarkError,
-    toggle: toggleBookmark,
-  } = useCourseBookmark(share?.courseActiveSeq, Boolean(existing));
   const [activeSection, setActiveSection] = useState<'learn' | 'curriculum' | 'reviews'>(() => {
     const section = location.hash.slice(1);
     return section === 'curriculum' || section === 'reviews' ? section : 'learn';
@@ -325,7 +338,11 @@ export function PublicEnrollmentPage() {
         return;
       }
       if (verificationCode.replace(/\D/g, '').length !== 6) {
-        setFormError('문자로 받은 6자리 인증번호를 입력해 주세요.', 'verification', verificationInputRef);
+        setFormError(
+          '문자로 받은 6자리 인증번호를 입력해 주세요.',
+          'verification',
+          verificationInputRef,
+        );
         return;
       }
       const enrollment = await oneclickService.apply(shareToken, {
@@ -397,13 +414,13 @@ export function PublicEnrollmentPage() {
         : '인증번호 전송 중...'
       : !verificationSent
         ? '휴대전화 확인하기'
-      : share?.requiresApproval
-        ? '신청서 제출하기'
-        : share?.paymentType === 'PAID'
-          ? '신청하고 결제하기'
-          : !showCurriculum
-            ? '신청하고 안내받기'
-            : '신청하고 바로 입장';
+        : share?.requiresApproval
+          ? '신청서 제출하기'
+          : share?.paymentType === 'PAID'
+            ? '신청하고 결제하기'
+            : !showCurriculum
+              ? '신청하고 안내받기'
+              : '신청하고 바로 입장';
   const applyGuide = disabled
     ? '현재는 새 신청을 받을 수 없어요.'
     : share?.requiresApproval
@@ -438,42 +455,36 @@ export function PublicEnrollmentPage() {
     : '0.0';
   const highlights = share?.highlights ?? [];
   const remainingSeats = share?.remainingSeats ?? draft.capacity;
-  const mobileCtaText = !share || !existingChecked
-    ? '신청 정보 확인 중...'
-    : canEnterLearnerRoom(existing)
-    ? showCurriculum
-      ? '바로 이어보기'
-      : '강의 준비 상태 확인'
-    : existing
-      ? '신청 상태 확인하기'
-      : share?.paymentType === 'PAID'
-        ? `${priceText} 결제하고 신청`
-        : `무료로 신청 · 잔여 ${remainingSeats}명`;
-  const mobileCtaDisabled = !share || !existingChecked;
+  const instructorName = share?.instructorName || '강사 안내';
+  const mobileAction = getEnrollmentAction({
+    applicationStarted,
+    enrollment: existing,
+    existingChecked,
+    hasShare: Boolean(share),
+    priceText,
+    showCurriculum,
+  });
   const moveToApplication = () => {
     if (existing && !showNewApplication) {
       if (canEnterLearnerRoom(existing)) return void resumeLearning();
-      document.getElementById('learner-application')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      document
+        .getElementById('learner-application')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
+    setApplicationStarted(true);
     setApplicationFocus(true);
-    document.getElementById('learner-application')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    document
+      .getElementById('learner-application')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    window.setTimeout(() => nameInputRef.current?.focus(), 350);
     window.setTimeout(() => setApplicationFocus(false), 1400);
-  };
-  const handleBookmark = () => {
-    if (!existing) {
-      setError('관심 클래스 저장은 신청 정보를 확인한 뒤 사용할 수 있어요.');
-      document.getElementById('learner-application')?.scrollIntoView({ behavior: 'smooth' });
-      return;
-    }
-    void toggleBookmark();
   };
   return (
     <div className="learner-shell learner-apply">
       <header className="learner-topbar">
         <b>원클릭 클래스</b>
         <nav>
-          <Link to="/favorites">관심 클래스</Link>
           <a className={activeSection === 'curriculum' ? 'active' : ''} href="#curriculum">
             커리큘럼
           </a>
@@ -485,18 +496,13 @@ export function PublicEnrollmentPage() {
       <main className="learner-apply-grid">
         <section className="learner-content learner-public-content">
           <div className="learner-hero">
-            <button
-              className={`learner-bookmark-button ${bookmarked ? 'active' : ''}`}
-              type="button"
-              aria-label={bookmarked ? '관심 클래스 해제' : '관심 클래스 등록'}
-              aria-pressed={bookmarked}
-              disabled={bookmarkLoading || !share || !existingChecked}
-              onClick={handleBookmark}
-            >
-              <Heart fill={bookmarked ? 'currentColor' : 'none'} />
-              <span>{bookmarked ? '관심 저장됨' : '관심 클래스'}</span>
-            </button>
-            <div>
+            <div className="learner-mobile-cover" aria-hidden="true">
+              <span>
+                <Play fill="currentColor" />
+              </span>
+              <b>온라인 클래스</b>
+            </div>
+            <div className="learner-hero-body">
               <span className="learner-badge">{disabled ? '모집 마감' : '모집중'}</span>
               <h1>{title}</h1>
               <p>{summary}</p>
@@ -514,17 +520,44 @@ export function PublicEnrollmentPage() {
                   <small>수강 방식</small>
                 </span>
               </div>
+              <div className="learner-mobile-instructor">
+                <i>{instructorName.slice(0, 1)}</i>
+                <span>
+                  <small>강사</small>
+                  <b>{instructorName}</b>
+                </span>
+              </div>
+              <dl className="learner-mobile-meta">
+                <div>
+                  <dt>
+                    <CalendarDays /> 일정
+                  </dt>
+                  <dd>{share?.scheduleText || '일정 확인 중'}</dd>
+                </div>
+                <div>
+                  <dt>
+                    <MapPin /> 장소
+                  </dt>
+                  <dd>{share?.locationText || '장소 확인 중'}</dd>
+                </div>
+                <div>
+                  <dt>
+                    <UserRound /> 남은 자리
+                  </dt>
+                  <dd>{remainingSeats}자리</dd>
+                </div>
+              </dl>
             </div>
           </div>
-          {bookmarkError && <p className="learner-bookmark-error" role="status">{bookmarkError}</p>}
-          <button
-            className="learner-mobile-apply-cta"
-            type="button"
-            disabled={mobileCtaDisabled}
-            onClick={moveToApplication}
-          >
-            {mobileCtaText}
-          </button>
+          <div className="learner-mobile-apply-bar">
+            <span>
+              <small>{mobileAction.label}</small>
+              <b>{mobileAction.value}</b>
+            </span>
+            <button type="button" disabled={mobileAction.disabled} onClick={moveToApplication}>
+              {mobileAction.text}
+            </button>
+          </div>
           <div className="learner-tabs" aria-label="강의 정보">
             <a className={activeSection === 'learn' ? 'active' : ''} href="#learn">
               소개
@@ -536,7 +569,7 @@ export function PublicEnrollmentPage() {
               후기
             </a>
           </div>
-          <section className="learner-section" id="learn">
+          <section className="learner-section learner-overview-section" id="learn">
             <h2>이런 걸 배워요</h2>
             {highlights.length ? (
               <div className="learner-highlight-list">
@@ -552,27 +585,43 @@ export function PublicEnrollmentPage() {
             )}
           </section>
           <section className="learner-section" id="curriculum">
-            <h2>커리큘럼</h2>
+            <div className="learner-section-heading">
+              <h2>커리큘럼</h2>
+              {showCurriculum && <small>총 {curriculum.length}개 차시</small>}
+            </div>
             {!showCurriculum ? (
               <p className="curriculum-empty">상세 커리큘럼은 강의자가 준비한 뒤 안내해 드려요.</p>
             ) : (
               <div className="learner-curriculum">
                 {curriculumGroups.map((section, sectionIndex) => (
-                  <section className="learner-curriculum-group" key={section.key}>
-                    <header className="learner-curriculum-section">
+                  <details
+                    className="learner-curriculum-group"
+                    key={section.key}
+                    open={sectionIndex === 0}
+                  >
+                    <summary className="learner-curriculum-section">
                       <span>{String(sectionIndex + 1).padStart(2, '0')}</span>
-                      <b>섹션 {sectionIndex + 1}</b>
                       <strong>{section.title}</strong>
-                      <small>{formatSectionSummary(section.items.length, section.totalMinutes)}</small>
-                    </header>
+                      <small>
+                        {formatSectionSummary(section.items.length, section.totalMinutes)}
+                      </small>
+                      <ChevronDown aria-hidden="true" />
+                    </summary>
                     {section.items.map((lesson, lessonIndex) => (
                       <article className="learner-curriculum-row" key={lesson.lessonId}>
-                        <i><Play size={14} fill="currentColor" /></i>
-                        <span><b>{sectionIndex + 1}-{lessonIndex + 1} · {lesson.title}</b><small>{lesson.description}</small></span>
+                        <i>
+                          <Play size={14} fill="currentColor" />
+                        </i>
+                        <span>
+                          <b>
+                            {sectionIndex + 1}-{lessonIndex + 1}차시 · {lesson.title}
+                          </b>
+                          <small>{lesson.description}</small>
+                        </span>
                         <em>{lesson.durationText}</em>
                       </article>
                     ))}
-                  </section>
+                  </details>
                 ))}
               </div>
             )}
@@ -584,8 +633,10 @@ export function PublicEnrollmentPage() {
                 <p>실제 수강생이 남긴 후기예요.</p>
               </div>
               {reviews.length > 0 && (
-                <strong>
-                  <Star fill="currentColor" />
+                <strong
+                  aria-label={`평균 평점 5점 만점에 ${reviewAverage}점, 후기 ${reviews.length}개`}
+                >
+                  <Star fill="currentColor" aria-hidden="true" />
                   {reviewAverage}
                   <small>{reviews.length}개</small>
                 </strong>
@@ -595,9 +646,11 @@ export function PublicEnrollmentPage() {
               <div className="learner-review-grid">
                 {reviews.map((review) => (
                   <article key={review.reviewSeq}>
-                    <b>
-                      {'★'.repeat(review.rating)}
-                      {'☆'.repeat(5 - review.rating)}
+                    <b aria-label={`5점 만점에 ${review.rating}점`}>
+                      <span aria-hidden="true">
+                        {'★'.repeat(review.rating)}
+                        {'☆'.repeat(5 - review.rating)}
+                      </span>
                     </b>
                     <p>{review.content}</p>
                     <small>
@@ -617,7 +670,14 @@ export function PublicEnrollmentPage() {
             )}
           </section>
         </section>
-        <aside className="learner-apply-side" id="learner-application">
+        <aside
+          className={`learner-apply-side ${
+            existing && !showNewApplication && canEnterLearnerRoom(existing)
+              ? 'is-resumable'
+              : ''
+          }`}
+          id="learner-application"
+        >
           {!existingChecked ? (
             <section className="learner-card learner-application-state" aria-live="polite">
               <span className="spinner" />
@@ -644,7 +704,11 @@ export function PublicEnrollmentPage() {
               )}
               <h2>{existingTitle}</h2>
               <p>{existingDescription}</p>
-              {error && <p className="form-error" role="alert">{error}</p>}
+              {error && (
+                <p className="form-error" role="alert">
+                  {error}
+                </p>
+              )}
               <button className="primary" onClick={() => void resumeLearning()}>
                 {canEnterLearnerRoom(existing)
                   ? showCurriculum
@@ -657,6 +721,7 @@ export function PublicEnrollmentPage() {
                 type="button"
                 onClick={() => {
                   setShowNewApplication(true);
+                  setApplicationStarted(true);
                   setApplicationFocus(true);
                   window.setTimeout(() => {
                     document.getElementById('learner-application')?.scrollIntoView({
@@ -686,6 +751,7 @@ export function PublicEnrollmentPage() {
                 <input
                   ref={nameInputRef}
                   aria-invalid={errorTarget === 'name'}
+                  autoComplete="name"
                   value={form.name}
                   onChange={(e) => {
                     setForm({ ...form, name: e.target.value });
@@ -703,6 +769,7 @@ export function PublicEnrollmentPage() {
                   ref={phoneInputRef}
                   aria-invalid={errorTarget === 'phone'}
                   inputMode="tel"
+                  autoComplete="tel"
                   value={form.phone}
                   onChange={(e) => {
                     setForm({ ...form, phone: e.target.value });
@@ -744,6 +811,7 @@ export function PublicEnrollmentPage() {
                 이메일 <small>선택</small>
                 <input
                   type="email"
+                  autoComplete="email"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   placeholder="example@email.com"
@@ -786,7 +854,11 @@ export function PublicEnrollmentPage() {
               <div className="entry-note">
                 <LockKeyhole /> {applyGuide}
               </div>
-              {error && <p className="form-error" role="alert">{error}</p>}
+              {error && (
+                <p className="form-error" role="alert">
+                  {error}
+                </p>
+              )}
               <button className="primary" disabled={submitting || disabled}>
                 {applyButtonText}
               </button>
@@ -1044,7 +1116,8 @@ export function LearnerRoomPage() {
   const [curriculumOpen, setCurriculumOpen] = useState(false);
   const [courseInfoOpen, setCourseInfoOpen] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(() => new Set());
-  const [activeMarker, setActiveMarker] = useState<NonNullable<OneClickLesson['markers']>[number]>();
+  const [activeMarker, setActiveMarker] =
+    useState<NonNullable<OneClickLesson['markers']>[number]>();
   const [markerAnswer, setMarkerAnswer] = useState<number>();
   const toolPanelRef = useRef<HTMLElement | null>(null);
   const lastHeartbeatRef = useRef(0);
@@ -1265,14 +1338,23 @@ export function LearnerRoomPage() {
   }
   if (!enrollment.canLearn) {
     const accessCopy = {
-      AWAITING_APPROVAL: ['신청 승인 대기 중이에요.', '강의자가 신청을 확인하면 이 화면에서 바로 알려드릴게요.'],
+      AWAITING_APPROVAL: [
+        '신청 승인 대기 중이에요.',
+        '강의자가 신청을 확인하면 이 화면에서 바로 알려드릴게요.',
+      ],
       AWAITING_PAYMENT: ['결제 확인이 필요해요.', '결제를 완료하면 수강권이 바로 활성화돼요.'],
       PAYMENT_FAILED: ['결제를 완료하지 못했어요.', '결제 상태를 확인한 뒤 다시 시도해 주세요.'],
       REJECTED: ['신청이 승인되지 않았어요.', '자세한 내용은 강의자에게 문의해 주세요.'],
-      CANCELLED: ['취소된 신청이에요.', '다시 참여하려면 강의 정보에서 신청 가능 여부를 확인해 주세요.'],
+      CANCELLED: [
+        '취소된 신청이에요.',
+        '다시 참여하려면 강의 정보에서 신청 가능 여부를 확인해 주세요.',
+      ],
       REFUNDED: ['환불이 완료된 수강권이에요.', '환불된 신청으로는 강의를 볼 수 없어요.'],
       SUSPENDED: ['수강권이 일시 정지됐어요.', '자세한 내용은 강의자에게 문의해 주세요.'],
-      COURSE_UNAVAILABLE: ['현재 강의를 이용할 수 없어요.', '강의 공개 상태를 잠시 후 다시 확인해 주세요.'],
+      COURSE_UNAVAILABLE: [
+        '현재 강의를 이용할 수 없어요.',
+        '강의 공개 상태를 잠시 후 다시 확인해 주세요.',
+      ],
       AVAILABLE: ['수강권을 확인하고 있어요.', '잠시 후 다시 확인해 주세요.'],
     } as const;
     const [pendingTitle, pendingDescription] = accessCopy[enrollment.accessReason];
@@ -1334,7 +1416,17 @@ export function LearnerRoomPage() {
     return (
       <div className="learner-shell learner-room-shell">
         <header className="learner-room-topbar">
-          <b>원클릭 클래스</b>
+          <div className="learner-room-brand">
+            <button
+              className="learner-room-back"
+              type="button"
+              aria-label="강의 정보로 돌아가기"
+              onClick={() => nav(`/s/${courseShareToken}`)}
+            >
+              <ArrowLeft aria-hidden="true" />
+            </button>
+            <b>원클릭 클래스</b>
+          </div>
           <div className="learner-room-actions">
             <button type="button" onClick={() => nav(`/s/${courseShareToken}`)}>
               강의 정보
@@ -1371,12 +1463,11 @@ export function LearnerRoomPage() {
     activeLesson.currentSeconds ?? playbackStartSeconds,
   )}`;
   const linkedLessonView = getLinkedLessonView(activeLesson.contentProvider);
-  const activeLessonResources =
-    activeLesson.resources?.length
-      ? activeLesson.resources
-      : activeLesson.contentUrl && linkedLessonView
-        ? [{ id: 'primary-resource', name: activeLesson.title, url: activeLesson.contentUrl }]
-        : [];
+  const activeLessonResources = activeLesson.resources?.length
+    ? activeLesson.resources
+    : activeLesson.contentUrl && linkedLessonView
+      ? [{ id: 'primary-resource', name: activeLesson.title, url: activeLesson.contentUrl }]
+      : [];
   const hasActiveLessonContent = hasLessonContent(activeLesson);
   const canWriteReview = Boolean(review) || enrollment.progress >= reviewMinimumProgress;
   const findAvailableLessonIndex = (start: number, direction: 1 | -1) => {
@@ -1447,9 +1538,7 @@ export function LearnerRoomPage() {
   };
   const initializeWatchedSeconds = (durationSeconds: number) => {
     if (watchedSecondsRef.current || !activeLesson.progress) return;
-    watchedSecondsRef.current = Math.round(
-      (durationSeconds * activeLesson.progress) / 100,
-    );
+    watchedSecondsRef.current = Math.round((durationSeconds * activeLesson.progress) / 100);
   };
   const recordPlaybackObservation = (currentSeconds: number, isPlaying: boolean) => {
     const now = performance.now();
@@ -1458,8 +1547,7 @@ export function LearnerRoomPage() {
       const mediaDelta = currentSeconds - previous.seconds;
       const elapsedSeconds = Math.max(0, (now - previous.sampledAt) / 1000);
       const maximumDelta = Math.max(2, elapsedSeconds * maximumTrackablePlaybackRate + 1);
-      if (mediaDelta > 0 && mediaDelta <= maximumDelta)
-        watchedSecondsRef.current += mediaDelta;
+      if (mediaDelta > 0 && mediaDelta <= maximumDelta) watchedSecondsRef.current += mediaDelta;
     }
     lastPlaybackObservationRef.current = {
       seconds: currentSeconds,
@@ -1496,8 +1584,7 @@ export function LearnerRoomPage() {
       ? Math.min(100, Math.round((watchedSeconds / durationSeconds) * 100))
       : activeProgress;
     const lessonProgress = Math.max(activeLesson.progress, measuredProgress);
-    const lessonCompleted =
-      activeLesson.completed || lessonProgress >= lessonCompletionPercent;
+    const lessonCompleted = activeLesson.completed || lessonProgress >= lessonCompletionPercent;
     const lastPosition = `${activeLessonNumber}차시 ${formatPlaybackTime(currentSeconds)}`;
     const totalProgress = Math.round(
       lessons.reduce(
@@ -1527,21 +1614,21 @@ export function LearnerRoomPage() {
             lessons: current.lessons.map((lesson, index) => {
               if (index === activeLessonIndex)
                 return {
-                    ...lesson,
-                    currentSeconds,
-                    watchedSeconds,
-                    progress: lessonProgress,
-                    completed: lessonCompleted,
-                    completedAt:
-                      lessonCompleted && !lesson.completed
-                        ? new Date().toISOString()
-                        : lesson.completedAt,
-                    completionReason: lessonCompleted
-                      ? ended
-                        ? 'ENDED'
-                        : lesson.completionReason || 'WATCH_THRESHOLD'
-                      : null,
-                  };
+                  ...lesson,
+                  currentSeconds,
+                  watchedSeconds,
+                  progress: lessonProgress,
+                  completed: lessonCompleted,
+                  completedAt:
+                    lessonCompleted && !lesson.completed
+                      ? new Date().toISOString()
+                      : lesson.completedAt,
+                  completionReason: lessonCompleted
+                    ? ended
+                      ? 'ENDED'
+                      : lesson.completionReason || 'WATCH_THRESHOLD'
+                    : null,
+                };
               if (
                 lessonCompleted &&
                 index === activeLessonIndex + 1 &&
@@ -1607,641 +1694,690 @@ export function LearnerRoomPage() {
   };
   return (
     <>
-    <div className="learner-shell learner-room-shell">
-      <header className="learner-room-topbar">
-        <b>원클릭 클래스</b>
-        <div className="learner-room-actions">
-          <button type="button" onClick={() => setCourseInfoOpen(true)}>
-            강의 정보
-          </button>
-          <span>{enrollment.learnerName}님</span>
-        </div>
-      </header>
-      <main className="learner-room-grid">
-        <section className="learner-room-main">
-          {linkedLessonView && activeLessonResources.length ? (
-            <section className="learner-material-stage">
-              <div className="learner-material-stage-head">
-                <span><FileText size={18} /> {linkedLessonView.label}</span>
-                <small>{activeLessonNumber}차시</small>
-              </div>
-              <h2>{activeLesson.title}</h2>
-              <p>{activeLesson.description || linkedLessonView.description}</p>
-              <div className="learner-material-files">
-                {activeLessonResources.map((resource, index) => (
-                  <a
-                    href={resource.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    key={resource.id}
-                    onClick={() => {
-                      watchedSecondsRef.current = 1;
-                      lastPlaybackObservationRef.current = null;
-                      savePlayback(1, false, 1, true);
-                    }}
-                  >
-                    <span>
-                      <FileText size={18} />
-                      <span>
-                        <b>{resource.name || `${linkedLessonView.action} ${index + 1}`}</b>
-                        <small>{[formatFileSize(resource.size), resource.type].filter(Boolean).join(' · ') || linkedLessonView.action}</small>
-                      </span>
-                    </span>
-                    <strong>
-                      {linkedLessonView.action}
-                      <ExternalLink size={15} />
-                    </strong>
-                  </a>
-                ))}
-              </div>
-              <small className="learner-material-stage-note">
-                자료를 열면 이 차시는 학습한 것으로 기록돼요.
-              </small>
-            </section>
-          ) : (
-          <div className={`learner-player ${hasActiveLessonContent ? 'has-video' : 'is-empty'}`}>
-            {activeLesson.contentProvider === 'FILE' && activeLesson.contentUrl ? (
-              <video
-                key={`${activeLesson.lessonId}-${playbackSession}`}
-                controls
-                controlsList="nodownload noremoteplayback"
-                disablePictureInPicture
-                src={activeLesson.contentUrl}
-                onContextMenu={(event) => event.preventDefault()}
-                onPlay={(event) => {
-                  setPlaying(true);
-                  recordPlaybackObservation(event.currentTarget.currentTime, true);
-                }}
-                onLoadedMetadata={(event) => {
-                  setActiveDurationSeconds(event.currentTarget.duration);
-                  initializeWatchedSeconds(event.currentTarget.duration);
-                  if (playbackStartSeconds)
-                    event.currentTarget.currentTime = playbackStartSeconds;
-                }}
-                onPause={(event) => {
-                  setPlaying(false);
-                  savePlayback(
-                    event.currentTarget.currentTime,
-                    false,
-                    event.currentTarget.duration,
-                  );
-                }}
-                onEnded={(event) =>
-                  savePlayback(
-                    event.currentTarget.currentTime,
-                    false,
-                    event.currentTarget.duration,
-                    true,
-                  )
-                }
-                onTimeUpdate={(event) => {
-                  const seconds = event.currentTarget.currentTime;
-                  recordPlaybackObservation(seconds, true);
-                  if (showMarkerAt(seconds)) {
-                    event.currentTarget.pause();
-                    return;
-                  }
-                  if (seconds - lastHeartbeatRef.current < 10) return;
-                  lastHeartbeatRef.current = seconds;
-                  savePlayback(seconds, true, event.currentTarget.duration);
-                }}
-              />
-            ) : activeLesson.contentProvider === 'YOUTUBE' && activeLesson.contentUrl ? (
-              <YouTubePlayer
-                key={`${activeLesson.lessonId}-${playbackSession}`}
-                videoId={getYouTubeVideoId(activeLesson.contentUrl)}
-                startSeconds={playbackStartSeconds}
-                onPlayingChange={setPlaying}
-                onProgress={(currentSeconds, durationSeconds, isPlaying, ended) => {
-                  setActiveDurationSeconds(durationSeconds);
-                  initializeWatchedSeconds(durationSeconds);
-                  savePlayback(currentSeconds, isPlaying, durationSeconds, ended);
-                }}
-                onTimeChange={(currentSeconds) => {
-                  recordPlaybackObservation(currentSeconds, true);
-                  return showMarkerAt(currentSeconds);
-                }}
-                onDuration={(durationSeconds) => {
-                  setActiveDurationSeconds(durationSeconds);
-                  initializeWatchedSeconds(durationSeconds);
-                }}
-              />
-            ) : activeLesson.contentProvider === 'VIMEO' && activeLesson.contentUrl ? (
-              <div className="learner-player-empty protected-external-content">
-                <ExternalLink />
-                <b>Vimeo 재생은 준비 중이에요.</b>
-                <p>YouTube 강의는 수강실 안에서 바로 재생할 수 있어요.</p>
-              </div>
-            ) : activeLesson.contentUrl ? (
-              <div className="learner-player-empty protected-external-content">
-                <ExternalLink />
-                <b>지원 준비 중인 콘텐츠예요.</b>
-                <p>이 차시는 수강 페이지 안에서 바로 열 수 있는 방식으로 등록이 필요해요.</p>
-              </div>
-            ) : (
-              <div className="learner-player-empty">
-                <CalendarDays />
-                <b>아직 재생할 콘텐츠가 등록되지 않았어요.</b>
-              </div>
-            )}
-            {activeMarker && (
-              <section className="learner-marker" role="dialog" aria-modal="true" aria-label={activeMarker.title}>
-                <small>{formatPlaybackTime(activeMarker.timeSeconds)} 마커</small>
-                <h2>{activeMarker.title}</h2>
-                {activeMarker.type === 'IMAGE' && activeMarker.imageUrl ? (
-                  <img src={activeMarker.imageUrl} alt={activeMarker.content || activeMarker.title} />
-                ) : activeMarker.type === 'QUIZ' ? (
-                  <div className="learner-marker-quiz">
-                    <p>{activeMarker.content}</p>
-                    {activeMarker.choices?.map((choice, index) => (
-                      <button
-                        type="button"
-                        className={markerAnswer === index ? 'selected' : ''}
-                        key={choice}
-                        onClick={() => setMarkerAnswer(index)}
-                      >
-                        {index + 1}. {choice}
-                      </button>
-                    ))}
-                    {markerAnswer !== undefined && (
-                      <strong className={markerAnswer === activeMarker.answerIndex ? 'correct' : 'incorrect'}>
-                        {markerAnswer === activeMarker.answerIndex ? '정답이에요.' : '다시 생각해 보세요.'}
-                      </strong>
-                    )}
-                  </div>
-                ) : (
-                  <p>{activeMarker.content}</p>
-                )}
-                <button type="button" className="learner-marker-close" onClick={() => setActiveMarker(undefined)}>
-                  계속 보기
-                </button>
-              </section>
-            )}
-            {hasActiveLessonContent && <div className="learner-player-meta">
-              <small>
-                {hasActiveLessonContent
-                  ? playing
-                    ? '재생 중'
-                    : linkedLessonView
-                      ? '자료 열람'
-                      : '이어보기 대기'
-                  : '콘텐츠 준비 중'}
-              </small>
-              <b>
-                {activeLessonNumber}차시. {activeLesson.title}
-              </b>
-              <span>
-                {activeDurationSeconds
-                  ? `영상 길이 ${formatPlaybackTime(activeDurationSeconds)}`
-                  : `예상 학습 ${activeLesson.durationText}`}
-                {activeProgress > 0 ? ` · 차시 진도 ${activeProgress}%` : ''}
-              </span>
-            </div>}
+      <div className="learner-shell learner-room-shell">
+        <header className="learner-room-topbar">
+          <div className="learner-room-brand">
+            <button
+              className="learner-room-back"
+              type="button"
+              aria-label="강의 정보로 돌아가기"
+              onClick={() => nav(`/s/${courseShareToken}`)}
+            >
+              <ArrowLeft aria-hidden="true" />
+            </button>
+            <b>원클릭 클래스</b>
           </div>
-          )}
-          {completionOpen && (
-            <section className="learner-completion-card" role="status">
-              <CheckCircle2 />
-              <div>
-                <b>{activeLesson.title} 학습을 마쳤어요.</b>
-                <p>
-                  {nextLessonIndex >= 0
-                    ? '흐름이 끊기기 전에 다음 차시를 이어서 볼 수 있어요.'
-                    : '마지막 차시까지 학습했어요. 전체 진도를 확인해 보세요.'}
-                </p>
-              </div>
-              <div>
-                <button type="button" className="secondary" onClick={() => setCompletionOpen(false)}>
-                  닫기
-                </button>
-                {nextLessonIndex >= 0 && (
-                  <button type="button" className="primary" onClick={() => resumeLesson(nextLessonIndex)}>
-                    다음 강의 보기
-                    <ChevronRight />
-                  </button>
-                )}
-              </div>
-            </section>
-          )}
-          <section className="learner-section learner-progress-card">
-            <span>수강 중</span>
-            <h1>{activeLesson.title}</h1>
-            <p>현재 학습 위치: {activeLessonPosition}</p>
-            <div className="learner-progress-grid">
-              <div>
-                <div className="student-progress-head">
-                  <span>현재 차시</span>
-                  <b>{activeProgress}%</b>
-                </div>
-                <div className="oc-progress">
-                  <i style={{ width: `${activeProgress}%` }} />
-                </div>
-              </div>
-              <div>
-                <div className="student-progress-head">
-                  <span>전체 강의</span>
-                  <b>{enrollment.progress}%</b>
-                </div>
-                <div className="oc-progress">
-                  <i style={{ width: `${enrollment.progress}%` }} />
-                </div>
-              </div>
-            </div>
-            <div className="learner-navigation">
-              <button
-                type="button"
-                disabled={previousLessonIndex < 0}
-                onClick={() => resumeLesson(previousLessonIndex)}
-              >
-                <ChevronLeft />
-                이전 차시
-              </button>
-              <button
-                type="button"
-                className="learner-curriculum-toggle"
-                onClick={() => setCurriculumOpen(true)}
-              >
-                커리큘럼 보기
-              </button>
-              <button
-                type="button"
-                disabled={nextLessonIndex < 0}
-                onClick={() => resumeLesson(nextLessonIndex)}
-              >
-                다음 차시
-                <ChevronRight />
-              </button>
-            </div>
-          </section>
-          <section className="learner-room-tools has-reviews">
-            <button
-              className={activeTool === 'notice' ? 'active' : ''}
-              type="button"
-              aria-expanded={activeTool === 'notice'}
-              aria-controls="learner-tool-panel"
-              onClick={() => openTool('notice')}
-            >
-              <Megaphone />
-              <span>
-                <b>공지사항</b>
-                <small>
-                  {tools.noticeCount ? `새 공지 ${tools.noticeCount}개` : '확인할 공지 없음'}
-                </small>
-              </span>
+          <div className="learner-room-actions">
+            <button type="button" onClick={() => setCourseInfoOpen(true)}>
+              강의 정보
             </button>
-            <button
-              className={activeTool === 'review' ? 'active' : ''}
-              type="button"
-              aria-expanded={activeTool === 'review'}
-              aria-controls="learner-tool-panel"
-              onClick={() => openTool('review')}
-            >
-              <MessageSquareText />
-              <span>
-                <b>수강 후기</b>
-                <small>
-                  {review
-                    ? '작성한 후기 수정'
-                    : canWriteReview
-                      ? '후기 남기기'
-                      : `진도 ${reviewMinimumProgress}%부터 작성`}
-                </small>
-              </span>
-            </button>
-            <button
-              className={activeTool === 'resource' ? 'active' : ''}
-              type="button"
-              aria-expanded={activeTool === 'resource'}
-              aria-controls="learner-tool-panel"
-              onClick={() => openTool('resource')}
-            >
-              <FileText />
-              <span>
-                <b>자료실</b>
-                <small>
-                  {tools.resourceCount ? `자료 ${tools.resourceCount}개` : '등록 자료 없음'}
-                </small>
-              </span>
-            </button>
-            <button
-              className={activeTool === 'assessment' ? 'active' : ''}
-              type="button"
-              aria-expanded={activeTool === 'assessment'}
-              aria-controls="learner-tool-panel"
-              onClick={() => openTool('assessment')}
-            >
-              <ClipboardCheck />
-              <span>
-                <b>설문·시험</b>
-                <small>
-                  {!room?.assessments.length
-                    ? '등록 항목 없음'
-                    : pendingAssessmentCount
-                      ? `참여할 항목 ${pendingAssessmentCount}개`
-                      : '모두 참여했어요'}
-                </small>
-              </span>
-            </button>
-          </section>
-          {activeTool && (
-          <section
-            className="learner-section learner-tool-panel"
-            id="learner-tool-panel"
-            ref={toolPanelRef}
-          >
-            {toolMessage && (
-              <div className="learner-tool-message">
-                <CheckCircle2 size={16} />
-                {toolMessage}
-              </div>
-            )}
-            {activeTool === 'notice' && (
-              <>
-                <h2>공지사항</h2>
-                {room?.notices.length ? (
-                  room.notices.map((notice) => (
-                    <article className="learner-tool-item" key={notice.id}>
-                      <span>{notice.label}</span>
-                      <div>
-                        <b>{notice.title}</b>
-                        <p>{notice.description}</p>
-                      </div>
-                      <button
-                        type="button"
-                        disabled={notice.read}
-                        onClick={() => void readNotice(notice.id)}
-                      >
-                        {notice.read ? '확인 완료' : notice.actionLabel || '확인'}
-                      </button>
-                    </article>
-                  ))
-                ) : (
-                  <p className="learner-tool-empty">등록된 공지사항이 없어요.</p>
-                )}
-              </>
-            )}
-            {activeTool === 'resource' && (
-              <>
-                <h2>자료실</h2>
-                {room?.resources.length ? (
-                  room.resources.map((resource) => (
-                    <article className="learner-tool-item" key={resource.id}>
-                      <span>{resource.label}</span>
-                      <div>
-                        <b>{resource.title}</b>
-                        <p>{resource.description}</p>
-                      </div>
-                      <button
-                        type="button"
-                        disabled={!resource.url}
-                        onClick={() =>
-                          resource.url && window.open(resource.url, '_blank', 'noopener,noreferrer')
-                        }
-                      >
-                        {resource.url ? resource.actionLabel || '열기' : '준비 중'}
-                      </button>
-                    </article>
-                  ))
-                ) : (
-                  <p className="learner-tool-empty">등록된 강의 자료가 없어요.</p>
-                )}
-              </>
-            )}
-            {activeTool === 'assessment' && (
-              <>
-                <h2>설문·시험</h2>
-                {room?.assessments.length ? (
-                  room.assessments.map((assessment) => (
-                    <article
-                      className={`learner-tool-item ${assessment.required ? 'required' : ''}`}
-                      key={assessment.id}
+            <span>{enrollment.learnerName}님</span>
+          </div>
+        </header>
+        <main className="learner-room-grid">
+          <section className="learner-room-main">
+            {linkedLessonView && activeLessonResources.length ? (
+              <section className="learner-material-stage">
+                <div className="learner-material-stage-head">
+                  <span>
+                    <FileText size={18} /> {linkedLessonView.label}
+                  </span>
+                  <small>{activeLessonNumber}차시</small>
+                </div>
+                <h2>{activeLesson.title}</h2>
+                <p>{activeLesson.description || linkedLessonView.description}</p>
+                <div className="learner-material-files">
+                  {activeLessonResources.map((resource, index) => (
+                    <a
+                      href={resource.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      key={resource.id}
+                      onClick={() => {
+                        watchedSecondsRef.current = 1;
+                        lastPlaybackObservationRef.current = null;
+                        savePlayback(1, false, 1, true);
+                      }}
                     >
-                      <span>{assessment.completed ? '완료' : assessment.label}</span>
-                      <div>
-                        <b>{assessment.title}</b>
-                        <p>{assessment.description}</p>
-                      </div>
-                      <button
-                        type="button"
-                        disabled={assessment.completed && assessment.type === 'SURVEY'}
-                        onClick={() => {
-                          const path =
-                            assessment.type === 'SURVEY'
-                              ? 'survey/take'
-                              : assessment.completed
-                                ? 'exam/result'
-                                : 'exam/take';
-                          nav(
-                            `/learn/${path}?courseActiveSeq=${encodeURIComponent(id)}&assessmentId=${encodeURIComponent(assessment.id)}&returnTo=${encodeURIComponent(`/learn/${id}`)}`,
-                          );
-                        }}
-                      >
-                        {assessment.completed
-                          ? assessment.type === 'EXAM'
-                            ? '결과 보기'
-                            : '참여 완료'
-                          : assessment.type === 'SURVEY'
-                            ? '참여하기'
-                            : '풀기'}
-                      </button>
-                    </article>
-                  ))
-                ) : (
-                  <p className="learner-tool-empty">참여할 설문이나 시험이 없어요.</p>
-                )}
-              </>
-            )}
-            {activeTool === 'review' && (
-              <div className="learner-review-form">
-                <div className="learner-review-form-head">
-                  <div>
-                    <h2>{review ? '작성한 후기' : '수강 후기 남기기'}</h2>
-                    <p>
-                      {canWriteReview
-                        ? '수강 경험을 솔직하게 알려주세요.'
-                        : `전체 진도 ${reviewMinimumProgress}%부터 후기를 작성할 수 있어요.`}
-                    </p>
-                  </div>
-                  {review && <span>등록 완료</span>}
-                </div>
-                <div className="learner-review-rating" role="group" aria-label="후기 별점">
-                  {[1, 2, 3, 4, 5].map((rating) => (
-                    <button
-                      type="button"
-                      className={reviewRating >= rating ? 'active' : ''}
-                      disabled={!canWriteReview}
-                      onClick={() => setReviewRating(rating)}
-                      aria-label={`${rating}점`}
-                      key={rating}
-                    >
-                      <Star fill="currentColor" />
-                    </button>
+                      <span>
+                        <FileText size={18} />
+                        <span>
+                          <b>{resource.name || `${linkedLessonView.action} ${index + 1}`}</b>
+                          <small>
+                            {[formatFileSize(resource.size), resource.type]
+                              .filter(Boolean)
+                              .join(' · ') || linkedLessonView.action}
+                          </small>
+                        </span>
+                      </span>
+                      <strong>
+                        {linkedLessonView.action}
+                        <ExternalLink size={15} />
+                      </strong>
+                    </a>
                   ))}
-                  <b>{reviewRating ? `${reviewRating}.0` : '별점을 선택해 주세요'}</b>
                 </div>
-                <label>
-                  후기 내용
-                  <textarea
-                    maxLength={500}
-                    disabled={!canWriteReview}
-                    value={reviewContent}
-                    onChange={(event) => setReviewContent(event.target.value)}
-                    placeholder="강의에서 좋았던 점과 도움이 된 부분을 알려주세요."
+                <small className="learner-material-stage-note">
+                  자료를 열면 이 차시는 학습한 것으로 기록돼요.
+                </small>
+              </section>
+            ) : (
+              <div
+                className={`learner-player ${hasActiveLessonContent ? 'has-video' : 'is-empty'}`}
+              >
+                {activeLesson.contentProvider === 'FILE' && activeLesson.contentUrl ? (
+                  <video
+                    key={`${activeLesson.lessonId}-${playbackSession}`}
+                    controls
+                    controlsList="nodownload noremoteplayback"
+                    disablePictureInPicture
+                    src={activeLesson.contentUrl}
+                    onContextMenu={(event) => event.preventDefault()}
+                    onPlay={(event) => {
+                      setPlaying(true);
+                      recordPlaybackObservation(event.currentTarget.currentTime, true);
+                    }}
+                    onLoadedMetadata={(event) => {
+                      setActiveDurationSeconds(event.currentTarget.duration);
+                      initializeWatchedSeconds(event.currentTarget.duration);
+                      if (playbackStartSeconds)
+                        event.currentTarget.currentTime = playbackStartSeconds;
+                    }}
+                    onPause={(event) => {
+                      setPlaying(false);
+                      savePlayback(
+                        event.currentTarget.currentTime,
+                        false,
+                        event.currentTarget.duration,
+                      );
+                    }}
+                    onEnded={(event) =>
+                      savePlayback(
+                        event.currentTarget.currentTime,
+                        false,
+                        event.currentTarget.duration,
+                        true,
+                      )
+                    }
+                    onTimeUpdate={(event) => {
+                      const seconds = event.currentTarget.currentTime;
+                      recordPlaybackObservation(seconds, true);
+                      if (showMarkerAt(seconds)) {
+                        event.currentTarget.pause();
+                        return;
+                      }
+                      if (seconds - lastHeartbeatRef.current < 10) return;
+                      lastHeartbeatRef.current = seconds;
+                      savePlayback(seconds, true, event.currentTarget.duration);
+                    }}
                   />
-                  <small>{reviewContent.length} / 500</small>
-                </label>
-                <div className="learner-review-actions">
-                  {review && (
+                ) : activeLesson.contentProvider === 'YOUTUBE' && activeLesson.contentUrl ? (
+                  <YouTubePlayer
+                    key={`${activeLesson.lessonId}-${playbackSession}`}
+                    videoId={getYouTubeVideoId(activeLesson.contentUrl)}
+                    startSeconds={playbackStartSeconds}
+                    onPlayingChange={setPlaying}
+                    onProgress={(currentSeconds, durationSeconds, isPlaying, ended) => {
+                      setActiveDurationSeconds(durationSeconds);
+                      initializeWatchedSeconds(durationSeconds);
+                      savePlayback(currentSeconds, isPlaying, durationSeconds, ended);
+                    }}
+                    onTimeChange={(currentSeconds) => {
+                      recordPlaybackObservation(currentSeconds, true);
+                      return showMarkerAt(currentSeconds);
+                    }}
+                    onDuration={(durationSeconds) => {
+                      setActiveDurationSeconds(durationSeconds);
+                      initializeWatchedSeconds(durationSeconds);
+                    }}
+                  />
+                ) : activeLesson.contentProvider === 'VIMEO' && activeLesson.contentUrl ? (
+                  <div className="learner-player-empty protected-external-content">
+                    <ExternalLink />
+                    <b>Vimeo 재생은 준비 중이에요.</b>
+                    <p>YouTube 강의는 수강실 안에서 바로 재생할 수 있어요.</p>
+                  </div>
+                ) : activeLesson.contentUrl ? (
+                  <div className="learner-player-empty protected-external-content">
+                    <ExternalLink />
+                    <b>지원 준비 중인 콘텐츠예요.</b>
+                    <p>이 차시는 수강 페이지 안에서 바로 열 수 있는 방식으로 등록이 필요해요.</p>
+                  </div>
+                ) : (
+                  <div className="learner-player-empty">
+                    <CalendarDays />
+                    <b>아직 재생할 콘텐츠가 등록되지 않았어요.</b>
+                  </div>
+                )}
+                {activeMarker && (
+                  <section
+                    className="learner-marker"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label={activeMarker.title}
+                  >
+                    <small>{formatPlaybackTime(activeMarker.timeSeconds)} 마커</small>
+                    <h2>{activeMarker.title}</h2>
+                    {activeMarker.type === 'IMAGE' && activeMarker.imageUrl ? (
+                      <img
+                        src={activeMarker.imageUrl}
+                        alt={activeMarker.content || activeMarker.title}
+                      />
+                    ) : activeMarker.type === 'QUIZ' ? (
+                      <div className="learner-marker-quiz">
+                        <p>{activeMarker.content}</p>
+                        {activeMarker.choices?.map((choice, index) => (
+                          <button
+                            type="button"
+                            className={markerAnswer === index ? 'selected' : ''}
+                            key={choice}
+                            onClick={() => setMarkerAnswer(index)}
+                          >
+                            {index + 1}. {choice}
+                          </button>
+                        ))}
+                        {markerAnswer !== undefined && (
+                          <strong
+                            className={
+                              markerAnswer === activeMarker.answerIndex ? 'correct' : 'incorrect'
+                            }
+                          >
+                            {markerAnswer === activeMarker.answerIndex
+                              ? '정답이에요.'
+                              : '다시 생각해 보세요.'}
+                          </strong>
+                        )}
+                      </div>
+                    ) : (
+                      <p>{activeMarker.content}</p>
+                    )}
                     <button
                       type="button"
-                      className="review-delete"
-                      disabled={reviewSaving}
-                      onClick={() => setReviewDeleteOpen(true)}
+                      className="learner-marker-close"
+                      onClick={() => setActiveMarker(undefined)}
                     >
-                      <Trash2 />
-                      삭제
+                      계속 보기
                     </button>
-                  )}
+                  </section>
+                )}
+                {hasActiveLessonContent && (
+                  <div className="learner-player-meta">
+                    <small>
+                      {hasActiveLessonContent
+                        ? playing
+                          ? '재생 중'
+                          : linkedLessonView
+                            ? '자료 열람'
+                            : '이어보기 대기'
+                        : '콘텐츠 준비 중'}
+                    </small>
+                    <b>
+                      {activeLessonNumber}차시. {activeLesson.title}
+                    </b>
+                    <span>
+                      {activeDurationSeconds
+                        ? `영상 길이 ${formatPlaybackTime(activeDurationSeconds)}`
+                        : `예상 학습 ${activeLesson.durationText}`}
+                      {activeProgress > 0 ? ` · 차시 진도 ${activeProgress}%` : ''}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+            {completionOpen && (
+              <section className="learner-completion-card" role="status">
+                <CheckCircle2 />
+                <div>
+                  <b>{activeLesson.title} 학습을 마쳤어요.</b>
+                  <p>
+                    {nextLessonIndex >= 0
+                      ? '흐름이 끊기기 전에 다음 차시를 이어서 볼 수 있어요.'
+                      : '마지막 차시까지 학습했어요. 전체 진도를 확인해 보세요.'}
+                  </p>
+                </div>
+                <div>
                   <button
                     type="button"
-                    className="primary"
-                    disabled={
-                      !canWriteReview ||
-                      reviewSaving ||
-                      !reviewRating ||
-                      reviewContent.trim().length < 10
-                    }
-                    onClick={() => void saveReview()}
+                    className="secondary"
+                    onClick={() => setCompletionOpen(false)}
                   >
-                    {reviewSaving ? '저장 중...' : review ? '후기 수정하기' : '후기 등록하기'}
+                    닫기
                   </button>
+                  {nextLessonIndex >= 0 && (
+                    <button
+                      type="button"
+                      className="primary"
+                      onClick={() => resumeLesson(nextLessonIndex)}
+                    >
+                      다음 강의 보기
+                      <ChevronRight />
+                    </button>
+                  )}
+                </div>
+              </section>
+            )}
+            <section className="learner-section learner-progress-card">
+              <div className="learner-progress-summary">
+                <span>수강 중 · {activeLessonNumber}차시</span>
+                <small>전체 진도 {enrollment.progress}%</small>
+              </div>
+              <h1>{activeLesson.title}</h1>
+              <p>현재 학습 위치 · {activeLessonPosition}</p>
+              <div className="learner-progress-grid">
+                <div>
+                  <div className="student-progress-head">
+                    <span>현재 차시 진도</span>
+                    <b>{activeProgress}%</b>
+                  </div>
+                  <div
+                    className="oc-progress"
+                    role="progressbar"
+                    aria-label="현재 차시 진도"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={activeProgress}
+                  >
+                    <i style={{ width: `${activeProgress}%` }} />
+                  </div>
                 </div>
               </div>
+              <div className="learner-navigation">
+                <button
+                  type="button"
+                  disabled={previousLessonIndex < 0}
+                  onClick={() => resumeLesson(previousLessonIndex)}
+                >
+                  <ChevronLeft />
+                  이전 차시
+                </button>
+                <button
+                  type="button"
+                  className="learner-curriculum-toggle"
+                  onClick={() => setCurriculumOpen(true)}
+                >
+                  커리큘럼 보기
+                </button>
+                <button
+                  type="button"
+                  disabled={nextLessonIndex < 0}
+                  onClick={() => resumeLesson(nextLessonIndex)}
+                >
+                  다음 차시
+                  <ChevronRight />
+                </button>
+              </div>
+            </section>
+            <section className="learner-room-tools has-reviews" aria-label="학습 도구">
+              <button
+                className={activeTool === 'notice' ? 'active' : ''}
+                type="button"
+                aria-expanded={activeTool === 'notice'}
+                aria-controls="learner-tool-panel"
+                onClick={() => openTool('notice')}
+              >
+                <Megaphone />
+                <span>
+                  <b>공지사항</b>
+                  <small>
+                    {tools.noticeCount ? `새 공지 ${tools.noticeCount}개` : '확인할 공지 없음'}
+                  </small>
+                </span>
+              </button>
+              <button
+                className={activeTool === 'review' ? 'active' : ''}
+                type="button"
+                aria-expanded={activeTool === 'review'}
+                aria-controls="learner-tool-panel"
+                onClick={() => openTool('review')}
+              >
+                <MessageSquareText />
+                <span>
+                  <b>수강 후기</b>
+                  <small>
+                    {review
+                      ? '작성한 후기 수정'
+                      : canWriteReview
+                        ? '후기 남기기'
+                        : `진도 ${reviewMinimumProgress}%부터 작성`}
+                  </small>
+                </span>
+              </button>
+              <button
+                className={activeTool === 'resource' ? 'active' : ''}
+                type="button"
+                aria-expanded={activeTool === 'resource'}
+                aria-controls="learner-tool-panel"
+                onClick={() => openTool('resource')}
+              >
+                <FileText />
+                <span>
+                  <b>자료실</b>
+                  <small>
+                    {tools.resourceCount ? `자료 ${tools.resourceCount}개` : '등록 자료 없음'}
+                  </small>
+                </span>
+              </button>
+              <button
+                className={activeTool === 'assessment' ? 'active' : ''}
+                type="button"
+                aria-expanded={activeTool === 'assessment'}
+                aria-controls="learner-tool-panel"
+                onClick={() => openTool('assessment')}
+              >
+                <ClipboardCheck />
+                <span>
+                  <b>설문·시험</b>
+                  <small>
+                    {!room?.assessments.length
+                      ? '등록 항목 없음'
+                      : pendingAssessmentCount
+                        ? `참여할 항목 ${pendingAssessmentCount}개`
+                        : '모두 참여했어요'}
+                  </small>
+                </span>
+              </button>
+            </section>
+            {activeTool && (
+              <section
+                className="learner-section learner-tool-panel"
+                id="learner-tool-panel"
+                ref={toolPanelRef}
+              >
+                {toolMessage && (
+                  <div className="learner-tool-message">
+                    <CheckCircle2 size={16} />
+                    {toolMessage}
+                  </div>
+                )}
+                {activeTool === 'notice' && (
+                  <>
+                    <h2>공지사항</h2>
+                    {room?.notices.length ? (
+                      room.notices.map((notice) => (
+                        <article className="learner-tool-item" key={notice.id}>
+                          <span>{notice.label}</span>
+                          <div>
+                            <b>{notice.title}</b>
+                            <p>{notice.description}</p>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={notice.read}
+                            onClick={() => void readNotice(notice.id)}
+                          >
+                            {notice.read ? '확인 완료' : notice.actionLabel || '확인'}
+                          </button>
+                        </article>
+                      ))
+                    ) : (
+                      <p className="learner-tool-empty">등록된 공지사항이 없어요.</p>
+                    )}
+                  </>
+                )}
+                {activeTool === 'resource' && (
+                  <>
+                    <h2>자료실</h2>
+                    {room?.resources.length ? (
+                      room.resources.map((resource) => (
+                        <article className="learner-tool-item" key={resource.id}>
+                          <span>{resource.label}</span>
+                          <div>
+                            <b>{resource.title}</b>
+                            <p>{resource.description}</p>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={!resource.url}
+                            onClick={() =>
+                              resource.url &&
+                              window.open(resource.url, '_blank', 'noopener,noreferrer')
+                            }
+                          >
+                            {resource.url ? resource.actionLabel || '열기' : '준비 중'}
+                          </button>
+                        </article>
+                      ))
+                    ) : (
+                      <p className="learner-tool-empty">등록된 강의 자료가 없어요.</p>
+                    )}
+                  </>
+                )}
+                {activeTool === 'assessment' && (
+                  <>
+                    <h2>설문·시험</h2>
+                    {room?.assessments.length ? (
+                      room.assessments.map((assessment) => (
+                        <article
+                          className={`learner-tool-item ${assessment.required ? 'required' : ''}`}
+                          key={assessment.id}
+                        >
+                          <span>{assessment.completed ? '완료' : assessment.label}</span>
+                          <div>
+                            <b>{assessment.title}</b>
+                            <p>{assessment.description}</p>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={assessment.completed && assessment.type === 'SURVEY'}
+                            onClick={() => {
+                              const path =
+                                assessment.type === 'SURVEY'
+                                  ? 'survey/take'
+                                  : assessment.completed
+                                    ? 'exam/result'
+                                    : 'exam/take';
+                              nav(
+                                `/learn/${path}?courseActiveSeq=${encodeURIComponent(id)}&assessmentId=${encodeURIComponent(assessment.id)}&returnTo=${encodeURIComponent(`/learn/${id}`)}`,
+                              );
+                            }}
+                          >
+                            {assessment.completed
+                              ? assessment.type === 'EXAM'
+                                ? '결과 보기'
+                                : '참여 완료'
+                              : assessment.type === 'SURVEY'
+                                ? '참여하기'
+                                : '풀기'}
+                          </button>
+                        </article>
+                      ))
+                    ) : (
+                      <p className="learner-tool-empty">참여할 설문이나 시험이 없어요.</p>
+                    )}
+                  </>
+                )}
+                {activeTool === 'review' && (
+                  <div className="learner-review-form">
+                    <div className="learner-review-form-head">
+                      <div>
+                        <h2>{review ? '작성한 후기' : '수강 후기 남기기'}</h2>
+                        <p>
+                          {canWriteReview
+                            ? '수강 경험을 솔직하게 알려주세요.'
+                            : `전체 진도 ${reviewMinimumProgress}%부터 후기를 작성할 수 있어요.`}
+                        </p>
+                      </div>
+                      {review && <span>등록 완료</span>}
+                    </div>
+                    <div className="learner-review-rating" role="group" aria-label="후기 별점">
+                      {[1, 2, 3, 4, 5].map((rating) => (
+                        <button
+                          type="button"
+                          className={reviewRating >= rating ? 'active' : ''}
+                          disabled={!canWriteReview}
+                          onClick={() => setReviewRating(rating)}
+                          aria-label={`${rating}점`}
+                          key={rating}
+                        >
+                          <Star fill="currentColor" />
+                        </button>
+                      ))}
+                      <b>{reviewRating ? `${reviewRating}.0` : '별점을 선택해 주세요'}</b>
+                    </div>
+                    <label>
+                      후기 내용
+                      <textarea
+                        maxLength={500}
+                        disabled={!canWriteReview}
+                        value={reviewContent}
+                        onChange={(event) => setReviewContent(event.target.value)}
+                        placeholder="강의에서 좋았던 점과 도움이 된 부분을 알려주세요."
+                      />
+                      <small>{reviewContent.length} / 500</small>
+                    </label>
+                    <div className="learner-review-actions">
+                      {review && (
+                        <button
+                          type="button"
+                          className="review-delete"
+                          disabled={reviewSaving}
+                          onClick={() => setReviewDeleteOpen(true)}
+                        >
+                          <Trash2 />
+                          삭제
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="primary"
+                        disabled={
+                          !canWriteReview ||
+                          reviewSaving ||
+                          !reviewRating ||
+                          reviewContent.trim().length < 10
+                        }
+                        onClick={() => void saveReview()}
+                      >
+                        {reviewSaving ? '저장 중...' : review ? '후기 수정하기' : '후기 등록하기'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </section>
             )}
           </section>
-          )}
-        </section>
-        {curriculumOpen && (
-          <button
-            type="button"
-            className="learner-curriculum-backdrop"
-            aria-label="커리큘럼 닫기"
-            onClick={() => setCurriculumOpen(false)}
-          />
-        )}
-        <aside
-          className={`learner-card learner-lesson-panel ${curriculumOpen ? 'open' : ''}`}
-          aria-label="강의 커리큘럼"
-        >
-          <div className="learner-panel-title">
-            <div>
-              <h2>커리큘럼</h2>
-              <small>총 {lessons.length}강</small>
-            </div>
+          {curriculumOpen && (
             <button
               type="button"
-              className="learner-curriculum-close"
+              className="learner-curriculum-backdrop"
               aria-label="커리큘럼 닫기"
               onClick={() => setCurriculumOpen(false)}
-            >
-              <X />
-            </button>
-          </div>
-          {lessonGroups.map((section, sectionIndex) => (
-            <section className="learner-lesson-group" key={section.key}>
+            />
+          )}
+          <aside
+            className={`learner-card learner-lesson-panel ${curriculumOpen ? 'open' : ''}`}
+            aria-label="강의 커리큘럼"
+          >
+            <div className="learner-panel-title">
+              <div>
+                <h2>커리큘럼</h2>
+                <small>총 {lessons.length}강</small>
+              </div>
               <button
                 type="button"
-                className="learner-lesson-section"
-                aria-expanded={!collapsedSections.has(section.key)}
-                onClick={() =>
-                  setCollapsedSections((current) => {
-                    const next = new Set(current);
-                    if (next.has(section.key)) next.delete(section.key);
-                    else next.add(section.key);
-                    return next;
-                  })
-                }
+                className="learner-curriculum-close"
+                aria-label="커리큘럼 닫기"
+                onClick={() => setCurriculumOpen(false)}
               >
-                <span>{String(sectionIndex + 1).padStart(2, '0')}</span>
-                <b>섹션 {sectionIndex + 1}</b>
-                <strong>{section.title}</strong>
-                <small>{formatSectionSummary(section.items.length, section.totalMinutes)}</small>
-                {collapsedSections.has(section.key) ? <ChevronDown /> : <ChevronUp />}
+                <X />
               </button>
-              {!collapsedSections.has(section.key) && section.items.map((lesson, lessonIndex) => {
-                const index = lessons.findIndex((item) => item.lessonId === lesson.lessonId);
-                const done = lesson.completed;
-                const locked = lesson.locked;
-                const unavailable = !locked && (!lesson.playable || !hasLessonContent(lesson));
-                const lessonNumber = `${sectionIndex + 1}-${lessonIndex + 1}`;
-                const lessonStatus = locked
-                  ? '이전 강의 완료 후 열림'
-                  : unavailable
-                    ? '콘텐츠 준비 중'
-                    : done
-                      ? '처음부터 다시 보기'
-                      : ['FILE', 'YOUTUBE', 'VIMEO'].includes(lesson.contentProvider)
-                        ? '재생'
-                        : '열기';
-                return (
-                  <button
-                    className={`learner-lesson ${done ? 'done' : ''} ${locked ? 'locked' : ''} ${unavailable ? 'unavailable' : ''} ${activeLessonIndex === index ? 'active' : ''}`}
-                    disabled={locked || unavailable}
-                    key={lesson.lessonId}
-                    onClick={() => resumeLesson(index)}
-                  >
-                    <span className="learner-lesson-index">
-                      {done ? <CheckCircle2 /> : locked ? <LockKeyhole /> : lessonNumber}
-                    </span>
-                    <span className="learner-lesson-copy">
-                      <b>{lesson.title}</b>
-                      <small>
-                        <Clock3 size={14} />
-                        예상 {lesson.durationText}
-                        {lesson.progress > 0 ? ` · 학습 ${lesson.progress}%` : ''}
-                      </small>
-                    </span>
-                    <span className="learner-lesson-action" aria-label={lessonStatus}>
-                      {locked || unavailable ? (
-                        <small className="lesson-state">{lessonStatus}</small>
-                      ) : done ? (
-                        <RotateCcw size={18} />
-                      ) : ['FILE', 'YOUTUBE', 'VIMEO'].includes(lesson.contentProvider) ? (
-                        <Play size={18} />
-                      ) : (
-                        <ExternalLink size={18} />
-                      )}
-                    </span>
-                  </button>
-                );
-              })}
-            </section>
-          ))}
-          <div className="learner-room-note">
-            <CalendarDays /> 다음 강의 알림은 신청 정보 기준으로 안내돼요.
-          </div>
-        </aside>
-      </main>
-    </div>
-    <ConfirmDialog
-      open={reviewDeleteOpen}
-      title="후기를 삭제할까요?"
-      description="작성한 후기가 수강생 후기 영역에서 사라져요. 삭제한 후기는 다시 복구할 수 없어요."
-      confirmText="삭제하기"
-      loading={reviewSaving}
-      onCancel={() => setReviewDeleteOpen(false)}
-      onConfirm={() => void removeReview()}
-    />
-    <ConfirmDialog
-      open={courseInfoOpen}
-      title="강의 정보 페이지로 이동할까요?"
-      description="현재 학습 위치는 저장돼요. 강의 소개와 신청 정보를 확인한 뒤 다시 돌아올 수 있어요."
-      confirmText="강의 정보 보기"
-      cancelText="계속 학습"
-      tone="primary"
-      onCancel={() => setCourseInfoOpen(false)}
-      onConfirm={() => nav(`/s/${courseShareToken}`)}
-    />
+            </div>
+            {lessonGroups.map((section, sectionIndex) => (
+              <section className="learner-lesson-group" key={section.key}>
+                <button
+                  type="button"
+                  className="learner-lesson-section"
+                  aria-expanded={!collapsedSections.has(section.key)}
+                  onClick={() =>
+                    setCollapsedSections((current) => {
+                      const next = new Set(current);
+                      if (next.has(section.key)) next.delete(section.key);
+                      else next.add(section.key);
+                      return next;
+                    })
+                  }
+                >
+                  <span>{String(sectionIndex + 1).padStart(2, '0')}</span>
+                  <b>섹션 {sectionIndex + 1}</b>
+                  <strong>{section.title}</strong>
+                  <small>{formatSectionSummary(section.items.length, section.totalMinutes)}</small>
+                  {collapsedSections.has(section.key) ? <ChevronDown /> : <ChevronUp />}
+                </button>
+                {!collapsedSections.has(section.key) &&
+                  section.items.map((lesson, lessonIndex) => {
+                    const index = lessons.findIndex((item) => item.lessonId === lesson.lessonId);
+                    const done = lesson.completed;
+                    const locked = lesson.locked;
+                    const unavailable = !locked && (!lesson.playable || !hasLessonContent(lesson));
+                    const lessonNumber = `${sectionIndex + 1}-${lessonIndex + 1}`;
+                    const lessonStatus = locked
+                      ? '이전 강의 완료 후 열림'
+                      : unavailable
+                        ? '콘텐츠 준비 중'
+                        : done
+                          ? '처음부터 다시 보기'
+                          : ['FILE', 'YOUTUBE', 'VIMEO'].includes(lesson.contentProvider)
+                            ? '재생'
+                            : '열기';
+                    return (
+                      <button
+                        className={`learner-lesson ${done ? 'done' : ''} ${locked ? 'locked' : ''} ${unavailable ? 'unavailable' : ''} ${activeLessonIndex === index ? 'active' : ''}`}
+                        disabled={locked || unavailable}
+                        key={lesson.lessonId}
+                        onClick={() => resumeLesson(index)}
+                      >
+                        <span className="learner-lesson-index">
+                          {done ? <CheckCircle2 /> : locked ? <LockKeyhole /> : lessonNumber}
+                        </span>
+                        <span className="learner-lesson-copy">
+                          <b>{lesson.title}</b>
+                          <small>
+                            <Clock3 size={14} />
+                            예상 {lesson.durationText}
+                            {lesson.progress > 0 ? ` · 학습 ${lesson.progress}%` : ''}
+                          </small>
+                        </span>
+                        <span className="learner-lesson-action" aria-label={lessonStatus}>
+                          {locked || unavailable ? (
+                            <small className="lesson-state">{lessonStatus}</small>
+                          ) : done ? (
+                            <RotateCcw size={18} />
+                          ) : ['FILE', 'YOUTUBE', 'VIMEO'].includes(lesson.contentProvider) ? (
+                            <Play size={18} />
+                          ) : (
+                            <ExternalLink size={18} />
+                          )}
+                        </span>
+                      </button>
+                    );
+                  })}
+              </section>
+            ))}
+            <div className="learner-room-note">
+              <CalendarDays /> 다음 강의 알림은 신청 정보 기준으로 안내돼요.
+            </div>
+          </aside>
+        </main>
+      </div>
+      <ConfirmDialog
+        open={reviewDeleteOpen}
+        title="후기를 삭제할까요?"
+        description="작성한 후기가 수강생 후기 영역에서 사라져요. 삭제한 후기는 다시 복구할 수 없어요."
+        confirmText="삭제하기"
+        loading={reviewSaving}
+        onCancel={() => setReviewDeleteOpen(false)}
+        onConfirm={() => void removeReview()}
+      />
+      <ConfirmDialog
+        open={courseInfoOpen}
+        title="강의 정보 페이지로 이동할까요?"
+        description="현재 학습 위치는 저장돼요. 강의 소개와 신청 정보를 확인한 뒤 다시 돌아올 수 있어요."
+        confirmText="강의 정보 보기"
+        cancelText="계속 학습"
+        tone="primary"
+        onCancel={() => setCourseInfoOpen(false)}
+        onConfirm={() => nav(`/s/${courseShareToken}`)}
+      />
     </>
   );
 }
@@ -2303,7 +2439,8 @@ function ClassPublicPage({ preview = false }: { preview?: boolean }) {
     draft.description ||
     '데이터베이스 설계부터 반복 업무 자동화, 팀 협업 템플릿까지 4주 동안 직접 만들며 배웁니다.';
   const location =
-    previewDetail?.location || (draft.type === 'offline' || draft.type === 'hybrid'
+    previewDetail?.location ||
+    (draft.type === 'offline' || draft.type === 'hybrid'
       ? [draft.address, draft.detailedAddress].filter(Boolean).join(' ') || '장소 협의 중'
       : draft.type === 'live'
         ? '라이브 · 차시별 참여 링크'
@@ -2399,22 +2536,36 @@ function ClassPublicPage({ preview = false }: { preview?: boolean }) {
             <section className="oc-panel">
               <div className="oc-panel-title">
                 <h2>커리큘럼</h2>
-                <span>{previewCurriculum.length}개 섹션 · {previewLessons.length}개 차시</span>
+                <span>
+                  {previewCurriculum.length}개 섹션 · {previewLessons.length}개 차시
+                </span>
               </div>
               {!previewLessons.length ? (
-                <p className="curriculum-empty">
-                  강의 관리에서 첫 커리큘럼을 추가해 주세요.
-                </p>
+                <p className="curriculum-empty">강의 관리에서 첫 커리큘럼을 추가해 주세요.</p>
               ) : (
                 previewCurriculum.map((section) => (
                   <section className="student-curriculum-section" key={section.id}>
-                    <header><b>{section.title}</b><small>{section.lessons.length}개 차시</small></header>
+                    <header>
+                      <b>{section.title}</b>
+                      <small>{section.lessons.length}개 차시</small>
+                    </header>
                     {section.lessons.map((lesson) => {
                       const lessonIndex = previewLessons.findIndex((item) => item.id === lesson.id);
-                      return <div className={`student-lesson ${lesson.published ? 'done' : ''}`} key={lesson.id}>
-                        <span>{lesson.published ? <CheckCircle2 /> : lessonIndex + 1}</span>
-                        <b>{lesson.title}<small><Clock3 size={14} />{lesson.durationMinutes}분 · {lesson.published ? '공개' : '비공개'}</small></b>
-                      </div>;
+                      return (
+                        <div
+                          className={`student-lesson ${lesson.published ? 'done' : ''}`}
+                          key={lesson.id}
+                        >
+                          <span>{lesson.published ? <CheckCircle2 /> : lessonIndex + 1}</span>
+                          <b>
+                            {lesson.title}
+                            <small>
+                              <Clock3 size={14} />
+                              {lesson.durationMinutes}분 · {lesson.published ? '공개' : '비공개'}
+                            </small>
+                          </b>
+                        </div>
+                      );
                     })}
                   </section>
                 ))
@@ -2505,13 +2656,21 @@ function ClassPublicPage({ preview = false }: { preview?: boolean }) {
             ) : (
               previewCurriculum.map((section) => (
                 <div className="mobile-curriculum-section" key={section.id}>
-                  <strong>{section.title}<small>{section.lessons.length}개 차시</small></strong>
+                  <strong>
+                    {section.title}
+                    <small>{section.lessons.length}개 차시</small>
+                  </strong>
                   {section.lessons.map((lesson) => {
                     const lessonIndex = previewLessons.findIndex((item) => item.id === lesson.id);
-                    return <div className="curriculum" key={lesson.id}>
-                      <i>{lessonIndex + 1}</i>
-                      <span><b>{lesson.title}</b><small>{lesson.description || `${lesson.durationMinutes}분`}</small></span>
-                    </div>;
+                    return (
+                      <div className="curriculum" key={lesson.id}>
+                        <i>{lessonIndex + 1}</i>
+                        <span>
+                          <b>{lesson.title}</b>
+                          <small>{lesson.description || `${lesson.durationMinutes}분`}</small>
+                        </span>
+                      </div>
+                    );
                   })}
                 </div>
               ))
@@ -2547,7 +2706,11 @@ function ClassPublicPage({ preview = false }: { preview?: boolean }) {
         {preview && (
           <div className="layout-fixed-action">
             {publishError && <p className="form-error">{publishError}</p>}
-            <button className="primary" disabled={publishing || !canPublish} onClick={() => void publish()}>
+            <button
+              className="primary"
+              disabled={publishing || !canPublish}
+              onClick={() => void publish()}
+            >
               {publishing ? '공개 중...' : '공개하기'}
             </button>
           </div>
@@ -2563,7 +2726,11 @@ function PublishReadiness({ issues, classId }: { issues: PublishIssue[]; classId
       <b>공개 전에 {issues.length}가지만 확인해 주세요</b>
       {issues.map((issue) => (
         <Link
-          to={issue.area === 'basic' ? `/classes/new?edit=${classId}` : `/classes/${classId}/curriculum?setup=1`}
+          to={
+            issue.area === 'basic'
+              ? `/classes/new?edit=${classId}`
+              : `/classes/${classId}/curriculum?setup=1`
+          }
           key={issue.id}
         >
           {issue.label} <span>수정하기</span>

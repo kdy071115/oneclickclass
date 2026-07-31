@@ -17,6 +17,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { StatusBar } from '../components/common/StatusBar';
 import { Button, EmptyState, FileDropzone, Skeleton, Stepper } from '../components/ui';
 import { classService, detailService } from '../api/services';
+import { classCreationSteps } from '../constants/classCreation';
 import { addressSuggestions, initialClassDraft } from '../constants/classDraft';
 import { clearClassDraft, hasClassPreview, loadClassDraft, loadClassPreview, saveClassDraft, saveClassPreview } from '../utils/classDraft';
 import { getClassThumbnail, saveClassThumbnail } from '../utils/classThumbnail';
@@ -27,13 +28,6 @@ const types = [
   ['live', Radio, '라이브', '실시간 화상 강의'],
   ['offline', MapPin, '오프라인', '현장에서 만나요'],
   ['hybrid', Layers3, '혼합형', '온라인 + 오프라인'],
-] as const;
-const labels = [
-  ['어떤 강의인지\n알려주세요', '제목과 소개만 있어도 시작할 수 있어요'],
-  ['어떻게\n진행하나요?', '수강 방식과 필요한 장소만 정해요'],
-  ['일정과 가격을\n정해주세요', '모집 인원과 참가비를 설정해요'],
-  ['신청자에게\n무엇을 받을까요?', '기본 정보는 자동으로 받아요'],
-  ['기본 정보가\n준비됐어요', '이제 차시를 구성하면 공개할 수 있어요'],
 ] as const;
 const extraQuestions = ['성별', '연령대', '소속·직업', '신청 동기', '사전 질문', '기타 문의'];
 
@@ -82,8 +76,8 @@ export function CreateClassPage() {
   const nav = useNavigate();
   const [params] = useSearchParams();
   const editId = params.get('edit');
-  const [step, setStep] = useState(() => params.has('edit') ? Math.min(labels.length, Math.max(1, Number(params.get('step')) || 1)) : 1);
-  const [maxStep, setMaxStep] = useState(() => (params.has('edit') ? labels.length : 1));
+  const [step, setStep] = useState(() => params.has('edit') ? Math.min(classCreationSteps.length, Math.max(1, Number(params.get('step')) || 1)) : 1);
+  const [maxStep, setMaxStep] = useState(() => (params.has('edit') ? classCreationSteps.length : 1));
   const [draft, setDraft] = useState(() => {
     const savedDraft = editId ? loadClassPreview(editId, initialClassDraft) : loadClassDraft(initialClassDraft);
     const savedThumbnail = editId ? getClassThumbnail(editId) : '';
@@ -172,7 +166,7 @@ export function CreateClassPage() {
     setError('');
     setThumbnail(file);
   }
-  const title = labels[step - 1];
+  const title = classCreationSteps[step - 1];
   const isDesktop = useIsDesktop();
   if (editLoading) {
     return (
@@ -206,7 +200,7 @@ export function CreateClassPage() {
         <button type="button" onClick={() => nav('/classes')} aria-label="클래스로 돌아가기">
           <ArrowLeft size={18} />
         </button>
-        {labels.map((item, index) => (
+        {classCreationSteps.map((item, index) => (
           <button
             type="button"
             className={`${step === index + 1 ? 'active' : ''} ${index + 1 < maxStep ? 'complete' : ''}`}
@@ -317,7 +311,7 @@ export function CreateClassPage() {
               닫기
             </button>
           </header>
-          <Stepper current={step - 1} steps={labels.map((item) => item[0].replace('\n', ' '))} />
+          <Stepper current={step - 1} steps={classCreationSteps.map((item) => item[0].replace('\n', ' '))} />
           <h1>
             {title[0].split('\n').map((line, i) => (
               <span key={line}>

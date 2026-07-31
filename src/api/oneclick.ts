@@ -403,23 +403,33 @@ const isPlaceholderText = (value?: string) => {
 const displayText = (value: string | undefined, fallback: string) =>
   isPlaceholderText(value) ? fallback : value!.trim();
 
-const publicCurriculum = (items: OneClickCurriculumItem[], courseTitle: string) =>
-  items.map((item, index) => ({
-    ...item,
-    sectionTitle: isPlaceholderText(item.sectionTitle)
-      ? index === 0
-        ? '전체 과정'
-        : item.sectionTitle
-      : item.sectionTitle,
-    title: isPlaceholderText(item.title)
-      ? index === 0
-        ? `${courseTitle} 시작하기`
-        : `핵심 차시 ${index + 1}`
-      : item.title,
-    description: isPlaceholderText(item.description)
-      ? '강의의 핵심 흐름을 차근차근 따라가며 학습합니다.'
-      : item.description,
-  }));
+const isPlaceholderSectionTitle = (value?: string) =>
+  isPlaceholderText(value) || value?.trim() === '커리큘럼';
+
+const publicCurriculum = (items: OneClickCurriculumItem[], courseTitle: string) => {
+  const sectionOrder = new Map<string, number>();
+  return items.map((item, index) => {
+    const sectionKey = item.sectionId || item.sectionTitle?.trim() || `section-${index}`;
+    if (!sectionOrder.has(sectionKey)) sectionOrder.set(sectionKey, sectionOrder.size + 1);
+    const sectionNumber = sectionOrder.get(sectionKey) ?? 1;
+    return {
+      ...item,
+      sectionTitle: isPlaceholderSectionTitle(item.sectionTitle)
+        ? sectionNumber === 1
+          ? '전체 과정'
+          : `섹션 ${sectionNumber}`
+        : item.sectionTitle,
+      title: isPlaceholderText(item.title)
+        ? index === 0
+          ? `${courseTitle} 시작하기`
+          : `핵심 차시 ${index + 1}`
+        : item.title,
+      description: isPlaceholderText(item.description)
+        ? '강의의 핵심 흐름을 차근차근 따라가며 학습합니다.'
+        : item.description,
+    };
+  });
+};
 
 const mockRecruitment = (classId: string, enrolled: number, fallbackCapacity: number) => {
   try {
@@ -654,14 +664,13 @@ const normalizeShare = (raw: unknown, shareToken: string): OneClickShare => {
   const courseMaster = pickRecord(root, ['courseMaster', 'master']);
   const instructor = pickRecord(root, ['instructor', 'teacher', 'professor', 'member']);
   const merged = { ...root, ...courseMaster, ...courseActive };
-  const courseActiveSeq = pickString(
-    merged,
-    ['courseActiveSeq', 'course_active_seq', 'activeSeq'],
-  );
-  const title = pickString(
-    merged,
-    ['title', 'courseActiveTitle', 'courseMasterTitle', 'courseTitle'],
-  );
+  const courseActiveSeq = pickString(merged, ['courseActiveSeq', 'course_active_seq', 'activeSeq']);
+  const title = pickString(merged, [
+    'title',
+    'courseActiveTitle',
+    'courseMasterTitle',
+    'courseTitle',
+  ]);
   if (!courseActiveSeq || !title) {
     throw {
       code: 'INVALID_SHARE_RESPONSE',
@@ -671,10 +680,12 @@ const normalizeShare = (raw: unknown, shareToken: string): OneClickShare => {
   }
   const price = pickNumber(merged, ['price', 'educationCost', 'tuition', 'coursePrice']);
   const capacity = pickNumber(merged, ['capacity', 'courseMemberCnt', 'limitCnt', 'recruitCnt']);
-  const confirmedCount = pickNumber(
-    merged,
-    ['confirmedCount', 'confirmedSeatCount', 'enrolled', 'takeCnt'],
-  );
+  const confirmedCount = pickNumber(merged, [
+    'confirmedCount',
+    'confirmedSeatCount',
+    'enrolled',
+    'takeCnt',
+  ]);
   const heldCount = pickNumber(merged, ['heldCount', 'validHeldCount']);
   const recruitmentStatus = pickString(
     merged,
@@ -684,19 +695,15 @@ const normalizeShare = (raw: unknown, shareToken: string): OneClickShare => {
   return {
     shareToken: pickString(root, ['shareToken', 'token'], shareToken),
     courseActiveSeq,
-    courseMasterSeq: pickString(
-      merged,
-      ['courseMasterSeq', 'course_master_seq', 'masterSeq'],
-    ),
+    courseMasterSeq: pickString(merged, ['courseMasterSeq', 'course_master_seq', 'masterSeq']),
     title,
-    summary: pickString(
-      merged,
-      ['summary', 'courseActiveSummary', 'courseSummary', 'subtitle'],
-    ),
-    description: pickString(
-      merged,
-      ['description', 'courseActiveDescription', 'intro', 'contents'],
-    ),
+    summary: pickString(merged, ['summary', 'courseActiveSummary', 'courseSummary', 'subtitle']),
+    description: pickString(merged, [
+      'description',
+      'courseActiveDescription',
+      'intro',
+      'contents',
+    ]),
     price,
     capacity,
     enrolled: pickNumber(merged, ['enrolled', 'applyCnt', 'takeCnt', 'memberCnt'], confirmedCount),
@@ -729,10 +736,7 @@ const normalizeShare = (raw: unknown, shareToken: string): OneClickShare => {
       ['scheduleText', 'studyPeriodText', 'coursePeriodText', 'schedule'],
       '일정 안내 예정',
     ),
-    locationText: pickString(
-      merged,
-      ['locationText', 'educationPlace', 'place', 'classroom'],
-    ),
+    locationText: pickString(merged, ['locationText', 'educationPlace', 'place', 'classroom']),
     requiresApproval: pickBoolean(merged, ['requiresApproval', 'approvalYn']),
     difficulty: pickString(
       merged,
@@ -1434,7 +1438,8 @@ export const oneclickService = {
             progress,
             completed,
             completedAt: completed ? new Date().toISOString() : null,
-            completionReason: input.ended && completed ? 'ENDED' : completed ? 'WATCH_THRESHOLD' : null,
+            completionReason:
+              input.ended && completed ? 'ENDED' : completed ? 'WATCH_THRESHOLD' : null,
           }),
         );
         const totalProgress = curriculum.length

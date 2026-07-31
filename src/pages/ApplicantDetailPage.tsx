@@ -4,7 +4,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { applicantService } from '../api/services';
 import { AsyncState } from '../components/common/AsyncState';
 import { PageHeader } from '../components/common/PageHeader';
-import { Avatar, Badge, Button, Textarea } from '../components/ui';
+import { Avatar, Badge, Button, ConfirmDialog, Textarea } from '../components/ui';
 import { useAsync } from '../hooks/useAsync';
 import { won } from '../utils/format';
 import { getStatusTone } from '../utils/status';
@@ -20,6 +20,8 @@ export function ApplicantDetailPage() {
   const [message, setMessage] = useState('');
   const [notice, setNotice] = useState('');
   const [expandedAnswers, setExpandedAnswers] = useState<string[]>([]);
+  const [paymentConfirmOpen, setPaymentConfirmOpen] = useState(false);
+  const [confirmingPayment, setConfirmingPayment] = useState(false);
 
   if (loading || error || !data) {
     return <><div className="oc-web-page"><AsyncState loading={loading} error={error} onRetry={retry} /></div><div className="page subpage"><AsyncState loading={loading} error={error} onRetry={retry} /></div></>;
@@ -27,13 +29,21 @@ export function ApplicantDetailPage() {
 
   const currentPayment = payment ?? data.payment;
   const confirmPayment = async () => {
-    const updated = await applicantService.updatePayment(
-      data.id,
-      { payment: '결제완료' },
-      classId || undefined,
-    );
-    setPayment(updated.payment);
-    setNotice('결제 상태를 확인했어요.');
+    setConfirmingPayment(true);
+    try {
+      const updated = await applicantService.updatePayment(
+        data.id,
+        { payment: '결제완료' },
+        classId || undefined,
+      );
+      setPayment(updated.payment);
+      setPaymentConfirmOpen(false);
+      setNotice('결제 상태를 확인했어요.');
+    } catch {
+      setNotice('결제 상태를 변경하지 못했어요. 다시 시도해 주세요.');
+    } finally {
+      setConfirmingPayment(false);
+    }
   };
   const sendMessage = async () => {
     if (!message.trim()) return;
@@ -59,7 +69,7 @@ export function ApplicantDetailPage() {
             <section className="oc-panel applicant-payment-panel applicant-grid-payment">
               <div><span>결제 상태</span><Badge tone={getStatusTone(currentPayment)}>{currentPayment}</Badge></div>
               <strong>{won(data.amount)}</strong>
-              <Button onClick={() => void confirmPayment()} disabled={currentPayment === '결제완료'}>{currentPayment === '결제완료' ? <><Check size={17} /> 확인 완료</> : '결제 확인'}</Button>
+              <Button onClick={() => setPaymentConfirmOpen(true)} disabled={currentPayment === '결제완료' || confirmingPayment}>{currentPayment === '결제완료' ? <><Check size={17} /> 확인 완료</> : '결제 확인'}</Button>
             </section>
             <section className="oc-panel applicant-answer-panel applicant-grid-answers">
               <h2>신청서 답변</h2>
@@ -76,11 +86,22 @@ export function ApplicantDetailPage() {
 
       <div className="page subpage">
         <PageHeader title="" backTo={backTo} />
-        <div className="applicant-profile"><Avatar name={data.name} size={50} /><div><h2>{data.name}</h2><small>{data.classTitle}</small></div></div>
+        <div className="applicant-profile"><Avatar name={data.name} size={50} /><div><h1>{data.name}</h1><small>{data.classTitle}</small></div></div>
         <section className="info-card"><h4>신청 정보</h4><p><span>전화번호</span><b>{data.phone}</b></p><p><span>이메일</span><b>{data.email}</b></p>{data.answers.map((answer) => <p key={answer.label}><span>{answer.label}</span><b>{answer.value}</b></p>)}</section>
-        <section className={`payment-detail ${currentPayment === '결제완료' ? 'paid' : ''}`}><div><small>결제</small><b>{won(data.amount)} · {currentPayment}</b></div><button onClick={() => void confirmPayment()} disabled={currentPayment === '결제완료'}>{currentPayment === '결제완료' ? '확인 완료' : '결제 확인'}</button></section>
+        <section className={`payment-detail ${currentPayment === '결제완료' ? 'paid' : ''}`}><div><small>결제</small><b>{won(data.amount)} · {currentPayment}</b></div><button onClick={() => setPaymentConfirmOpen(true)} disabled={currentPayment === '결제완료' || confirmingPayment}>{currentPayment === '결제완료' ? '확인 완료' : '결제 확인'}</button></section>
         <div className="mini-stats"><div>출석<b>3/4</b></div><div>설문<b>완료</b></div><div>시험<b className="gray">미응시</b></div></div>
       </div>
+      <ConfirmDialog
+        open={paymentConfirmOpen}
+        title="결제를 확인할까요?"
+        description={`${data.name}님의 ${won(data.amount)} 결제 상태를 완료로 변경합니다.`}
+        confirmText="결제 확인"
+        cancelText="취소"
+        tone="primary"
+        loading={confirmingPayment}
+        onCancel={() => setPaymentConfirmOpen(false)}
+        onConfirm={() => void confirmPayment()}
+      />
     </>
   );
 }
