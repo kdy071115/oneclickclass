@@ -1469,30 +1469,6 @@ a {
   font-weight: 700;
   margin: 18px 0 4px;
 }
-.mobile-class-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin: 0 0 14px;
-}
-.mobile-class-actions button,
-.mobile-class-actions a {
-  min-height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  border: 1px solid #d8e6fb;
-  border-radius: 14px;
-  background: #eff6ff;
-  color: var(--blue);
-  font-size: 13px;
-  font-weight: 800;
-}
-.mobile-class-actions svg {
-  width: 18px;
-  height: 18px;
-}
 .profile.original {
   padding: 0;
   background: none;
