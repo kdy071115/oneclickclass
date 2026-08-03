@@ -1,15 +1,66 @@
-export function isValidYouTubeUrl(value: string) {
+import { classCreationFileTypes } from '../constants/classCreation';
+
+export function getYouTubeVideoId(value: string) {
   try {
     const url = new URL(value);
     const host = url.hostname.replace(/^www\./, '');
-    if (host === 'youtu.be') return Boolean(url.pathname.slice(1));
-    return (
-      (host === 'youtube.com' || host === 'm.youtube.com') &&
-      (Boolean(url.searchParams.get('v')) || url.pathname.startsWith('/shorts/'))
-    );
+    const id =
+      host === 'youtu.be'
+        ? url.pathname.split('/').filter(Boolean)[0]
+        : host === 'youtube.com' || host === 'm.youtube.com'
+          ? url.searchParams.get('v') ||
+            (/^\/(shorts|embed)\//.test(url.pathname)
+              ? url.pathname.split('/').filter(Boolean)[1]
+              : '')
+          : '';
+    return id && /^[A-Za-z0-9_-]{6,}$/.test(id) ? id : '';
   } catch {
-    return false;
+    return '';
   }
+}
+
+export function isValidYouTubeUrl(value: string) {
+  return Boolean(getYouTubeVideoId(value));
+}
+
+export function isSupportedClassSourceFile(file: File, kind: 'video' | 'document') {
+  const extension = file.name.split('.').pop()?.toLowerCase() ?? '';
+  const rule = classCreationFileTypes[kind];
+  return rule.extensions.some((allowed) => allowed === extension);
+}
+
+export function formatMediaDuration(seconds: number) {
+  if (!Number.isFinite(seconds) || seconds <= 0) return '';
+  const total = Math.round(seconds);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const remainingSeconds = total % 60;
+  return hours > 0
+    ? `${hours}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`
+    : `${minutes}:${String(remainingSeconds).padStart(2, '0')}`;
+}
+
+export function readVideoDuration(file: File) {
+  return new Promise<number | undefined>((resolve) => {
+    const video = document.createElement('video');
+    const objectUrl = URL.createObjectURL(file);
+    let settled = false;
+    const finish = (duration?: number) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      video.removeAttribute('src');
+      video.load();
+      URL.revokeObjectURL(objectUrl);
+      resolve(duration);
+    };
+    const timeout = window.setTimeout(() => finish(), 10_000);
+    video.preload = 'metadata';
+    video.onloadedmetadata = () =>
+      finish(Number.isFinite(video.duration) && video.duration > 0 ? video.duration : undefined);
+    video.onerror = () => finish();
+    video.src = objectUrl;
+  });
 }
 
 const schedulePattern =
@@ -30,8 +81,7 @@ const parseSchedule = (value: string): ScheduleParts | null => {
   const match = schedulePattern.exec(value.trim());
   if (!match) return null;
 
-  const [, yearValue, monthValue, dayValue, hourValue, minuteValue, secondValue, zone] =
-    match;
+  const [, yearValue, monthValue, dayValue, hourValue, minuteValue, secondValue, zone] = match;
   const year = Number(yearValue);
   const month = Number(monthValue);
   const day = Number(dayValue);
@@ -78,7 +128,9 @@ export function scheduleDateValue(value: string): string {
   const parts = parseSchedule(value);
   if (!parts) return '';
   return [parts.year, parts.month, parts.day]
-    .map((part, index) => (index === 0 ? String(part).padStart(4, '0') : String(part).padStart(2, '0')))
+    .map((part, index) =>
+      index === 0 ? String(part).padStart(4, '0') : String(part).padStart(2, '0'),
+    )
     .join('-');
 }
 
@@ -93,6 +145,21 @@ export function combineClassSchedule(date: string, time: string): string {
   if (!normalizedDate) return '';
   const normalizedTime = timePattern.test(time.trim()) ? time.trim() : '';
   return normalizedTime ? `${normalizedDate}T${normalizedTime}` : normalizedDate;
+}
+
+export function localDateInputValue(value = new Date()): string {
+  const localValue = new Date(value.getTime() - value.getTimezoneOffset() * 60_000);
+  return localValue.toISOString().slice(0, 10);
+}
+
+export function isPastClassSchedule(value: string, now = new Date()): boolean {
+  const parts = parseSchedule(value);
+  if (!parts || parts.hour === undefined || parts.minute === undefined) return false;
+
+  const scheduledAt = parts.zone
+    ? new Date(value.trim())
+    : new Date(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second ?? 0);
+  return !Number.isNaN(scheduledAt.getTime()) && scheduledAt.getTime() < now.getTime();
 }
 
 export function formatClassSchedule(value: string): string {

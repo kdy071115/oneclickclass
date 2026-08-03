@@ -44,6 +44,7 @@ import type {
   RecruitmentStatus,
 } from '../types/class';
 import { initialClassDraft } from '../constants/classDraft';
+import { classExampleContent } from '../constants/classCreation';
 import {
   hasClassData,
   hasClassPreview,
@@ -52,6 +53,7 @@ import {
   loadClassPreviewPatch,
 } from '../utils/classDraft';
 import { formatClassSchedule } from '../utils/classCreation';
+import { readImageFile } from '../utils/classThumbnail';
 const mock = import.meta.env.VITE_USE_MOCK !== 'false';
 const delay = <T>(data: T) => new Promise<T>((resolve) => setTimeout(() => resolve(data), 350));
 const MOCK_CLASSES_KEY = 'oneclick.mock.classes';
@@ -63,6 +65,38 @@ const LEGACY_MOCK_CLASS_IDS = new Set([
   'c40517c1-70ba-4b94-87db-980493423599',
   'c4a5efd9-5661-47ea-a9d6-67c6d69eb443',
 ]);
+
+export interface ClassSourceMaterialInput {
+  url: string;
+  name: string;
+  type: string;
+  size: number;
+  durationSeconds?: number;
+}
+
+export interface ClassSourceAnalysisInput {
+  type: Exclude<ClassDraft['type'], 'hybrid'>;
+  source: {
+    kind: 'youtube' | 'video' | 'documents';
+    youtubeUrl?: string;
+    materials?: ClassSourceMaterialInput[];
+  };
+}
+
+export interface ClassSourceMetadata {
+  title?: string;
+  channel?: string;
+  durationSeconds?: number;
+  thumbnailUrl?: string;
+}
+
+export interface ClassSourceAnalysisResult
+  extends Pick<ClassDraft, 'title' | 'summary' | 'description'> {
+  sourceMetadata?: ClassSourceMetadata;
+}
+
+const classAnalysisEndpoint = import.meta.env.VITE_CLASS_ANALYSIS_ENDPOINT?.trim();
+const youtubeMetadataEndpoint = import.meta.env.VITE_YOUTUBE_METADATA_ENDPOINT?.trim();
 const mockSettingsKey = (classId: string) => `oneclick.class-settings.${classId}`;
 const curriculumKey = (classId: string) => `oneclick.curriculum.${classId}`;
 const surveyKey = (classId: string) => `oneclick.surveys.${classId}`;
@@ -133,10 +167,12 @@ const previewClassItem = (id: string): ClassItem => {
     status: classStatus(lifecycleStatus, settings.recruitmentStatus),
     type: classTypeLabel[draft.type],
     date: formatClassSchedule(draft.startDate),
+    startDate: draft.startDate,
     enrolled: hasEnrollment ? 1 : 0,
     capacity: draft.capacity,
     color: '#3182f6',
     thumbnail: draft.thumbnail || undefined,
+    thumbnailPosition: draft.thumbnailPosition,
   };
 };
 const mockClasses = () => {
@@ -305,7 +341,10 @@ const mockCertificatePolicy = (classId: string): CertificatePolicy => {
   try {
     const stored = localStorage.getItem(certificatePolicyKey(classId));
     return stored
-      ? { ...defaultCertificatePolicy(classId), ...(JSON.parse(stored) as Partial<CertificatePolicy>) }
+      ? {
+          ...defaultCertificatePolicy(classId),
+          ...(JSON.parse(stored) as Partial<CertificatePolicy>),
+        }
       : defaultCertificatePolicy(classId);
   } catch {
     return defaultCertificatePolicy(classId);
@@ -320,7 +359,9 @@ type MockCertificateIssuance = {
 
 const mockCertificateIssuances = (classId: string): MockCertificateIssuance[] => {
   try {
-    return JSON.parse(localStorage.getItem(certificateIssuanceKey(classId)) ?? '[]') as MockCertificateIssuance[];
+    return JSON.parse(
+      localStorage.getItem(certificateIssuanceKey(classId)) ?? '[]',
+    ) as MockCertificateIssuance[];
   } catch {
     return [];
   }
@@ -331,7 +372,9 @@ const mockEnrollmentProgress = (classId: string, applicantId: string) => {
     const stored = localStorage.getItem(`oneclick.enrollment.${classId}`);
     if (!stored) return 0;
     const enrollment = JSON.parse(stored) as { courseApplySeq?: string; progress?: number };
-    return enrollment.courseApplySeq === applicantId ? Math.max(0, Math.min(100, enrollment.progress ?? 0)) : 0;
+    return enrollment.courseApplySeq === applicantId
+      ? Math.max(0, Math.min(100, enrollment.progress ?? 0))
+      : 0;
   } catch {
     return 0;
   }
@@ -505,14 +548,9 @@ export const authService = {
       user: { id: crypto.randomUUID(), name: input.name, email: input.email, role: input.role },
     });
   },
-  async refresh(refreshToken: string) {
-    return (
-      await apiClient.post<{ accessToken: string }>('/auth/refresh', { refreshToken })
-    ).data;
-  },
-  async logout(refreshToken?: string) {
+  async logout() {
     if (mock) return delay(undefined);
-    await apiClient.post('/auth/logout', { refreshToken });
+    await apiClient.post('/auth/logout');
   },
 };
 export const classService = {
@@ -545,9 +583,11 @@ export const classService = {
       status: '준비중' as const,
       type: classTypeLabel[draft.type],
       date: formatClassSchedule(draft.startDate),
+      startDate: draft.startDate,
       capacity: draft.capacity,
       enrolled: 0,
       thumbnail: draft.thumbnail,
+      thumbnailPosition: draft.thumbnailPosition,
     };
     saveMockClasses([item, ...savedMockClasses()]);
     saveMockSettings(
@@ -565,8 +605,7 @@ export const classService = {
       ...draft,
       id,
       type: draft.type ? classTypeLabel[draft.type] : current.type,
-      date:
-        draft.startDate === undefined ? current.date : formatClassSchedule(draft.startDate),
+      date: draft.startDate === undefined ? current.date : formatClassSchedule(draft.startDate),
     } as ClassItem;
     saveMockClasses([item, ...savedMockClasses().filter((saved) => saved.id !== id)]);
     return delay(item);
@@ -605,7 +644,7 @@ export const classService = {
     return delay(undefined);
   },
   uploadImage: (file: File): Promise<{ url: string }> => {
-    if (mock) return delay({ url: URL.createObjectURL(file) });
+    if (mock) return readImageFile(file).then((url) => delay({ url }));
     const form = new FormData();
     form.append('file', file);
     return apiClient
@@ -616,6 +655,7 @@ export const classService = {
   },
   uploadFile: (
     file: File,
+    onProgress?: (percent: number) => void,
   ): Promise<{ url: string; name?: string; type?: string; size?: number }> => {
     if (mock)
       return delay({
@@ -629,8 +669,40 @@ export const classService = {
     return apiClient
       .post<{ url: string; name?: string; type?: string; size?: number }>('/classes/files', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (event) => {
+          if (!event.total) return;
+          onProgress?.(Math.min(100, Math.round((event.loaded / event.total) * 100)));
+        },
       })
       .then((r) => r.data);
+  },
+  inspectYouTube: (
+    url: string,
+    videoId: string,
+    signal?: AbortSignal,
+  ): Promise<ClassSourceMetadata> => {
+    const fallback = {
+      thumbnailUrl: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
+    };
+    if (!youtubeMetadataEndpoint) return delay(fallback);
+    return apiClient
+      .post<ClassSourceMetadata>(youtubeMetadataEndpoint, { url }, { signal })
+      .then((response) => ({ ...fallback, ...response.data }));
+  },
+  analyzeSource: (
+    input: ClassSourceAnalysisInput,
+    signal?: AbortSignal,
+  ): Promise<ClassSourceAnalysisResult> => {
+    if (mock) return delay(classExampleContent[input.type]);
+    if (!classAnalysisEndpoint) {
+      return Promise.reject(new Error('class analysis endpoint is not configured'));
+    }
+    return apiClient
+      .post<ClassSourceAnalysisResult>(classAnalysisEndpoint, input, {
+        signal,
+        timeout: 60_000,
+      })
+      .then((response) => response.data);
   },
 };
 export const applicantService = {
@@ -761,6 +833,7 @@ export const detailService = {
         draftPatch?.startDate === undefined
           ? formatClassSchedule(item?.date || baseDetail.date)
           : formatClassSchedule(draftPatch.startDate),
+      startDate: draftPatch?.startDate ?? item?.startDate ?? baseDetail.startDate,
       summary: draftPatch?.summary?.trim() ? draftPatch.summary : baseDetail.summary,
       description: draftPatch?.description?.trim()
         ? draftPatch.description

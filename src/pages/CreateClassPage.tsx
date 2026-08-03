@@ -1,7 +1,9 @@
 import {
   type ChangeEvent,
+  type DragEvent,
   type FormEvent,
   type RefObject,
+  useCallback,
   useEffect,
   useId,
   useMemo,
@@ -21,14 +23,12 @@ import {
   Link2,
   LoaderCircle,
   MapPin,
-  Monitor,
   MonitorPlay,
   Pencil,
   Play,
   Radio,
   RefreshCw,
   Search,
-  Smartphone,
   Sparkles,
   Upload,
   Users,
@@ -37,11 +37,12 @@ import {
   X,
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { classService, detailService } from '../api/services';
+import { classService, detailService, type ClassSourceMetadata } from '../api/services';
 import {
+  classCreationFileTypes,
   classCreationLimits,
   classCreationFlowSteps,
-  classExampleContent,
+  classThumbnailPositionOptions,
   classTypeOptions,
 } from '../constants/classCreation';
 import { addressSuggestions, initialClassDraft } from '../constants/classDraft';
@@ -56,18 +57,29 @@ import {
 } from '../utils/classDraft';
 import {
   combineClassSchedule,
+  formatMediaDuration,
   formatClassSchedule,
+  getYouTubeVideoId,
+  isSupportedClassSourceFile,
+  isPastClassSchedule,
   isValidYouTubeUrl,
+  localDateInputValue,
+  readVideoDuration,
   scheduleDateValue,
   scheduleTimeValue,
 } from '../utils/classCreation';
-import { getClassThumbnail, saveClassThumbnail } from '../utils/classThumbnail';
+import {
+  getClassThumbnail,
+  optimizeClassThumbnail,
+  saveClassThumbnail,
+} from '../utils/classThumbnail';
 import type { ClassDetail, ClassDraft, ClassItem } from '../types/class';
 
 type SupportedClassType = Exclude<ClassDraft['type'], 'hybrid'>;
 type SourceKind = 'none' | 'youtube' | 'video' | 'documents';
 type InformationMode = 'source' | 'manual' | 'analyzing' | 'generated' | 'analysis-error';
 type SaveStatus = 'saving' | 'saved' | 'error';
+type ThumbnailUploadStatus = 'idle' | 'uploading' | 'error';
 type EditableField = 'title' | 'summary' | 'description' | 'price' | 'capacity' | 'address';
 type FormField =
   | 'title'
@@ -86,19 +98,25 @@ interface UploadedMaterial {
   type: string;
   size: number;
   status: 'uploading' | 'uploaded' | 'error';
+  url?: string;
+  progress?: number;
+  durationSeconds?: number;
 }
 
 interface CreationMeta {
   deliverySelected: boolean;
   source: SourceKind;
   youtubeUrl: string;
+  youtubeVideoId: string;
   youtubeConnected: boolean;
+  youtubeMetadata?: ClassSourceMetadata;
   materials: UploadedMaterial[];
   informationMode: InformationMode;
-  previewDevice: 'desktop' | 'mobile';
   previewHintSeen: boolean;
   createdId: string;
   shareToken: string;
+  step: number;
+  maxStep: number;
 }
 
 const CLASS_CREATION_META_KEY = 'oneclick-class-creation-meta';
@@ -107,13 +125,16 @@ const initialCreationMeta: CreationMeta = {
   deliverySelected: false,
   source: 'none',
   youtubeUrl: '',
+  youtubeVideoId: '',
   youtubeConnected: false,
+  youtubeMetadata: undefined,
   materials: [],
   informationMode: 'source',
-  previewDevice: 'desktop',
   previewHintSeen: false,
   createdId: '',
   shareToken: '',
+  step: 1,
+  maxStep: 1,
 };
 
 const typeIcons = {
@@ -142,7 +163,8 @@ function editDraftFromClass(item: ClassItem, detail: ClassDetail): ClassDraft {
     summary: detail.summary,
     description: detail.description,
     thumbnail: item.thumbnail ?? '',
-    startDate: item.date === '일정 미정' ? '' : item.date,
+    thumbnailPosition: item.thumbnailPosition ?? initialClassDraft.thumbnailPosition,
+    startDate: item.startDate || detail.startDate || '',
     recruitEndDate: detail.recruitEndDate,
     capacity: detail.capacity,
     payment: detail.price > 0 ? 'paid' : 'free',
@@ -163,13 +185,26 @@ function loadCreationMeta(hasDraft: boolean, editing: boolean): CreationMeta {
       };
     }
     const parsed = JSON.parse(saved) as Partial<CreationMeta>;
+    const restoredStep = Math.min(4, Math.max(1, Number(parsed.step) || 1));
+    const restoredMaxStep = Math.min(
+      4,
+      Math.max(restoredStep, Number(parsed.maxStep) || restoredStep),
+    );
     return {
       ...initialCreationMeta,
       ...parsed,
+      youtubeVideoId: parsed.youtubeVideoId || getYouTubeVideoId(parsed.youtubeUrl || ''),
+      youtubeMetadata: parsed.youtubeMetadata,
       deliverySelected: parsed.deliverySelected ?? (hasDraft || editing),
+      step: restoredStep,
+      maxStep: editing ? 4 : restoredMaxStep,
       materials: (parsed.materials ?? []).map((file) => ({
         ...file,
-        status: file.status === 'uploading' ? 'error' : file.status,
+        status:
+          file.status === 'uploading' || (file.status === 'uploaded' && !file.url)
+            ? 'error'
+            : file.status,
+        progress: file.status === 'uploaded' && file.url ? 100 : undefined,
       })),
     };
   } catch {
@@ -194,7 +229,8 @@ function formatPrice(value: number) {
 function sourceIsReady(meta: CreationMeta) {
   return (
     (meta.source === 'youtube' && meta.youtubeConnected) ||
-    (meta.materials.length > 0 && meta.materials.every((file) => file.status === 'uploaded'))
+    (meta.materials.length > 0 &&
+      meta.materials.every((file) => file.status === 'uploaded' && Boolean(file.url)))
   );
 }
 
@@ -246,12 +282,7 @@ export function CreateClassPage() {
   const nav = useNavigate();
   const [params] = useSearchParams();
   const editId = params.get('edit');
-  const [step, setStep] = useState(() =>
-    editId
-      ? Math.min(4, Math.max(1, Number(params.get('step')) || 1))
-      : Math.min(4, Math.max(1, Number(params.get('step')) || 1)),
-  );
-  const [maxStep, setMaxStep] = useState(() => (editId ? 4 : Math.max(1, step)));
+  const requestedStep = Math.min(4, Math.max(1, Number(params.get('step')) || 1));
   const [draft, setDraft] = useState<ClassDraft>(() => {
     const savedDraft = editId
       ? loadClassPreview(editId, initialClassDraft)
@@ -266,15 +297,23 @@ export function CreateClassPage() {
   const [meta, setMeta] = useState<CreationMeta>(() =>
     loadCreationMeta(Boolean(draft.title || draft.summary || draft.description), Boolean(editId)),
   );
+  const [step, setStep] = useState(() =>
+    params.has('step') || editId ? requestedStep : meta.step,
+  );
+  const [maxStep, setMaxStep] = useState(() => (editId ? 4 : Math.max(step, meta.maxStep)));
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
   const [saveRetryToken, setSaveRetryToken] = useState(0);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [youtubeError, setYoutubeError] = useState('');
+  const [sourceDragActive, setSourceDragActive] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [addressOpen, setAddressOpen] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(() =>
+    Boolean(draft.startDate || draft.recruitEndDate),
+  );
   const [query, setQuery] = useState('');
   const [editField, setEditField] = useState<EditableField | null>(null);
   const [highlightField, setHighlightField] = useState<EditableField | null>(null);
@@ -282,14 +321,47 @@ export function CreateClassPage() {
   const [editLoading, setEditLoading] = useState(() => Boolean(editId && !hasClassPreview(editId)));
   const [editLoadError, setEditLoadError] = useState('');
   const [editReload, setEditReload] = useState(0);
-  const analysisTimer = useRef<number>();
+  const [thumbnailPreviewUrl, setThumbnailPreviewUrl] = useState('');
+  const [thumbnailUploadStatus, setThumbnailUploadStatus] =
+    useState<ThumbnailUploadStatus>('idle');
+  const [thumbnailUploadError, setThumbnailUploadError] = useState('');
+  const analysisAbort = useRef<AbortController>();
+  const youtubeMetadataAbort = useRef<AbortController>();
+  const saveTimer = useRef<number>();
   const inlineOriginal = useRef<Partial<ClassDraft>>({});
+  const pendingThumbnailFile = useRef<File>();
+  const thumbnailUploadToken = useRef(0);
+  const sourceFiles = useRef(new Map<string, File>());
+  const sourceFileInputRef = useRef<HTMLInputElement>(null);
+  const previewHelpButtonRef = useRef<HTMLButtonElement>(null);
+  const addressReturnFocusRef = useRef<HTMLElement>();
   const informationDescriptionRef = useRef<HTMLTextAreaElement>(null);
   const previewDescriptionRef = useRef<HTMLTextAreaElement>(null);
+  const draftRef = useRef(draft);
+  const metaRef = useRef(meta);
+  const stepRef = useRef(step);
+  const maxStepRef = useRef(maxStep);
+
+  draftRef.current = draft;
+  metaRef.current = meta;
+  stepRef.current = step;
+  maxStepRef.current = maxStep;
 
   const type = supportedType(draft.type);
   const typeOption = classTypeOptions.find((option) => option.value === type)!;
   const stepInfo = classCreationFlowSteps[step - 1];
+  const progressPercent = Math.round(((step - 1) / (classCreationFlowSteps.length - 1)) * 100);
+  const todayDateValue = localDateInputValue();
+  const informationDescription =
+    meta.informationMode === 'manual'
+      ? '핵심 정보만 입력하면 공개 페이지에서 바로 다듬을 수 있어요.'
+      : meta.informationMode === 'analyzing'
+        ? '자료를 확인하고 클래스 구성을 만들고 있어요.'
+        : meta.informationMode === 'generated'
+          ? '초안이 준비됐어요. 공개 전에 필요한 부분만 확인해 주세요.'
+          : type === 'online'
+            ? '영상 하나면 충분해요. 제목과 소개는 자동으로 초안을 만들어 드려요.'
+            : '가지고 있는 자료를 바탕으로 제목, 소개와 내용을 준비해 드려요.';
   const informationSourceLabel =
     meta.informationMode === 'manual'
       ? '직접 작성'
@@ -307,6 +379,30 @@ export function CreateClassPage() {
         : '',
     [meta.shareToken],
   );
+  const persistDraftSnapshot = useCallback(() => {
+    if (editLoading || stepRef.current === 5) return true;
+    if (saveTimer.current) {
+      window.clearTimeout(saveTimer.current);
+      saveTimer.current = undefined;
+    }
+    try {
+      if (editId) saveClassPreview(editId, draftRef.current);
+      else saveClassDraft(draftRef.current);
+      sessionStorage.setItem(
+        CLASS_CREATION_META_KEY,
+        JSON.stringify({
+          ...metaRef.current,
+          step: stepRef.current,
+          maxStep: maxStepRef.current,
+        }),
+      );
+      setSaveStatus('saved');
+      return true;
+    } catch {
+      setSaveStatus('error');
+      return false;
+    }
+  }, [editId, editLoading]);
 
   useEffect(() => {
     if (!editId || hasClassPreview(editId)) return;
@@ -336,39 +432,66 @@ export function CreateClassPage() {
   useEffect(() => {
     if (editLoading || step === 5) return;
     setSaveStatus('saving');
-    const timer = window.setTimeout(() => {
-      try {
-        if (editId) saveClassPreview(editId, draft);
-        else saveClassDraft(draft);
-        sessionStorage.setItem(CLASS_CREATION_META_KEY, JSON.stringify(meta));
-        setSaveStatus('saved');
-      } catch {
-        setSaveStatus('error');
-      }
-    }, 500);
-    return () => window.clearTimeout(timer);
-  }, [draft, editId, editLoading, meta, saveRetryToken, step]);
+    if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    saveTimer.current = window.setTimeout(persistDraftSnapshot, 500);
+    return () => {
+      if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    };
+  }, [draft, editLoading, maxStep, meta, persistDraftSnapshot, saveRetryToken, step]);
+
+  useEffect(() => {
+    const saveBeforeUnload = () => {
+      persistDraftSnapshot();
+    };
+    window.addEventListener('beforeunload', saveBeforeUnload);
+    return () => window.removeEventListener('beforeunload', saveBeforeUnload);
+  }, [persistDraftSnapshot]);
+
+  useEffect(
+    () => () => {
+      persistDraftSnapshot();
+    },
+    [persistDraftSnapshot],
+  );
 
   useEffect(() => {
     if (step !== 4 || meta.previewHintSeen) return;
     setShowPreviewHint(true);
-    const timer = window.setTimeout(() => {
-      setShowPreviewHint(false);
-      setMeta((current) => ({ ...current, previewHintSeen: true }));
-    }, 3800);
-    return () => window.clearTimeout(timer);
   }, [meta.previewHintSeen, step]);
+
+  useEffect(() => {
+    if (!editField) return;
+    const finishEditOutside = (event: PointerEvent) => {
+      const fieldRoot = document.querySelector<HTMLElement>(`[data-preview-field="${editField}"]`);
+      const target = event.target as Node | null;
+      if (!target || fieldRoot?.contains(target)) return;
+      if ((target as Element).closest?.('.creator-address-dialog')) return;
+      setEditField(null);
+    };
+    document.addEventListener('pointerdown', finishEditOutside);
+    return () => document.removeEventListener('pointerdown', finishEditOutside);
+  }, [editField]);
 
   useEffect(
     () => () => {
-      if (analysisTimer.current) window.clearTimeout(analysisTimer.current);
+      analysisAbort.current?.abort();
+      youtubeMetadataAbort.current?.abort();
     },
     [],
   );
 
+  useEffect(
+    () => () => {
+      if (thumbnailPreviewUrl) URL.revokeObjectURL(thumbnailPreviewUrl);
+    },
+    [thumbnailPreviewUrl],
+  );
+
   function selectType(nextType: SupportedClassType) {
     if (meta.deliverySelected && type === nextType) return;
-    if (analysisTimer.current) window.clearTimeout(analysisTimer.current);
+    analysisAbort.current?.abort();
+    youtubeMetadataAbort.current?.abort();
+    sourceFiles.current.clear();
     const hasWrittenInformation = Boolean(
       draft.title.trim() || draft.summary.trim() || draft.description.trim(),
     );
@@ -382,48 +505,82 @@ export function CreateClassPage() {
       deliverySelected: true,
       source: 'none',
       youtubeUrl: '',
+      youtubeVideoId: '',
       youtubeConnected: false,
+      youtubeMetadata: undefined,
       materials: [],
       informationMode: hasWrittenInformation ? 'manual' : 'source',
     }));
     setError('');
   }
 
-  function startAnalysis() {
+  async function startAnalysis() {
     if (!sourceIsReady(meta)) {
       setError('분석할 영상이나 자료를 먼저 등록해 주세요.');
       return;
     }
+    analysisAbort.current?.abort();
+    const controller = new AbortController();
+    analysisAbort.current = controller;
     setError('');
     setMeta((current) => ({ ...current, informationMode: 'analyzing' }));
-    if (analysisTimer.current) window.clearTimeout(analysisTimer.current);
-    analysisTimer.current = window.setTimeout(() => {
+    try {
+      const result = await classService.analyzeSource(
+        {
+          type,
+          source: {
+            kind: meta.source === 'none' ? 'documents' : meta.source,
+            youtubeUrl: meta.source === 'youtube' ? meta.youtubeUrl : undefined,
+            materials: meta.materials.map((file) => ({
+              url: file.url!,
+              name: file.name,
+              type: file.type,
+              size: file.size,
+              durationSeconds: file.durationSeconds,
+            })),
+          },
+        },
+        controller.signal,
+      );
+      if (controller.signal.aborted) return;
       setDraft((current) => {
-        const example = classExampleContent[supportedType(current.type)];
         return {
           ...current,
-          title: current.title.trim() || example.title,
-          summary: current.summary.trim() || example.summary,
-          description: current.description.trim() || example.description,
+          title: current.title.trim() || result.title,
+          summary: current.summary.trim() || result.summary,
+          description: current.description.trim() || result.description,
         };
       });
-      setMeta((current) => ({ ...current, informationMode: 'generated' }));
-    }, 1800);
+      setMeta((current) => ({
+        ...current,
+        informationMode: 'generated',
+        youtubeMetadata: result.sourceMetadata
+          ? { ...current.youtubeMetadata, ...result.sourceMetadata }
+          : current.youtubeMetadata,
+      }));
+    } catch {
+      if (controller.signal.aborted) return;
+      setMeta((current) => ({ ...current, informationMode: 'analysis-error' }));
+    }
   }
 
   function chooseManualMode() {
-    if (analysisTimer.current) window.clearTimeout(analysisTimer.current);
+    analysisAbort.current?.abort();
     setMeta((current) => ({ ...current, informationMode: 'manual' }));
     setError('');
   }
 
   function resetSource() {
-    if (analysisTimer.current) window.clearTimeout(analysisTimer.current);
+    analysisAbort.current?.abort();
+    youtubeMetadataAbort.current?.abort();
+    sourceFiles.current.clear();
     setMeta((current) => ({
       ...current,
       source: 'none',
       youtubeUrl: '',
+      youtubeVideoId: '',
       youtubeConnected: false,
+      youtubeMetadata: undefined,
       materials: [],
       informationMode: 'source',
     }));
@@ -431,19 +588,41 @@ export function CreateClassPage() {
     setError('');
   }
 
-  function connectYouTube() {
-    if (!isValidYouTubeUrl(meta.youtubeUrl)) {
+  async function connectYouTube() {
+    const videoId = getYouTubeVideoId(meta.youtubeUrl);
+    if (!isValidYouTubeUrl(meta.youtubeUrl) || !videoId) {
       setYoutubeError('올바른 YouTube 영상 주소를 입력해 주세요.');
       return;
     }
     setYoutubeError('');
+    youtubeMetadataAbort.current?.abort();
+    const controller = new AbortController();
+    youtubeMetadataAbort.current = controller;
+    sourceFiles.current.clear();
     setMeta((current) => ({
       ...current,
       source: 'youtube',
+      youtubeVideoId: videoId,
       youtubeConnected: true,
+      youtubeMetadata: {
+        thumbnailUrl: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
+      },
       materials: [],
       informationMode: 'source',
     }));
+    try {
+      const metadata = await classService.inspectYouTube(meta.youtubeUrl, videoId, controller.signal);
+      if (controller.signal.aborted) return;
+      setMeta((current) => ({ ...current, youtubeMetadata: metadata }));
+    } catch {
+      if (controller.signal.aborted) return;
+      setMeta((current) => ({
+        ...current,
+        youtubeMetadata: {
+          thumbnailUrl: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
+        },
+      }));
+    }
   }
 
   function updateMaterial(id: string, update: Partial<UploadedMaterial>) {
@@ -453,30 +632,55 @@ export function CreateClassPage() {
     }));
   }
 
-  async function addSourceFiles(event: ChangeEvent<HTMLInputElement>) {
-    const selected = Array.from(event.target.files ?? []);
-    event.target.value = '';
+  async function uploadMaterial(id: string, file: File) {
+    updateMaterial(id, { status: 'uploading', progress: undefined });
+    try {
+      const uploaded = await classService.uploadFile(file, (progress) =>
+        updateMaterial(id, { progress }),
+      );
+      updateMaterial(id, {
+        status: 'uploaded',
+        progress: 100,
+        url: uploaded.url,
+        name: uploaded.name || file.name,
+        type: uploaded.type || file.type,
+        size: uploaded.size ?? file.size,
+      });
+      return true;
+    } catch {
+      updateMaterial(id, { status: 'error', progress: undefined });
+      return false;
+    }
+  }
+
+  async function handleSourceFiles(selected: File[]) {
     if (!selected.length) return;
 
     const files = type === 'online' ? selected.slice(0, 1) : selected;
     const invalid = files.find((file) => {
       if (type === 'online') {
-        return !file.type.startsWith('video/') || file.size > classCreationLimits.videoBytes;
+        return (
+          !isSupportedClassSourceFile(file, 'video') ||
+          file.size > classCreationLimits.videoBytes
+        );
       }
       return (
-        !/\.(pdf|pptx?|docx?|png|jpe?g|txt)$/i.test(file.name) ||
+        !isSupportedClassSourceFile(file, 'document') ||
         file.size > classCreationLimits.documentBytes
       );
     });
     if (invalid) {
       setError(
         type === 'online'
-          ? '2GB 이하의 영상 파일을 등록해 주세요.'
-          : 'PDF, PPT, DOC, 이미지, TXT 형식의 50MB 이하 파일을 등록해 주세요.',
+          ? `${classCreationFileTypes.video.label} 형식의 2GB 이하 영상 파일을 등록해 주세요.`
+          : `${classCreationFileTypes.document.label} 형식의 50MB 이하 파일을 등록해 주세요.`,
       );
       return;
     }
 
+    analysisAbort.current?.abort();
+    youtubeMetadataAbort.current?.abort();
+    sourceFiles.current.clear();
     const materials = files.map((file) => ({
       id: crypto.randomUUID(),
       name: file.name,
@@ -484,31 +688,53 @@ export function CreateClassPage() {
       size: file.size,
       status: 'uploading' as const,
     }));
+    materials.forEach((material, index) => sourceFiles.current.set(material.id, files[index]));
     setMeta((current) => ({
       ...current,
       source: type === 'online' ? 'video' : 'documents',
+      youtubeVideoId: '',
       youtubeConnected: false,
+      youtubeMetadata: undefined,
       youtubeUrl: '',
       materials,
       informationMode: 'source',
     }));
     setError('');
 
-    const results = await Promise.allSettled(
-      files.map(async (file, index) => {
-        await classService.uploadFile(file);
-        updateMaterial(materials[index].id, { status: 'uploaded' });
-      }),
-    );
-    if (results.some((result) => result.status === 'rejected')) {
-      results.forEach((result, index) => {
-        if (result.status === 'rejected') updateMaterial(materials[index].id, { status: 'error' });
+    if (type === 'online') {
+      void readVideoDuration(files[0]).then((durationSeconds) => {
+        if (durationSeconds) updateMaterial(materials[0].id, { durationSeconds });
       });
-      setMeta((current) => ({ ...current, informationMode: 'analysis-error' }));
+    }
+
+    const results = await Promise.all(
+      files.map((file, index) => uploadMaterial(materials[index].id, file)),
+    );
+    if (results.some((uploaded) => !uploaded)) {
+      setError('일부 파일을 업로드하지 못했어요. 실패한 파일을 다시 업로드해 주세요.');
     }
   }
 
+  function addSourceFiles(event: ChangeEvent<HTMLInputElement>) {
+    const selected = Array.from(event.target.files ?? []);
+    event.target.value = '';
+    void handleSourceFiles(selected);
+  }
+
+  async function retryMaterial(file: UploadedMaterial) {
+    const originalFile = sourceFiles.current.get(file.id);
+    if (!originalFile) {
+      removeMaterial(file.id);
+      requestAnimationFrame(() => sourceFileInputRef.current?.click());
+      return;
+    }
+    setError('');
+    const uploaded = await uploadMaterial(file.id, originalFile);
+    if (!uploaded) setError('파일을 다시 업로드하지 못했어요. 네트워크 상태를 확인해 주세요.');
+  }
+
   function removeMaterial(id: string) {
+    sourceFiles.current.delete(id);
     setMeta((current) => {
       const materials = current.materials.filter((file) => file.id !== id);
       return {
@@ -551,9 +777,18 @@ export function CreateClassPage() {
     }
     if (
       type !== 'online' &&
+      draft.startDate &&
       (!scheduleDateValue(draft.startDate) || !scheduleTimeValue(draft.startDate))
-    ) {
-      errors.startDate = '클래스 시작 날짜와 시간을 모두 입력해 주세요.';
+    )
+      errors.startDate = '일정을 설정하려면 시작 날짜와 시간을 모두 입력해 주세요.';
+    else if (type !== 'online' && isPastClassSchedule(draft.startDate)) {
+      errors.startDate = '클래스 시작 일정은 현재 이후로 선택해 주세요.';
+    }
+    if (type !== 'online' && draft.recruitEndDate && !scheduleDateValue(draft.startDate)) {
+      errors.recruitEndDate = '모집 마감일을 설정하려면 시작 일정을 먼저 입력해 주세요.';
+    }
+    if (draft.recruitEndDate && draft.recruitEndDate < todayDateValue) {
+      errors.recruitEndDate = '모집 마감일은 오늘 이후로 선택해 주세요.';
     }
     if (
       draft.recruitEndDate &&
@@ -570,13 +805,14 @@ export function CreateClassPage() {
 
   function firstErrorMessage(errors: FieldErrors, order: FormField[]) {
     const first = order.find((field) => errors[field]);
-    return first ? errors[first] ?? '' : '';
+    return first ? (errors[first] ?? '') : '';
   }
 
   function showFieldErrors(errors: FieldErrors, order: FormField[]) {
     setFieldErrors(errors);
     const first = order.find((field) => errors[field]);
     if (!first) return false;
+    if (first === 'startDate' || first === 'recruitEndDate') setScheduleOpen(true);
     requestAnimationFrame(() => focusCreatorField(first));
     return true;
   }
@@ -604,19 +840,16 @@ export function CreateClassPage() {
       if (!meta.deliverySelected) return setError('클래스 진행 방식을 선택해 주세요.');
     }
     if (step === 2) {
-      if (
-        showFieldErrors(getInformationErrors(), ['title', 'summary', 'description'])
-      )
-        return;
+      if (showFieldErrors(getInformationErrors(), ['title', 'summary', 'description'])) return;
     }
     if (step === 3) {
       if (
         showFieldErrors(getSettingsErrors(), [
-          'startDate',
-          'recruitEndDate',
           'capacity',
           'address',
           'price',
+          'startDate',
+          'recruitEndDate',
         ])
       )
         return;
@@ -628,6 +861,15 @@ export function CreateClassPage() {
       setMaxStep((current) => Math.max(current, nextStep));
       setStep(nextStep);
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (thumbnailUploadStatus === 'uploading') {
+      setError('커버 이미지 업로드가 끝난 뒤 클래스를 게시해 주세요.');
+      return;
+    }
+    if (thumbnailUploadStatus === 'error') {
+      setError('커버 이미지 업로드를 다시 시도한 뒤 클래스를 게시해 주세요.');
       return;
     }
 
@@ -656,22 +898,23 @@ export function CreateClassPage() {
     }
 
     const settingsError = firstErrorMessage(settingsErrors, [
-      'startDate',
-      'recruitEndDate',
       'capacity',
       'address',
       'price',
+      'startDate',
+      'recruitEndDate',
     ]);
     if (settingsError) {
       const settingsOrder: FormField[] = [
-        'startDate',
-        'recruitEndDate',
         'capacity',
         'address',
         'price',
+        'startDate',
+        'recruitEndDate',
       ];
       const first = settingsOrder.find((field) => settingsErrors[field]);
       setFieldErrors(settingsErrors);
+      if (first === 'startDate' || first === 'recruitEndDate') setScheduleOpen(true);
       setError('');
       setStep(3);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -720,6 +963,31 @@ export function CreateClassPage() {
     }
   }
 
+  async function uploadThumbnail(file: File) {
+    const token = thumbnailUploadToken.current + 1;
+    thumbnailUploadToken.current = token;
+    const optimized = await optimizeClassThumbnail(file);
+    if (token !== thumbnailUploadToken.current) return;
+
+    pendingThumbnailFile.current = optimized;
+    setThumbnailPreviewUrl(URL.createObjectURL(optimized));
+    setThumbnailUploadStatus('uploading');
+    setThumbnailUploadError('');
+    try {
+      const uploaded = await classService.uploadImage(optimized);
+      if (token !== thumbnailUploadToken.current) return;
+      setDraft((current) => ({ ...current, thumbnail: uploaded.url }));
+      pendingThumbnailFile.current = undefined;
+      setThumbnailPreviewUrl('');
+      setThumbnailUploadStatus('idle');
+      setError('');
+    } catch {
+      if (token !== thumbnailUploadToken.current) return;
+      setThumbnailUploadStatus('error');
+      setThumbnailUploadError('커버 이미지를 업로드하지 못했어요. 다시 시도해 주세요.');
+    }
+  }
+
   function addThumbnail(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = '';
@@ -731,10 +999,17 @@ export function CreateClassPage() {
       setError('썸네일은 JPG, PNG, WEBP 형식의 5MB 이하 파일만 가능해요.');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => setDraft((current) => ({ ...current, thumbnail: String(reader.result) }));
-    reader.readAsDataURL(file);
     setError('');
+    void uploadThumbnail(file);
+  }
+
+  function finishInlineEdit(field: EditableField) {
+    setEditField(null);
+    requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLElement>(`[data-preview-field="${field}"] button`)
+        ?.focus();
+    });
   }
 
   function startInlineEdit(field: EditableField) {
@@ -748,7 +1023,24 @@ export function CreateClassPage() {
     if (previous !== undefined) {
       setDraft((current) => ({ ...current, [field]: previous }));
     }
-    setEditField(null);
+    finishInlineEdit(field);
+  }
+
+  function openAddressDialog() {
+    addressReturnFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
+    setAddressOpen(true);
+  }
+
+  function closeAddressDialog() {
+    setAddressOpen(false);
+    requestAnimationFrame(() => addressReturnFocusRef.current?.focus());
+  }
+
+  function dismissPreviewHint() {
+    setShowPreviewHint(false);
+    setMeta((current) => ({ ...current, previewHintSeen: true }));
+    requestAnimationFrame(() => previewHelpButtonRef.current?.focus());
   }
 
   async function copyShareLink() {
@@ -759,6 +1051,14 @@ export function CreateClassPage() {
     } catch {
       setError('링크를 복사하지 못했어요. 링크를 직접 선택해 복사해 주세요.');
     }
+  }
+
+  function leaveCreator(target: string) {
+    if (!persistDraftSnapshot()) {
+      setError('마지막 변경 내용을 저장하지 못했어요. 다시 저장한 뒤 나가 주세요.');
+      return;
+    }
+    nav(target);
   }
 
   function restart() {
@@ -804,7 +1104,7 @@ export function CreateClassPage() {
   return (
     <main className={`class-creator ${step === 4 ? 'is-preview-step' : ''}`}>
       <header className="creator-header">
-        <button className="creator-brand" type="button" onClick={() => nav('/dashboard')}>
+        <button className="creator-brand" type="button" onClick={() => leaveCreator('/dashboard')}>
           <span aria-hidden="true">
             <Check />
           </span>
@@ -826,47 +1126,31 @@ export function CreateClassPage() {
           ) : (
             <>
               {saveStatus === 'saving' ? <LoaderCircle className="spin" /> : <Check />}
-              {saveStatus === 'saving' ? '저장 중...' : '방금 저장됨'}
+              {saveStatus === 'saving' ? '저장 중...' : '저장됨'}
             </>
           )}
         </div>
-        <button className="creator-exit" type="button" onClick={() => nav('/classes')}>
+        <button className="creator-exit" type="button" onClick={() => leaveCreator('/classes')}>
           나가기
         </button>
       </header>
 
-      <nav className="creator-progress" aria-label="클래스 만들기 단계">
-        <div className="creator-progress-desktop">
-          {classCreationFlowSteps.map((item, index) => {
-            const number = index + 1;
-            const complete = number < step;
-            return (
-              <button
-                type="button"
-                className={number === step ? 'active' : complete ? 'complete' : ''}
-                onClick={() => goToStep(number)}
-                disabled={number > maxStep || number === 5}
-                aria-current={number === step ? 'step' : undefined}
-                key={item.label}
-              >
-                <span>{complete ? <Check /> : number}</span>
-                {item.label}
-              </button>
-            );
-          })}
-        </div>
-        <div className="creator-progress-mobile">
-          <b>{step} / 5</b>
-          <span>{stepInfo.label}</span>
-          <i
+      <nav className="creator-progress" aria-label="클래스 만들기 진행률">
+        <div className="creator-progress-inner">
+          <div className="creator-progress-copy">
+            <span>클래스 만들기</span>
+          </div>
+          <div
+            className="creator-progress-track"
             role="progressbar"
             aria-label="클래스 만들기 진행률"
-            aria-valuemin={1}
-            aria-valuemax={5}
-            aria-valuenow={step}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progressPercent}
+            aria-valuetext={`${stepInfo.label} 진행 중`}
           >
-            <span style={{ width: `${step * 20}%` }} />
-          </i>
+            <span style={{ width: `${progressPercent}%` }} />
+          </div>
         </div>
       </nav>
 
@@ -874,13 +1158,7 @@ export function CreateClassPage() {
         {step < 5 && (
           <header className="creator-step-heading">
             <h1>{stepInfo.title}</h1>
-            <p>
-              {step === 2
-                ? type === 'online'
-                  ? '영상 하나면 충분해요. 제목과 소개는 자동으로 초안을 만들어 드려요.'
-                  : '가지고 있는 자료를 바탕으로 제목, 소개와 내용을 준비해 드려요.'
-                : stepInfo.description}
-            </p>
+            <p>{step === 2 ? informationDescription : stepInfo.description}</p>
           </header>
         )}
 
@@ -894,12 +1172,6 @@ export function CreateClassPage() {
               <small>정보 준비</small>
               <b>{informationSourceLabel}</b>
             </span>
-            {step === 3 && type !== 'online' && draft.startDate && (
-              <span>
-                <small>시작 일정</small>
-                <b>{formatClassSchedule(draft.startDate)}</b>
-              </span>
-            )}
           </div>
         )}
 
@@ -956,7 +1228,9 @@ export function CreateClassPage() {
                             setMeta((current) => ({
                               ...current,
                               youtubeUrl: event.target.value,
+                              youtubeVideoId: '',
                               youtubeConnected: false,
+                              youtubeMetadata: undefined,
                             }));
                             setYoutubeError('');
                           }}
@@ -964,7 +1238,7 @@ export function CreateClassPage() {
                           aria-invalid={Boolean(youtubeError)}
                         />
                       </label>
-                      <button type="button" onClick={connectYouTube}>
+                      <button type="button" onClick={() => void connectYouTube()}>
                         영상 불러오기
                       </button>
                     </div>
@@ -978,13 +1252,28 @@ export function CreateClassPage() {
                       <article className="connected-video">
                         <div>
                           <Play />
+                          {meta.youtubeMetadata?.thumbnailUrl && (
+                            <img
+                              src={meta.youtubeMetadata.thumbnailUrl}
+                              alt="연결한 YouTube 영상 썸네일"
+                              onError={(event) => {
+                                event.currentTarget.hidden = true;
+                              }}
+                            />
+                          )}
                         </div>
                         <span>
                           <small>YouTube · 연결 완료</small>
-                          <b>연결한 영상으로 클래스 정보를 만들 준비가 됐어요</b>
+                          <b>{meta.youtubeMetadata?.title || '연결한 YouTube 영상'}</b>
                           <em>
-                            <Clock3 />
-                            영상 정보를 안전하게 확인했습니다
+                            {[
+                              meta.youtubeMetadata?.channel,
+                              meta.youtubeMetadata?.durationSeconds
+                                ? formatMediaDuration(meta.youtubeMetadata.durationSeconds)
+                                : '',
+                            ]
+                              .filter(Boolean)
+                              .join(' · ') || '상세 영상 정보는 분석할 때 함께 확인해요'}
                           </em>
                         </span>
                         <Check />
@@ -1007,13 +1296,31 @@ export function CreateClassPage() {
                   </div>
                 )}
 
-                <label className={`material-dropzone ${meta.youtubeConnected ? 'is-replace' : ''}`}>
+                <label
+                  className={`material-dropzone ${meta.youtubeConnected ? 'is-replace' : ''} ${
+                    sourceDragActive ? 'is-dragging' : ''
+                  }`}
+                  onDragOver={(event: DragEvent<HTMLLabelElement>) => {
+                    event.preventDefault();
+                    setSourceDragActive(true);
+                  }}
+                  onDragLeave={(event: DragEvent<HTMLLabelElement>) => {
+                    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+                    setSourceDragActive(false);
+                  }}
+                  onDrop={(event: DragEvent<HTMLLabelElement>) => {
+                    event.preventDefault();
+                    setSourceDragActive(false);
+                    void handleSourceFiles(Array.from(event.dataTransfer.files));
+                  }}
+                >
                   <input
+                    ref={sourceFileInputRef}
                     type="file"
                     accept={
                       type === 'online'
-                        ? 'video/*'
-                        : '.pdf,.ppt,.pptx,.doc,.docx,.png,.jpg,.jpeg,.txt'
+                        ? classCreationFileTypes.video.accept
+                        : classCreationFileTypes.document.accept
                     }
                     multiple={type !== 'online'}
                     onChange={addSourceFiles}
@@ -1028,7 +1335,7 @@ export function CreateClassPage() {
                   </b>
                   <span>
                     {type === 'online'
-                      ? 'MP4, MOV, WEBM · 최대 2GB'
+                      ? `${classCreationFileTypes.video.label} · 최대 2GB`
                       : '파일당 최대 50MB · 여러 파일 선택 가능'}
                   </span>
                   {meta.youtubeConnected && <em>새 영상을 등록하면 YouTube 연결을 교체합니다</em>}
@@ -1044,21 +1351,48 @@ export function CreateClassPage() {
                           <small>
                             {formatBytes(file.size)} ·{' '}
                             {file.status === 'uploading'
-                              ? '업로드 중'
+                              ? file.progress === undefined
+                                ? '업로드 중'
+                                : `업로드 중 ${file.progress}%`
                               : file.status === 'uploaded'
                                 ? '업로드 완료'
                                 : '업로드 실패'}
+                            {file.durationSeconds
+                              ? ` · 재생 시간 ${formatMediaDuration(file.durationSeconds)}`
+                              : ''}
                           </small>
                           {file.status === 'uploading' && (
-                            <em className="upload-progress">
-                              <span />
+                            <em
+                              className={`upload-progress ${
+                                file.progress === undefined ? 'indeterminate' : ''
+                              }`}
+                              aria-label={
+                                file.progress === undefined
+                                  ? `${file.name} 업로드 중`
+                                  : `${file.name} 업로드 ${file.progress}%`
+                              }
+                            >
+                              <span
+                                style={
+                                  file.progress === undefined
+                                    ? undefined
+                                    : { width: `${file.progress}%` }
+                                }
+                              />
                             </em>
                           )}
                         </span>
                         {file.status === 'uploaded' ? (
                           <Check className="success" />
                         ) : file.status === 'error' ? (
-                          <CircleAlert className="danger" />
+                          <button
+                            className="material-retry"
+                            type="button"
+                            onClick={() => void retryMaterial(file)}
+                          >
+                            <RefreshCw />
+                            <span>다시 업로드</span>
+                          </button>
                         ) : (
                           <LoaderCircle className="spin" />
                         )}
@@ -1075,7 +1409,11 @@ export function CreateClassPage() {
                 )}
 
                 {sourceIsReady(meta) && (
-                  <button className="analyze-source-button" type="button" onClick={startAnalysis}>
+                  <button
+                    className="analyze-source-button"
+                    type="button"
+                    onClick={() => void startAnalysis()}
+                  >
                     <Sparkles />이 자료로 클래스 정보 만들기
                   </button>
                 )}
@@ -1102,7 +1440,11 @@ export function CreateClassPage() {
                 <h2>자료를 확인하지 못했어요</h2>
                 <p>파일 형식이나 네트워크 상태를 확인한 뒤 다시 시도해 주세요.</p>
                 <div>
-                  <button type="button" onClick={startAnalysis} disabled={!sourceIsReady(meta)}>
+                  <button
+                    type="button"
+                    onClick={() => void startAnalysis()}
+                    disabled={!sourceIsReady(meta)}
+                  >
                     <RefreshCw />
                     다시 시도
                   </button>
@@ -1174,87 +1516,6 @@ export function CreateClassPage() {
 
         {step === 3 && (
           <section className="settings-panel">
-            {type !== 'online' && (
-              <article className="setting-card schedule-setting">
-                <div className="setting-card-heading">
-                  <i>
-                    <Clock3 />
-                  </i>
-                  <span>
-                    <h2>클래스 일정</h2>
-                    <p>
-                      {type === 'live'
-                        ? '수강생이 접속할 날짜와 시간을 알려 주세요.'
-                        : '수강생이 찾아올 날짜와 시간을 알려 주세요.'}
-                    </p>
-                  </span>
-                </div>
-                <fieldset
-                  className="schedule-fieldset"
-                  data-creator-field="startDate"
-                  aria-describedby={fieldErrors.startDate ? 'class-schedule-error' : undefined}
-                >
-                  <legend className="sr-only">클래스 시작 일정</legend>
-                  <div className="schedule-grid">
-                    <Input
-                      label="시작 날짜"
-                      type="date"
-                      value={scheduleDateValue(draft.startDate)}
-                      aria-invalid={Boolean(fieldErrors.startDate)}
-                      onChange={(event) => {
-                        clearFieldError('startDate');
-                        setDraft((current) => ({
-                          ...current,
-                          startDate: combineClassSchedule(
-                            event.target.value,
-                            scheduleTimeValue(current.startDate),
-                          ),
-                        }));
-                      }}
-                    />
-                    <Input
-                      label="시작 시간"
-                      type="time"
-                      value={scheduleTimeValue(draft.startDate)}
-                      aria-invalid={Boolean(fieldErrors.startDate)}
-                      onChange={(event) => {
-                        clearFieldError('startDate');
-                        setDraft((current) => ({
-                          ...current,
-                          startDate: combineClassSchedule(
-                            scheduleDateValue(current.startDate),
-                            event.target.value,
-                          ),
-                        }));
-                      }}
-                    />
-                  </div>
-                  {fieldErrors.startDate && (
-                    <p className="field-message error" id="class-schedule-error">
-                      <CircleAlert />
-                      {fieldErrors.startDate}
-                    </p>
-                  )}
-                </fieldset>
-                <div data-creator-field="recruitEndDate">
-                  <Input
-                    label="모집 마감일"
-                    type="date"
-                    value={scheduleDateValue(draft.recruitEndDate)}
-                    error={fieldErrors.recruitEndDate}
-                    hint="비워 두면 클래스 시작 전까지 신청을 받을 수 있어요."
-                    onChange={(event) => {
-                      clearFieldError('recruitEndDate');
-                      setDraft((current) => ({
-                        ...current,
-                        recruitEndDate: event.target.value,
-                      }));
-                    }}
-                  />
-                </div>
-              </article>
-            )}
-
             <article className="setting-card">
               <div className="setting-card-heading">
                 <i>
@@ -1356,7 +1617,7 @@ export function CreateClassPage() {
                   data-creator-field="address"
                   aria-invalid={Boolean(fieldErrors.address)}
                   aria-describedby={fieldErrors.address ? 'address-error' : undefined}
-                  onClick={() => setAddressOpen(true)}
+                  onClick={openAddressDialog}
                 >
                   <Search />
                   <span>
@@ -1391,6 +1652,112 @@ export function CreateClassPage() {
                 )}
               </article>
             )}
+
+            {type !== 'online' && (
+              <details
+                className="optional-schedule"
+                open={scheduleOpen}
+                onToggle={(event) => setScheduleOpen(event.currentTarget.open)}
+              >
+                <summary>
+                  <span>
+                    <i>
+                      <Clock3 />
+                    </i>
+                    <span>
+                      <b>일정도 지금 설정할까요?</b>
+                      <small>선택 사항 · 게시 후 클래스 정보에서 추가할 수 있어요.</small>
+                    </span>
+                  </span>
+                  <em>{draft.startDate ? formatClassSchedule(draft.startDate) : '선택'}</em>
+                  <ChevronRight />
+                </summary>
+                <div className="optional-schedule-content">
+                  <fieldset
+                    className="schedule-fieldset"
+                    data-creator-field="startDate"
+                    aria-describedby={fieldErrors.startDate ? 'class-schedule-error' : undefined}
+                  >
+                    <legend className="sr-only">클래스 시작 일정</legend>
+                    <div className="schedule-grid">
+                      <Input
+                        label="시작 날짜"
+                        type="date"
+                        min={todayDateValue}
+                        value={scheduleDateValue(draft.startDate)}
+                        aria-invalid={Boolean(fieldErrors.startDate)}
+                        onChange={(event) => {
+                          clearFieldError('startDate');
+                          setDraft((current) => ({
+                            ...current,
+                            startDate: combineClassSchedule(
+                              event.target.value,
+                              scheduleTimeValue(current.startDate),
+                            ),
+                          }));
+                        }}
+                      />
+                      <Input
+                        label="시작 시간"
+                        type="time"
+                        value={scheduleTimeValue(draft.startDate)}
+                        aria-invalid={Boolean(fieldErrors.startDate)}
+                        onChange={(event) => {
+                          clearFieldError('startDate');
+                          setDraft((current) => ({
+                            ...current,
+                            startDate: combineClassSchedule(
+                              scheduleDateValue(current.startDate),
+                              event.target.value,
+                            ),
+                          }));
+                        }}
+                      />
+                    </div>
+                    {fieldErrors.startDate && (
+                      <p className="field-message error" id="class-schedule-error">
+                        <CircleAlert />
+                        {fieldErrors.startDate}
+                      </p>
+                    )}
+                  </fieldset>
+                  <div data-creator-field="recruitEndDate">
+                    <Input
+                      label="모집 마감일"
+                      type="date"
+                      min={todayDateValue}
+                      value={scheduleDateValue(draft.recruitEndDate)}
+                      error={fieldErrors.recruitEndDate}
+                      hint="비워 두면 별도로 모집 마감일을 표시하지 않아요."
+                      onChange={(event) => {
+                        clearFieldError('recruitEndDate');
+                        setDraft((current) => ({
+                          ...current,
+                          recruitEndDate: event.target.value,
+                        }));
+                      }}
+                    />
+                  </div>
+                  {(draft.startDate || draft.recruitEndDate) && (
+                    <button
+                      className="clear-schedule"
+                      type="button"
+                      onClick={() => {
+                        setDraft((current) => ({
+                          ...current,
+                          startDate: '',
+                          recruitEndDate: '',
+                        }));
+                        clearFieldError('startDate');
+                        clearFieldError('recruitEndDate');
+                      }}
+                    >
+                      일정 비우기
+                    </button>
+                  )}
+                </div>
+              </details>
+            )}
           </section>
         )}
 
@@ -1401,29 +1768,20 @@ export function CreateClassPage() {
                 <Sparkles />
                 실제 공개 페이지를 편집하고 있어요
               </span>
-              <div role="group" aria-label="미리보기 화면 크기">
-                <button
-                  type="button"
-                  className={meta.previewDevice === 'desktop' ? 'active' : ''}
-                  aria-pressed={meta.previewDevice === 'desktop'}
-                  onClick={() => setMeta((current) => ({ ...current, previewDevice: 'desktop' }))}
-                >
-                  <Monitor />
-                  데스크톱
-                </button>
-                <button
-                  type="button"
-                  className={meta.previewDevice === 'mobile' ? 'active' : ''}
-                  aria-pressed={meta.previewDevice === 'mobile'}
-                  onClick={() => setMeta((current) => ({ ...current, previewDevice: 'mobile' }))}
-                >
-                  <Smartphone />
-                  모바일
-                </button>
-              </div>
+              <button
+                ref={previewHelpButtonRef}
+                className="preview-help-button"
+                type="button"
+                aria-expanded={showPreviewHint}
+                aria-controls="preview-editing-help"
+                onClick={() => setShowPreviewHint((current) => !current)}
+              >
+                <Pencil />
+                편집 방법
+              </button>
             </div>
             {showPreviewHint && (
-              <div className="preview-hint" role="status">
+              <div className="preview-hint" id="preview-editing-help" role="status">
                 <Pencil />
                 <span>
                   <b>수정하고 싶은 부분을 클릭해 보세요.</b>
@@ -1432,37 +1790,79 @@ export function CreateClassPage() {
                 <button
                   type="button"
                   aria-label="도움말 닫기"
-                  onClick={() => {
-                    setShowPreviewHint(false);
-                    setMeta((current) => ({ ...current, previewHintSeen: true }));
-                  }}
+                  onClick={dismissPreviewHint}
                 >
                   <X />
                 </button>
               </div>
             )}
-            <div className={`class-preview-frame ${meta.previewDevice}`}>
+            <div className="class-preview-frame">
               <article className="class-public-preview">
-                <label className="preview-cover editable">
-                  {draft.thumbnail ? (
-                    <img src={draft.thumbnail} alt="클래스 썸네일 미리보기" />
+                <div className="preview-cover editable">
+                  {thumbnailPreviewUrl || draft.thumbnail ? (
+                    <img
+                      src={thumbnailPreviewUrl || draft.thumbnail}
+                      alt="클래스 썸네일 미리보기"
+                      style={{ objectPosition: draft.thumbnailPosition }}
+                    />
                   ) : (
                     <span className="cover-placeholder">
                       <em>ONECLICK CLASS</em>
                       <b>{draft.title || typeOption.label}</b>
                     </span>
                   )}
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    onChange={addThumbnail}
-                  />
-                  <span className="cover-edit">
-                    <ImageIcon />
-                    이미지 변경
+                  <label className="cover-edit">
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      aria-label="클래스 썸네일 변경"
+                      onChange={addThumbnail}
+                    />
+                    {thumbnailUploadStatus === 'uploading' ? (
+                      <LoaderCircle className="spin" />
+                    ) : (
+                      <ImageIcon />
+                    )}
+                    {thumbnailUploadStatus === 'uploading' ? '업로드 중' : '이미지 변경'}
                     <small>권장 16:9 · 최대 5MB</small>
-                  </span>
-                </label>
+                  </label>
+                  {(thumbnailPreviewUrl || draft.thumbnail) && (
+                    <div className="cover-position-control" role="group" aria-label="커버 초점 위치">
+                      {classThumbnailPositionOptions.map((option) => (
+                        <button
+                          type="button"
+                          className={draft.thumbnailPosition === option.value ? 'active' : ''}
+                          aria-pressed={draft.thumbnailPosition === option.value}
+                          onClick={() =>
+                            setDraft((current) => ({
+                              ...current,
+                              thumbnailPosition: option.value,
+                            }))
+                          }
+                          key={option.value}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {thumbnailUploadError && (
+                    <div className="cover-upload-error" role="alert">
+                      <CircleAlert />
+                      <span>{thumbnailUploadError}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (pendingThumbnailFile.current) {
+                            void uploadThumbnail(pendingThumbnailFile.current);
+                          }
+                        }}
+                      >
+                        다시 시도
+                      </button>
+                    </div>
+                  )}
+                </div>
 
                 <div className="preview-content">
                   <div className="preview-main">
@@ -1476,7 +1876,7 @@ export function CreateClassPage() {
                       maxLength={classCreationLimits.title}
                       onStart={startInlineEdit}
                       onChange={(title) => setDraft((current) => ({ ...current, title }))}
-                      onDone={() => setEditField(null)}
+                      onDone={() => finishInlineEdit('title')}
                       onCancel={cancelInlineEdit}
                     />
                     <InlineEditor
@@ -1489,7 +1889,7 @@ export function CreateClassPage() {
                       maxLength={classCreationLimits.summary}
                       onStart={startInlineEdit}
                       onChange={(summary) => setDraft((current) => ({ ...current, summary }))}
-                      onDone={() => setEditField(null)}
+                      onDone={() => finishInlineEdit('summary')}
                       onCancel={cancelInlineEdit}
                     />
 
@@ -1511,7 +1911,7 @@ export function CreateClassPage() {
                             payment: price > 0 ? 'paid' : 'free',
                           }))
                         }
-                        onDone={() => setEditField(null)}
+                        onDone={() => finishInlineEdit('price')}
                         onCancel={cancelInlineEdit}
                       />
                       {type !== 'online' && (
@@ -1536,7 +1936,7 @@ export function CreateClassPage() {
                             onChange={(capacity) =>
                               setDraft((current) => ({ ...current, capacity }))
                             }
-                            onDone={() => setEditField(null)}
+                            onDone={() => finishInlineEdit('capacity')}
                             onCancel={cancelInlineEdit}
                           />
                         </>
@@ -1556,6 +1956,7 @@ export function CreateClassPage() {
                                 <input
                                   autoFocus
                                   value={draft.address}
+                                  aria-label="클래스 장소 편집"
                                   onChange={(event) =>
                                     setDraft((current) => ({
                                       ...current,
@@ -1564,20 +1965,31 @@ export function CreateClassPage() {
                                   }
                                   onKeyDown={(event) => {
                                     if (event.key === 'Escape') cancelInlineEdit('address');
-                                    if (event.key === 'Enter') setEditField(null);
+                                    if (event.key === 'Enter') finishInlineEdit('address');
                                   }}
                                 />
                               </label>
-                              <button type="button" onClick={() => setAddressOpen(true)}>
+                              <button
+                                type="button"
+                                aria-label="주소 검색"
+                                onClick={openAddressDialog}
+                              >
                                 <Search />
                                 검색
                               </button>
-                              <button type="button" onClick={() => setEditField(null)}>
+                              <button
+                                type="button"
+                                onClick={() => finishInlineEdit('address')}
+                              >
                                 완료
                               </button>
                             </div>
                           ) : (
-                            <button type="button" onClick={() => startInlineEdit('address')}>
+                            <button
+                              type="button"
+                              aria-label="클래스 장소 수정"
+                              onClick={() => startInlineEdit('address')}
+                            >
                               <small>장소</small>
                               <b>{draft.address || '주소를 입력해 주세요'}</b>
                               <Pencil />
@@ -1611,6 +2023,7 @@ export function CreateClassPage() {
                             ref={previewDescriptionRef}
                             autoFocus
                             value={draft.description}
+                            aria-label="클래스 내용 편집"
                             onChange={(event) =>
                               setDraft((current) => ({
                                 ...current,
@@ -1624,14 +2037,18 @@ export function CreateClassPage() {
                           <button
                             className="inline-done"
                             type="button"
-                            onClick={() => setEditField(null)}
+                            onClick={() => finishInlineEdit('description')}
                           >
                             <Check />
                             완료
                           </button>
                         </div>
                       ) : (
-                        <button type="button" onClick={() => startInlineEdit('description')}>
+                        <button
+                          type="button"
+                          aria-label="클래스 내용 수정"
+                          onClick={() => startInlineEdit('description')}
+                        >
                           {draft.description ? (
                             draft.description
                               .split('\n')
@@ -1669,7 +2086,14 @@ export function CreateClassPage() {
                           </span>
                           <small>더보기</small>
                         </summary>
-                        {meta.source === 'youtube' && <p>YouTube 영상 · 연결 완료</p>}
+                        {meta.source === 'youtube' && (
+                          <p>
+                            {meta.youtubeMetadata?.title || 'YouTube 영상'}
+                            {meta.youtubeMetadata?.channel
+                              ? ` · ${meta.youtubeMetadata.channel}`
+                              : ''}
+                          </p>
+                        )}
                         {meta.materials.map((file) => (
                           <p key={file.id}>
                             {file.name} <small>{formatBytes(file.size)}</small>
@@ -1693,8 +2117,8 @@ export function CreateClassPage() {
             </div>
             <p className="creator-publish-note">
               <ExternalLink />
-              입력 내용은 자동 저장됩니다. 게시하면 공유 링크가 활성화되고 누구나 클래스
-              페이지를 볼 수 있어요.
+              입력 내용은 자동 저장됩니다. 게시하면 공유 링크가 활성화되고 누구나 클래스 페이지를 볼
+              수 있어요.
             </p>
           </section>
         )}
@@ -1752,11 +2176,7 @@ export function CreateClassPage() {
         {step < 5 && (
           <footer className={`creator-actions ${step === 1 ? 'single' : ''}`}>
             {step > 1 && (
-              <button
-                type="button"
-                className="creator-back"
-                onClick={() => goToStep(step - 1)}
-              >
+              <button type="button" className="creator-back" onClick={() => goToStep(step - 1)}>
                 <ArrowLeft />
                 이전
               </button>
@@ -1792,11 +2212,11 @@ export function CreateClassPage() {
         <AddressDialog
           query={query}
           onQuery={setQuery}
-          onClose={() => setAddressOpen(false)}
+          onClose={closeAddressDialog}
           onPick={(address) => {
             setDraft((current) => ({ ...current, address }));
             clearFieldError('address');
-            setAddressOpen(false);
+            closeAddressDialog();
             setError('');
           }}
         />
@@ -1807,7 +2227,12 @@ export function CreateClassPage() {
         title="클래스를 게시할까요?"
         description={
           <div className="publish-summary">
-            <p>게시하면 공유 링크가 활성화되고 누구나 클래스 페이지를 볼 수 있어요.</p>
+            <p>
+              게시하면 공유 링크가 활성화되고 누구나 클래스 페이지를 볼 수 있어요.
+              {type !== 'online' && !draft.startDate
+                ? ' 일정은 게시 후 클래스 정보에서 추가할 수 있어요.'
+                : ''}
+            </p>
             <dl>
               <div>
                 <dt>진행 방식</dt>
@@ -1961,10 +2386,7 @@ function RichTextEditor({
   const inputId = useId();
   const errorId = `${inputId}-error`;
   return (
-    <div
-      className="creator-field rich-text-field"
-      data-creator-field="description"
-    >
+    <div className="creator-field rich-text-field" data-creator-field="description">
       <span>
         <label htmlFor={inputId}>클래스 내용</label>
         <small>{value.length}자</small>
@@ -2055,13 +2477,12 @@ function AnalysisProgress({ sourceLabel }: { sourceLabel: string }) {
       </div>
       <span className="analysis-source">{sourceLabel} 분석 중</span>
       <h2>클래스 정보를 준비하고 있어요</h2>
-      <p>잠시 다른 단계로 이동하거나 화면을 나가도 괜찮아요.</p>
+      <p>이전 단계로 돌아가도 분석은 계속됩니다.</p>
       <ol>
         {tasks.map((task, index) => (
-          <li className={index === 0 ? 'complete' : index === 1 ? 'active' : ''} key={task}>
-            <span>{index === 0 ? <Check /> : index + 1}</span>
+          <li key={task}>
+            <span>{index + 1}</span>
             {task}
-            {index === 1 && <LoaderCircle className="spin" />}
           </li>
         ))}
       </ol>
@@ -2094,12 +2515,14 @@ function InlineEditor({
   onDone: () => void;
   onCancel: (field: EditableField) => void;
 }) {
+  const label = field === 'title' ? '클래스 제목' : '클래스 소개';
   if (active) {
     const shared = {
       autoFocus: true,
       value,
       maxLength,
       placeholder,
+      'aria-label': `${label} 편집`,
       onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
         onChange(event.target.value),
       onKeyDown: (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -2121,18 +2544,22 @@ function InlineEditor({
     );
   }
   return (
-    <button
-      type="button"
+    <div
       className={`preview-copy editable ${field} ${highlighted ? 'highlighted' : ''}`}
       data-preview-field={field}
-      onClick={() => onStart(field)}
     >
-      {field === 'title' ? <h1>{value || placeholder}</h1> : <p>{value || placeholder}</p>}
-      <span className="edit-affordance">
+      {field === 'title' ? <h2>{value || placeholder}</h2> : <p>{value || placeholder}</p>}
+      <button
+        className="preview-copy-trigger"
+        type="button"
+        aria-label={`${label} 수정`}
+        onClick={() => onStart(field)}
+      />
+      <span className="edit-affordance" aria-hidden="true">
         <Pencil />
         클릭하여 수정
       </span>
-    </button>
+    </div>
   );
 }
 
@@ -2175,6 +2602,7 @@ function InlineFact({
           <input
             autoFocus
             inputMode="numeric"
+            aria-label={`${label} 편집`}
             value={value}
             onChange={(event) => onChange(Number(event.target.value.replace(/\D/g, '')) || 0)}
             onKeyDown={(event) => {
@@ -2188,7 +2616,7 @@ function InlineFact({
           </button>
         </label>
       ) : (
-        <button type="button" onClick={() => onStart(field)}>
+        <button type="button" aria-label={`${label} 수정`} onClick={() => onStart(field)}>
           <small>{label}</small>
           <b>{display}</b>
           <Pencil />

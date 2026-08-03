@@ -119,6 +119,19 @@ describe('instructor mock services', () => {
     });
   });
 
+  it('generates a class draft through the source-analysis service boundary', async () => {
+    await expect(
+      classService.analyzeSource({
+        type: 'online',
+        source: { kind: 'youtube', youtubeUrl: 'https://youtu.be/M7lc1UVf-VE' },
+      }),
+    ).resolves.toMatchObject({
+      title: expect.any(String),
+      summary: expect.any(String),
+      description: expect.any(String),
+    });
+  });
+
   it('keeps lifecycle and recruitment changes in sync across list and detail', async () => {
     await classService.updateSettings('notion', {
       lifecycleStatus: 'IN_PROGRESS',

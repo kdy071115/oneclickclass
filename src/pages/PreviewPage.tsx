@@ -2479,7 +2479,11 @@ function ClassPublicPage({ preview = false }: { preview?: boolean }) {
         <section className="student-learning-hero">
           <div className="student-learning-cover">
             {draft.thumbnail ? (
-              <img src={draft.thumbnail} alt="클래스 썸네일" />
+              <img
+                src={draft.thumbnail}
+                alt="클래스 썸네일"
+                style={{ objectPosition: draft.thumbnailPosition }}
+              />
             ) : (
               <div>
                 <Play size={32} />
@@ -2620,7 +2624,13 @@ function ClassPublicPage({ preview = false }: { preview?: boolean }) {
           </button>
         )}
         <div className="preview-hero">
-          {draft.thumbnail && <img src={draft.thumbnail} alt="클래스 썸네일" />}
+          {draft.thumbnail && (
+            <img
+              src={draft.thumbnail}
+              alt="클래스 썸네일"
+              style={{ objectPosition: draft.thumbnailPosition }}
+            />
+          )}
         </div>
         <main>
           <span className="badge blue">모집중</span>

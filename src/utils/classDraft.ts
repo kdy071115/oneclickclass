@@ -32,11 +32,7 @@ export function loadClassDraft(fallback: ClassDraft) {
 }
 
 export function saveClassDraft(draft: ClassDraft) {
-  try {
-    sessionStorage.setItem(CLASS_DRAFT_KEY, JSON.stringify(draft));
-  } catch {
-    sessionStorage.setItem(CLASS_DRAFT_KEY, JSON.stringify({ ...draft, thumbnail: '' }));
-  }
+  sessionStorage.setItem(CLASS_DRAFT_KEY, JSON.stringify(draft));
 }
 
 export function clearClassDraft() {
@@ -45,11 +41,7 @@ export function clearClassDraft() {
 
 export function saveClassPreview(id: string, draft: ClassDraft) {
   const preview = { ...draft, _schemaVersion: CLASS_PREVIEW_SCHEMA_VERSION };
-  try {
-    localStorage.setItem(`${CLASS_PREVIEW_KEY}:${id}`, JSON.stringify(preview));
-  } catch {
-    localStorage.setItem(`${CLASS_PREVIEW_KEY}:${id}`, JSON.stringify({ ...preview, thumbnail: '' }));
-  }
+  localStorage.setItem(`${CLASS_PREVIEW_KEY}:${id}`, JSON.stringify(preview));
 }
 
 export function loadClassPreview(id: string, fallback: ClassDraft) {
