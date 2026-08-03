@@ -12,6 +12,7 @@ export function SignupPage() {
   const nav = useNavigate();
   const location = useLocation();
   const { setRole } = useRole();
+  const returnTarget = (location.state as { from?: string } | null)?.from;
   const [terms, setTerms] = useState([false, false, false]);
   const [openTerm, setOpenTerm] = useState('');
   const [fields, setFields] = useState({ email: '', id: '', password: '', name: '' });
@@ -34,7 +35,7 @@ export function SignupPage() {
       const session = await authService.signup({ email: fields.email, username: fields.id, password: fields.password, name: fields.name, role: 'teacher' });
       setSession(session);
       setRole(session.user.role);
-      const target = (location.state as { from?: string } | null)?.from ?? '/classes/new';
+      const target = returnTarget ?? '/classes/new';
       nav(target, { replace: true });
     } catch {
       setError('회원가입에 실패했어요. 잠시 후 다시 시도해 주세요.');
@@ -47,7 +48,10 @@ export function SignupPage() {
     <main className="standalone framed">
       <form className="page signup" onSubmit={submit}>
         <StatusBar />
-        <PageHeader title="강의를 저장할 계정" subtitle="만든 강의와 신청자를 안전하게 관리해요" />
+        <PageHeader
+          title="강의를 저장할 계정"
+          subtitle="만든 강의와 신청자를 안전하게 관리해요"
+        />
         {[
           ['email', '이메일', 'example@email.com'],
           ['id', '아이디', '사용할 아이디'],
@@ -57,7 +61,16 @@ export function SignupPage() {
           <label key={key}>
             {label}
             <input
-              type={key === 'password' ? 'password' : 'text'}
+              type={key === 'password' ? 'password' : key === 'email' ? 'email' : 'text'}
+              autoComplete={
+                key === 'password'
+                  ? 'new-password'
+                  : key === 'email'
+                    ? 'email'
+                    : key === 'id'
+                      ? 'username'
+                      : 'name'
+              }
               value={fields[key as keyof typeof fields]}
               onChange={(e) => setFields({ ...fields, [key]: e.target.value })}
               placeholder={placeholder}
@@ -65,35 +78,32 @@ export function SignupPage() {
           </label>
         ))}
         <div className="terms">
-          <button
-            type="button"
-            onClick={() => setTerms(terms.every(Boolean) ? [false, false, false] : [true, true, true])}
-          >
+          <label className="term-all">
+            <input
+              type="checkbox"
+              checked={terms.every(Boolean)}
+              onChange={() =>
+                setTerms(terms.every(Boolean) ? [false, false, false] : [true, true, true])
+              }
+            />
             <i className={terms.every(Boolean) ? 'checked' : ''} />
-            약관 전체 동의
-          </button>
+            <span>약관 전체 동의</span>
+          </label>
           {termLabels.map((x, i) => (
-            <button
-              type="button"
-              onClick={() => setTerms(terms.map((v, j) => (j === i ? !v : v)))}
-              key={x}
-            >
-              <i className={terms[i] ? 'checked' : ''} />
-              {x}
-              <span
-                role="button"
-                tabIndex={0}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setOpenTerm(x);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') setOpenTerm(x);
-                }}
-              >
+            <div className="term-row" key={x}>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={terms[i]}
+                  onChange={() => setTerms(terms.map((v, j) => (j === i ? !v : v)))}
+                />
+                <i className={terms[i] ? 'checked' : ''} />
+                <span>{x}</span>
+              </label>
+              <button type="button" onClick={() => setOpenTerm(x)}>
                 보기
-              </span>
-            </button>
+              </button>
+            </div>
           ))}
         </div>
         {openTerm && (
@@ -102,7 +112,7 @@ export function SignupPage() {
             원클릭 클래스 이용을 위한 기본 약관입니다. 자세한 내용은 가입 후 설정에서 다시 확인할 수 있어요.
           </p>
         )}
-        {error && <p className="form-error">{error}</p>}
+        {error && <p className="form-error" role="alert">{error}</p>}
         <button className="primary signup-cta" disabled={!valid || submitting}>
           {submitting ? '가입 중...' : '가입 완료'}
         </button>
