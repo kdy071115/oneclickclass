@@ -18,25 +18,33 @@ describe('LandingPage', () => {
     );
 
     expect(
-      screen.getByRole('heading', { name: /강의 만들기,\s*이렇게 쉬웠나요/ }),
+      screen.getByRole('heading', { name: /링크와 자료가,\s*판매할 강의가 돼요/ }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('heading', { name: /운영 현황과 오늘 할 일을\s*한눈에 보여줘요/ }),
+      screen.getByRole('heading', { name: /공개한 뒤에는 오늘 할 일만\s*한눈에 확인하세요/ }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('heading', { name: '다섯 단계로 신청 링크를 완성해요' }),
+      screen.getByRole('heading', { name: '가지고 있는 콘텐츠에서 판매할 강의까지' }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('heading', { name: /신청부터 출석, 수료까지\s*하나의 클래스에서 관리해요/ }),
+      screen.getByRole('heading', {
+        name: /필요할 때는 출석과 수료까지\s*같은 흐름에서 이어가세요/,
+      }),
     ).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: /무료로 시작하기/ })[0]).toHaveAttribute(
       'href',
       '/signup',
     );
-    expect(screen.getByRole('link', { name: '제품 화면 보기' })).toHaveAttribute('href', '#create');
+    expect(screen.getByRole('link', { name: '만드는 과정 보기' })).toHaveAttribute(
+      'href',
+      '#create',
+    );
+    expect(screen.getByText('YouTube·영상·자료 링크 지원')).toBeInTheDocument();
+    expect(screen.getByText('무료·유료 강의 설정')).toBeInTheDocument();
+    expect(screen.getByText('공개 전까지 언제든 수정')).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /화면 확대 보기/ })).toHaveLength(5);
     expect(
-      screen.getByRole('img', { name: '원클릭 클래스의 실제 5단계 강의 개설 화면' }),
+      screen.getByRole('img', { name: '원클릭 클래스의 실제 강의 개설 화면' }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole('img', { name: '원클릭 클래스의 실제 신청자 관리 화면' }),
@@ -55,7 +63,9 @@ describe('LandingPage', () => {
         name: '공유 링크에서 클래스 정보를 확인하고 신청하는 모바일 화면 예시',
       }),
     ).toBeInTheDocument();
-    expect(screen.getByRole('list', { name: '강의 개설 5단계' }).children).toHaveLength(5);
+    expect(screen.getByRole('list', { name: '콘텐츠를 강의로 만드는 과정' }).children).toHaveLength(
+      3,
+    );
     expect(
       [...container.querySelectorAll('#landing-content > section[id]')].map(({ id }) => id),
     ).toEqual(['create', 'learner', 'product', 'operations']);

@@ -1,21 +1,19 @@
 import {
+  ArrowDown,
   ArrowRight,
-  Bell,
-  BookOpen,
   CalendarDays,
   Check,
-  CheckCircle2,
-  ChevronRight,
   ClipboardCheck,
+  FileText,
   GraduationCap,
-  LayoutDashboard,
   Link2,
   Maximize2,
   Menu,
   MonitorSmartphone,
   Play,
+  Sparkles,
   Users,
-  WalletCards,
+  Youtube,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -29,15 +27,38 @@ import operationsScreen from '../assets/landing/operations.jpg';
 import settlementsScreen from '../assets/landing/settlements.jpg';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { Modal } from '../components/ui';
-import { classCreationSteps } from '../constants/classCreation';
-import { classes, classDetail, dashboard } from '../constants/mockData';
+import { classes, classDetail } from '../constants/mockData';
 import { won } from '../utils/format';
 
 const navItems = [
   ['create', '강의 만들기'],
-  ['learner', '학습자 경험'],
+  ['learner', '공유·학습'],
   ['product', '강사 홈'],
   ['operations', '운영'],
+] as const;
+
+const creatorPath = [
+  {
+    icon: Youtube,
+    title: '링크·자료 추가',
+    description: 'YouTube, 영상, 문서 링크에서 시작해요.',
+  },
+  {
+    icon: Sparkles,
+    title: '강의 구성 확인',
+    description: '차시와 학습 흐름을 원하는 대로 정리해요.',
+  },
+  {
+    icon: Link2,
+    title: '신청 링크 공유',
+    description: '무료·유료로 공개하고 바로 공유해요.',
+  },
+] as const;
+
+const creatorAssurances = [
+  'YouTube·영상·자료 링크 지원',
+  '무료·유료 강의 설정',
+  '공개 전까지 언제든 수정',
 ] as const;
 
 type ImagePreview = {
@@ -95,11 +116,11 @@ const learnerJourney = [
 ] as const;
 
 const course = classes[0];
-const schedule = dashboard.todaySchedule?.[0];
 
 export function LandingPage() {
   const [activeSection, setActiveSection] = useState('');
   const [activeOperation, setActiveOperation] = useState(0);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [imagePreview, setImagePreview] = useState<ImagePreview | null>(null);
   const operationGalleryRef = useRef<HTMLDivElement>(null);
 
@@ -205,8 +226,14 @@ export function LandingPage() {
               </a>
             ))}
           </nav>
-          <details className="landing-mobile-menu">
-            <summary aria-label="랜딩 페이지 메뉴 열기">
+          <details
+            className="landing-mobile-menu"
+            onToggle={(event) => setMobileMenuOpen(event.currentTarget.open)}
+          >
+            <summary
+              aria-label={`랜딩 페이지 메뉴 ${mobileMenuOpen ? '닫기' : '열기'}`}
+              aria-expanded={mobileMenuOpen}
+            >
               <Menu size={20} />
             </summary>
             <nav aria-label="모바일 랜딩 페이지 메뉴">
@@ -215,15 +242,20 @@ export function LandingPage() {
                   className={activeSection === id ? 'active' : ''}
                   href={`#${id}`}
                   aria-current={activeSection === id ? 'location' : undefined}
-                  onClick={(event) =>
-                    event.currentTarget.closest('details')?.removeAttribute('open')
-                  }
+                  onClick={(event) => {
+                    setMobileMenuOpen(false);
+                    event.currentTarget.closest('details')?.removeAttribute('open');
+                  }}
                   key={id}
                 >
                   {label}
                 </a>
               ))}
-              <Link className="landing-mobile-login" to="/login">
+              <Link
+                className="landing-mobile-login"
+                to="/login"
+                onClick={() => setMobileMenuOpen(false)}
+              >
                 로그인
               </Link>
             </nav>
@@ -246,165 +278,103 @@ export function LandingPage() {
         <section className="landing-hero" aria-labelledby="landing-hero-title">
           <div className="landing-container">
             <div className="landing-hero-copy">
-              <p className="landing-eyebrow">
-                <CheckCircle2 size={16} /> 복잡한 LMS 없이 시작하세요
-              </p>
               <h1 id="landing-hero-title">
-                강의 만들기,
+                링크와 자료가,
                 <br />
-                <span>이렇게 쉬웠나요?</span>
+                <span>판매할 강의가 돼요</span>
               </h1>
               <p className="landing-hero-description">
-                생성부터 신청·출석·수료까지 하나의 흐름으로.
+                이미 올린 YouTube 영상이나 준비한 자료에서 시작하세요.
                 <br />
-                복잡한 LMS 없이, 링크 하나로 끝내세요.
+                강의 구성부터 신청 링크와 학습 화면까지 한곳에서 준비해요.
               </p>
               <div className="landing-hero-actions">
                 <Link className="landing-button landing-button-primary" to="/signup">
-                  무료로 시작하기 <ArrowRight size={18} />
+                  무료로 강의 만들기 <ArrowRight size={18} />
                 </Link>
                 <a className="landing-button landing-button-secondary" href="#create">
-                  <Play size={17} fill="currentColor" /> 제품 화면 보기
+                  <ArrowDown size={17} /> 만드는 과정 보기
                 </a>
               </div>
-              <p className="landing-hero-note">
-                <Check size={15} /> 기술 지식 없이 시작
-                <span aria-hidden="true">·</span>
-                <Check size={15} /> 모바일 신청 페이지 제공
-              </p>
+              <ul className="landing-hero-assurances" aria-label="강의 개설 핵심 안내">
+                {creatorAssurances.map((assurance) => (
+                  <li key={assurance}>
+                    <Check size={15} strokeWidth={2.5} /> {assurance}
+                  </li>
+                ))}
+              </ul>
             </div>
 
             <div
               className="landing-hero-preview"
-              aria-label="강사 대시보드와 학습자 신청 화면 예시"
+              role="img"
+              aria-label="YouTube 링크와 자료를 불러와 판매 가능한 강의와 신청 링크를 만드는 과정"
             >
-              <div className="landing-dashboard-frame">
-                <div className="landing-window-bar">
-                  <span />
-                  <span />
-                  <span />
-                  <small>oneclickclass.kr</small>
-                </div>
-                <div className="landing-dashboard-shell">
-                  <aside>
-                    <div className="landing-mini-brand">
-                      <Check size={12} strokeWidth={3} />
-                    </div>
-                    <LayoutDashboard className="active" size={17} />
-                    <BookOpen size={17} />
-                    <Users size={17} />
-                    <WalletCards size={17} />
-                  </aside>
-                  <div className="landing-dashboard-content">
+              <div className="landing-creator-canvas" aria-hidden="true">
+                <header className="landing-creator-canvas-header">
+                  <span>
+                    <Check size={14} strokeWidth={3} /> 원클릭 클래스
+                  </span>
+                  <em>초안 저장됨</em>
+                </header>
+                <div className="landing-creator-workflow">
+                  <section className="landing-source-panel">
                     <header>
+                      <span>1</span>
                       <div>
-                        <small>오늘의 운영 현황</small>
-                        <h2>이지훈 강사님, 안녕하세요</h2>
+                        <small>가지고 있는 콘텐츠</small>
+                        <strong>링크와 자료를 불러오세요</strong>
                       </div>
-                      <span>
-                        <Bell size={15} />
-                        <i />
-                      </span>
                     </header>
-                    <div className="landing-preview-kpis">
-                      <article className="blue">
-                        <small>신규 신청</small>
-                        <strong>
-                          {dashboard.newApplicants}
-                          <em>건</em>
-                        </strong>
-                        <span>오늘 접수</span>
-                      </article>
-                      <article className="orange">
-                        <small>결제 대기</small>
-                        <strong>
-                          {dashboard.pendingPayments}
-                          <em>건</em>
-                        </strong>
-                        <span>{won(dashboard.pendingAmount ?? 0)}</span>
-                      </article>
-                      <article className="purple">
-                        <small>진행중 클래스</small>
-                        <strong>
-                          {dashboard.todayClasses}
-                          <em>개</em>
-                        </strong>
-                        <span>오늘 일정</span>
-                      </article>
-                    </div>
-                    <div className="landing-preview-panel">
-                      <div className="landing-preview-panel-title">
-                        <strong>오늘 일정</strong>
+                    <ul>
+                      <li>
+                        <Youtube size={19} />
                         <span>
-                          전체보기 <ChevronRight size={12} />
+                          <b>YouTube 링크</b>
+                          <small>youtube.com/watch?v=...</small>
                         </span>
-                      </div>
-                      {schedule && (
-                        <div className="landing-schedule-row">
-                          <time>{schedule.time}</time>
-                          <div>
-                            <StatusBadge>{schedule.badge}</StatusBadge>
-                            <b>{schedule.title}</b>
-                            <small>{schedule.meta}</small>
-                          </div>
-                          <span className="landing-schedule-action" aria-hidden="true">
-                            입장
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="landing-preview-panel landing-class-row">
-                      <div>
-                        <StatusBadge>{course.status}</StatusBadge>
-                        <b>{course.title}</b>
-                        <small>
-                          {course.type} · {course.date}
-                        </small>
-                      </div>
-                      <span>
-                        <small>
-                          신청 {course.enrolled}/{course.capacity}
-                        </small>
-                        <i>
-                          <em style={{ width: `${(course.enrolled / course.capacity) * 100}%` }} />
-                        </i>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                        <em>연결됨</em>
+                      </li>
+                      <li>
+                        <FileText size={19} />
+                        <span>
+                          <b>강의 자료</b>
+                          <small>업무자동화-워크북.pdf</small>
+                        </span>
+                        <em>추가됨</em>
+                      </li>
+                    </ul>
+                  </section>
 
-              <div className="landing-phone-frame">
-                <div className="landing-phone-speaker" />
-                <div className="landing-phone-screen">
-                  <div className="landing-phone-cover">
-                    <Play size={22} fill="currentColor" />
-                    <span>온라인 · 4주 과정</span>
+                  <div className="landing-flow-connector">
+                    <span>
+                      <Sparkles size={16} /> 강의로 구성
+                    </span>
+                    <ArrowRight size={22} />
                   </div>
-                  <div className="landing-phone-body">
-                    <StatusBadge>{course.status}</StatusBadge>
-                    <h3>{classDetail.title}</h3>
-                    <p>{classDetail.summary}</p>
-                    <dl>
-                      <div>
-                        <dt>
-                          <CalendarDays size={13} /> 일정
-                        </dt>
-                        <dd>{course.date}</dd>
-                      </div>
-                      <div>
-                        <dt>
-                          <MonitorSmartphone size={13} /> 장소
-                        </dt>
-                        <dd>{classDetail.location}</dd>
-                      </div>
-                    </dl>
-                    <div className="landing-phone-price">
-                      <span>수강료</span>
-                      <b>{won(classDetail.price)}</b>
+
+                  <section className="landing-result-panel">
+                    <header>
+                      <span>2</span>
+                      <em>공개 준비</em>
+                    </header>
+                    <div className="landing-result-cover">
+                      <Play size={22} fill="currentColor" />
+                      <span>온라인 강의</span>
                     </div>
-                  </div>
-                  <div className="landing-phone-cta">클래스 신청하기</div>
+                    <div className="landing-result-copy">
+                      <small>생성된 강의</small>
+                      <strong>{classDetail.title}</strong>
+                      <p>영상과 자료를 차시로 정리하고 가격과 공개 범위를 설정해요.</p>
+                    </div>
+                    <footer>
+                      <span>
+                        <small>수강료</small>
+                        <b>{won(classDetail.price)}</b>
+                      </span>
+                      <em>신청 링크 만들기</em>
+                    </footer>
+                  </section>
                 </div>
               </div>
             </div>
@@ -418,25 +388,43 @@ export function LandingPage() {
         >
           <div className="landing-container">
             <div className="landing-section-heading centered landing-reveal">
-              <p className="landing-kicker">강의 만드는 방법</p>
-              <h2 id="create-title">다섯 단계로 신청 링크를 완성해요</h2>
-              <p>질문에 답하듯 필요한 정보를 입력하면 공개할 수 있는 신청 페이지가 완성됩니다.</p>
+              <h2 id="create-title">가지고 있는 콘텐츠에서 판매할 강의까지</h2>
+              <p>
+                YouTube 영상과 자료를 차시에 연결하고, 가격과 공개 범위를 정하면 신청 링크가
+                완성됩니다.
+              </p>
             </div>
+
+            <ol
+              className="landing-creator-path landing-reveal"
+              aria-label="콘텐츠를 강의로 만드는 과정"
+            >
+              {creatorPath.map(({ icon: Icon, title, description }, index) => (
+                <li key={title}>
+                  <span>{index + 1}</span>
+                  <Icon size={22} />
+                  <div>
+                    <b>{title}</b>
+                    <p>{description}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
 
             <div className="landing-product-showcase landing-reveal">
               <figure className="landing-product-shot landing-product-shot-hero">
                 <figcaption>
-                  <span>실제 제품 화면 · 5단계 강의 개설</span>
+                  <span>실제 제품 화면 · 강의 개설</span>
                   <button
                     type="button"
-                    aria-label="5단계 강의 개설 화면 확대 보기"
+                    aria-label="강의 개설 화면 확대 보기"
                     onClick={() =>
                       setImagePreview({
-                        title: '5단계 강의 개설',
+                        title: '강의 개설',
                         images: [
                           {
                             src: createClassScreen,
-                            alt: '원클릭 클래스의 실제 5단계 강의 개설 화면',
+                            alt: '원클릭 클래스의 실제 강의 개설 화면',
                           },
                         ],
                       })
@@ -446,20 +434,9 @@ export function LandingPage() {
                   </button>
                 </figcaption>
                 <div className="landing-product-shot-crop">
-                  <img src={createClassScreen} alt="원클릭 클래스의 실제 5단계 강의 개설 화면" />
+                  <img src={createClassScreen} alt="원클릭 클래스의 실제 강의 개설 화면" />
                 </div>
               </figure>
-              <ol className="landing-create-step-preview" aria-label="강의 개설 5단계">
-                {classCreationSteps.map(([title, description], index) => (
-                  <li className={index === 0 ? 'active' : undefined} key={title}>
-                    <span>{index + 1}</span>
-                    <div>
-                      <b>{title.replace('\n', ' ')}</b>
-                      <p>{description}</p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
             </div>
           </div>
         </section>
@@ -471,7 +448,6 @@ export function LandingPage() {
         >
           <div className="landing-container landing-learner-grid">
             <div className="landing-learner-copy landing-reveal">
-              <p className="landing-kicker">학습자 경험</p>
               <h2 id="learner-title">
                 공유한 링크 하나가
                 <br />
@@ -575,13 +551,12 @@ export function LandingPage() {
         >
           <div className="landing-container">
             <div className="landing-section-heading landing-reveal">
-              <p className="landing-kicker">강사용 홈</p>
               <h2 id="product-title">
-                운영 현황과 오늘 할 일을
+                공개한 뒤에는 오늘 할 일만
                 <br />
-                한눈에 보여줘요
+                한눈에 확인하세요
               </h2>
-              <p>이번 달 매출, 신규 신청, 진행 중 클래스와 오늘 일정을 한 화면에 정리합니다.</p>
+              <p>매출과 신규 신청, 진행 중 강의와 오늘 일정을 한 화면에 정리합니다.</p>
             </div>
 
             <div className="landing-product-grid landing-reveal">
@@ -621,21 +596,18 @@ export function LandingPage() {
 
               <div className="landing-product-points">
                 <article>
-                  <span>01</span>
                   <div>
                     <h3>운영 지표를 한눈에 봐요</h3>
                     <p>이번 달 매출과 신규 신청, 진행 중 클래스를 한 줄에서 비교해요.</p>
                   </div>
                 </article>
                 <article>
-                  <span>02</span>
                   <div>
                     <h3>오늘 일정을 바로 확인해요</h3>
                     <p>수업 시간, 방식, 수강생 수를 확인하고 강의실로 바로 들어가요.</p>
                   </div>
                 </article>
                 <article>
-                  <span>03</span>
                   <div>
                     <h3>필요한 화면으로 연결돼요</h3>
                     <p>각 카드를 선택하면 신청자, 결제, 클래스 운영 화면으로 이어져요.</p>
@@ -653,14 +625,14 @@ export function LandingPage() {
         >
           <div className="landing-container">
             <div className="landing-section-heading landing-reveal">
-              <p className="landing-kicker">클래스 운영</p>
               <h2 id="operations-title">
-                신청부터 출석, 수료까지
+                필요할 때는 출석과 수료까지
                 <br />
-                하나의 클래스에서 관리해요
+                같은 흐름에서 이어가세요
               </h2>
               <p>
-                신청과 결제를 확인하고 수업을 운영한 뒤, 수료증 발급까지 같은 흐름에서 이어집니다.
+                기본은 가볍게 시작하고, 신청 확인부터 QR 출석과 수료증 발급까지 필요한 기능만 이어서
+                사용하세요.
               </p>
             </div>
 
@@ -789,19 +761,18 @@ export function LandingPage() {
         <section className="landing-final-cta" aria-labelledby="final-cta-title">
           <div className="landing-container landing-reveal">
             <div>
-              <p>다섯 단계면 신청 링크가 완성돼요</p>
               <h2 id="final-cta-title">
-                첫 강의를 지금,
+                이미 만든 콘텐츠로,
                 <br />
-                가볍게 열어보세요.
+                다음 강의를 시작하세요.
               </h2>
               <span>
-                제목과 일정부터 입력하세요. 공개 전까지 언제든 수정하고, 준비가 끝나면 링크로 바로
-                공유할 수 있어요.
+                링크나 자료부터 불러오세요. 공개 전까지 언제든 수정하고, 준비가 끝나면 신청 링크로
+                바로 공유할 수 있어요.
               </span>
             </div>
             <Link className="landing-button landing-button-light" to="/signup">
-              무료로 시작하기 <ArrowRight size={19} />
+              무료로 강의 만들기 <ArrowRight size={19} />
             </Link>
           </div>
         </section>
@@ -815,7 +786,7 @@ export function LandingPage() {
             </span>
             원클릭 클래스
           </a>
-          <p>강의 개설부터 신청·출석·수료까지, 한곳에서.</p>
+          <p>가지고 있는 콘텐츠를 판매할 강의와 학습 경험으로.</p>
           <small>© 2026 OneClick Class</small>
         </div>
       </footer>
