@@ -26,6 +26,9 @@ async function makeMockCertificatesEligible(page: Page) {
 test('보호 라우트에서 로그인 후 대시보드로 진입한다', async ({ page }) => {
   await page.goto('/dashboard');
   await expect(page).toHaveURL('/login');
+  await expect(page.getByRole('button', { name: '카카오로 계속하기' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '네이버로 계속하기' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Google로 계속하기' })).toBeVisible();
   await page.getByRole('button', { name: '이메일로 로그인', exact: true }).click();
   await page.getByLabel('이메일', { exact: true }).fill(account.email);
   await page.getByLabel('비밀번호').fill(account.password);
@@ -33,18 +36,39 @@ test('보호 라우트에서 로그인 후 대시보드로 진입한다', async 
   await expect(page).toHaveURL('/dashboard');
 });
 
+test('로그아웃하면 세션을 지우고 보호 화면 재진입을 차단한다', async ({ page }) => {
+  await login(page);
+  if ((page.viewportSize()?.width ?? 0) < 900) await page.goto('/my');
+  await page.getByRole('button', { name: '로그아웃', exact: true }).click();
+  await expect(page).toHaveURL('/login');
+  await page.goto('/dashboard');
+  await expect(page).toHaveURL('/login');
+});
+
 test('강의 생성 단계 검증과 정산 화면을 이동한다', async ({ page }) => {
   await login(page);
   await page.goto('/classes/new');
+  const creationProgress = page.getByRole('progressbar', { name: '클래스 만들기 진행률' });
+  await expect(creationProgress).toHaveAttribute('aria-valuenow', '0');
+  await expect(page.locator('.creator-progress')).not.toContainText('%');
   await expect(page.getByRole('button', { name: '이전', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: '다음', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: /^온라인 / }).click();
   await page.getByRole('button', { name: '다음', exact: true }).click();
+  await expect(creationProgress).toHaveAttribute('aria-valuenow', '25');
   await expect(page.getByRole('button', { name: '다음', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: '자료 없이 직접 작성하기', exact: true }).click();
   await page.getByRole('button', { name: '다음', exact: true }).click();
   await expect(page.getByLabel('클래스 제목', { exact: true })).toBeFocused();
   await expect(page.getByText('클래스 제목을 입력해 주세요.', { exact: true })).toBeVisible();
+  await page.getByLabel('클래스 제목', { exact: true }).fill('뒤로가기 저장 확인 클래스');
+  await page.goBack();
+  await expect(page).toHaveURL('/dashboard');
+  await page.goto('/classes/new');
+  await expect(page.getByRole('heading', { name: '클래스 정보를 준비해 볼까요?' })).toBeVisible();
+  await expect(page.getByLabel('클래스 제목', { exact: true })).toHaveValue(
+    '뒤로가기 저장 확인 클래스',
+  );
   await page.goto('/settlements');
   if ((page.viewportSize()?.width ?? 0) >= 900) {
     await expect(page.getByRole('button', { name: 'CSV 내보내기' })).toBeVisible();
@@ -137,11 +161,15 @@ test('관심 목록에서 클래스를 해제하면 빈 상태로 전환한다',
   });
   await page.goto('/favorites');
   await expect(page.getByRole('heading', { name: '노션으로 시작하는 업무 자동화' })).toBeVisible();
-  await page.getByRole('button', { name: '노션으로 시작하는 업무 자동화 관심 클래스 해제' }).click();
+  await page
+    .getByRole('button', { name: '노션으로 시작하는 업무 자동화 관심 클래스 해제' })
+    .click();
   await expect(page.getByRole('heading', { name: '아직 관심 클래스가 없어요.' })).toBeVisible();
 });
 
-test('수강생 신청 페이지와 강의실이 모바일에서 가로로 깨지지 않는다', async ({ page }, testInfo) => {
+test('수강생 신청 페이지와 강의실이 모바일에서 가로로 깨지지 않는다', async ({
+  page,
+}, testInfo) => {
   test.skip(testInfo.project.name !== 'mobile');
   await page.addInitScript(() => {
     localStorage.setItem(
@@ -208,9 +236,12 @@ test('수강생 신청 페이지와 강의실이 모바일에서 가로로 깨�
 
   await page.goto('/s/responsive-course');
   await expect(page.getByRole('heading', { name: '모바일 수강 테스트' })).toBeVisible();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  await expect(page.getByRole('button', { name: '바로 이어보기' })).toHaveCount(1);
-  await page.locator('.learner-mobile-apply-cta').click();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+  const resumeButton = page.getByRole('button', { name: '바로 이어보기' });
+  await expect(resumeButton).toHaveCount(1);
+  await resumeButton.click();
   await expect(page).toHaveURL('/learn/responsive-course');
   await expect(page.getByRole('heading', { name: '모바일 첫 강의' })).toBeVisible();
 
@@ -226,7 +257,9 @@ test('수강생 신청 페이지와 강의실이 모바일에서 가로로 깨�
   await page.getByRole('button', { name: /수강 후기/ }).click();
   await expect(page.getByText('전체 진도 50%부터 후기를 작성할 수 있어요.')).toBeVisible();
   await expect(page.getByRole('textbox', { name: '후기 내용' })).toBeDisabled();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
 });
 
 test('신청자 상세와 수료증을 데스크톱에서 표시한다', async ({ page }, testInfo) => {
@@ -266,7 +299,9 @@ test('데스크톱 수강 인증 화면과 프로필 이미지 입력을 표시�
   test.skip(testInfo.project.name !== 'desktop');
   await login(page);
   await page.goto('/learn/notion');
-  await expect(page.getByRole('heading', { name: '신청 정보를 확인하면 바로 이어서 볼 수 있어요.' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: '신청 정보를 확인하면 바로 이어서 볼 수 있어요.' }),
+  ).toBeVisible();
   await expect(page.getByRole('button', { name: '인증번호 받기' })).toBeVisible();
 
   await page.goto('/settings');
@@ -276,7 +311,10 @@ test('데스크톱 수강 인증 화면과 프로필 이미지 입력을 표시�
   await profileInput.setInputFiles({
     name: 'profile.png',
     mimeType: 'image/png',
-    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z7n0AAAAASUVORK5CYII=', 'base64'),
+    buffer: Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z7n0AAAAASUVORK5CYII=',
+      'base64',
+    ),
   });
   await expect(page.locator('.profile-setting-avatar img')).toBeVisible();
   await expect(page.locator('.oc-user > span img')).toBeVisible();
@@ -327,17 +365,13 @@ test('온라인 클래스의 설문·수료증 관리 흐름을 처리한다', a
   await expect(candidateRows).toHaveCount(2);
   await candidateRows.first().getByRole('button', { name: '개별 발급' }).click();
   await page.getByRole('dialog').getByRole('button', { name: '1명 발급', exact: true }).click();
-  await expect(
-    certificateTargets.getByRole('tab', { name: '발급 완료 1' }),
-  ).toBeVisible();
+  await expect(certificateTargets.getByRole('tab', { name: '발급 완료 1' })).toBeVisible();
   await certificateTargets.getByRole('tab', { name: '발급 가능 1' }).click();
   await expect(candidateRows).toHaveCount(1);
   await candidateRows.first().getByRole('checkbox').check();
   await certificateTargets.getByRole('button', { name: '선택 1명 발급' }).click();
   await page.getByRole('dialog').getByRole('button', { name: '1명 발급', exact: true }).click();
-  await expect(
-    certificateTargets.getByRole('tab', { name: '발급 완료 2' }),
-  ).toBeVisible();
+  await expect(certificateTargets.getByRole('tab', { name: '발급 완료 2' })).toBeVisible();
 
   await certificateTargets.getByRole('tab', { name: '발급 완료 2' }).click();
   await page.route('**/certificates/*/pdf', async (route) => {

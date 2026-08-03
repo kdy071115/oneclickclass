@@ -29,10 +29,16 @@ async function completeOnlineClass(
     );
   await page.getByRole('button', { name: '다음', exact: true }).click();
   await page.getByRole('button', { name: '다음', exact: true }).click();
-  await page.getByRole('button', { name: '클래스 게시하기', exact: true }).click();
+  await expect(page.getByRole('progressbar', { name: '클래스 만들기 진행률' })).toHaveAttribute(
+    'aria-valuenow',
+    '75',
+  );
+  await expect(page.getByRole('button', { name: '데스크톱', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '모바일', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: '클래스 게시', exact: true }).click();
   const publishDialog = page.getByRole('dialog', { name: '클래스를 게시할까요?' });
   await expect(publishDialog).toBeVisible();
-  await publishDialog.getByRole('button', { name: '클래스 게시하기', exact: true }).click();
+  await publishDialog.getByRole('button', { name: '클래스 게시', exact: true }).click();
   await expect(page.getByRole('heading', { name: '클래스가 완성되었습니다!' })).toBeVisible();
   return page.getByLabel('클래스 링크').inputValue();
 }
@@ -153,9 +159,13 @@ test('강의자 상세 화면과 핵심 운영 페이지를 빠짐없이 이동�
     .getByRole('link', { name: '강의 수정', exact: true })
     .click();
   await expect(page).toHaveURL(`${baseUrl}/classes/new?edit=notion`);
-  await expect(page.getByRole('heading', { name: '어떤 강의인지 알려주세요' })).toBeVisible();
-  await expect(page.getByLabel('강의 제목')).toHaveValue('노션으로 시작하는 업무 자동화');
-  await expect(page.getByLabel('한 줄 소개')).toHaveValue('반복 업무를 자동화하는 실전 4주 과정');
+  await expect(
+    page.getByRole('heading', { name: '어떤 방식으로 클래스를 진행하시나요?' }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: '다음', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '클래스 정보를 준비해 볼까요?' })).toBeVisible();
+  await expect(page.getByLabel('클래스 제목')).toHaveValue('노션으로 시작하는 업무 자동화');
+  await expect(page.getByLabel('클래스 소개')).toHaveValue('반복 업무를 자동화하는 실전 4주 과정');
   await page.goto(`${baseUrl}/classes/notion`);
 
   await page.getByRole('link', { name: '신청 페이지', exact: true }).click();
@@ -173,6 +183,10 @@ test('강의자 전역 메뉴에서 수강생용 수료증 화면을 노출하�
   await expect(page.getByRole('heading', { name: '404' })).toBeVisible();
 
   await page.goto(`${baseUrl}/classes/notion/certificates`);
+  await expect(page.getByRole('heading', { name: '수료증 관리' })).toBeVisible();
+
+  await page.goto(`${baseUrl}/classes/notion/certificates/setup`);
+  await expect(page).toHaveURL(`${baseUrl}/classes/notion/certificates`);
   await expect(page.getByRole('heading', { name: '수료증 관리' })).toBeVisible();
 });
 
@@ -214,7 +228,9 @@ test('강의자 운영 화면의 주요 액션이 실제 상태를 바꾼다', a
   await expect(page).toHaveURL(`${baseUrl}/applicants/1?classId=notion`);
 
   await page.goto(`${baseUrl}/classes/notion`);
-  await expect(page.locator('.oc-detail-tabs').getByRole('link', { name: '출석/QR' })).toHaveCount(0);
+  await expect(page.locator('.oc-detail-tabs').getByRole('link', { name: '출석/QR' })).toHaveCount(
+    0,
+  );
 
   await page.goto(`${baseUrl}/classes/notion/survey`);
   await expect(page.locator('.survey-card')).toHaveCount(4);
@@ -269,7 +285,9 @@ test('커리큘럼에서 섹션과 차시를 추가하고 수정한 내용이 �
   await page.getByRole('switch', { name: '차시 공개 설정' }).click();
   await page.getByRole('button', { name: '저장', exact: true }).click();
   await expect(page.getByText('공개하려면 제출 안내 URL을 입력해 주세요.')).toBeVisible();
-  await page.getByLabel('제출 안내 URL', { exact: true }).fill('https://example.com/assignments/final');
+  await page
+    .getByLabel('제출 안내 URL', { exact: true })
+    .fill('https://example.com/assignments/final');
   await page.getByRole('button', { name: '저장', exact: true }).click();
 
   const newLesson = page
