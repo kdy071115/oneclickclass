@@ -68,6 +68,10 @@ export const classCreationLimits = {
   documentBytes: 50 * 1024 * 1024,
 } as const;
 
+export const classCreationDefaults = {
+  lessonDurationMinutes: 30,
+} as const;
+
 export const classCreationFileTypes = {
   video: {
     accept: 'video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm',
@@ -80,12 +84,6 @@ export const classCreationFileTypes = {
     label: 'PDF, PPT, DOC, 이미지, TXT',
   },
 } as const;
-
-export const classThumbnailPositionOptions = [
-  { value: 'top', label: '위쪽' },
-  { value: 'center', label: '가운데' },
-  { value: 'bottom', label: '아래쪽' },
-] as const;
 
 export const classExampleContent: Record<
   Exclude<ClassDraft['type'], 'hybrid'>,

@@ -379,8 +379,8 @@
 }
 
 .curriculum-order-actions .ui-icon-button {
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
 }
 
 .curriculum-order-actions .ui-icon-button:last-child {
@@ -949,6 +949,42 @@
   gap: 16px;
   padding: 14px 0;
   border-top: 1px solid var(--color-border);
+}
+
+.lesson-advanced-settings {
+  border-top: 1px solid var(--color-border);
+}
+
+.lesson-advanced-settings > summary {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.lesson-advanced-settings > summary span,
+.lesson-advanced-settings > summary b,
+.lesson-advanced-settings > summary small {
+  display: block;
+}
+
+.lesson-advanced-settings > summary small {
+  margin-top: 4px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.lesson-advanced-settings > summary svg {
+  flex: none;
+  transition: transform 0.18s ease-out;
+}
+
+.lesson-advanced-settings[open] > summary svg {
+  transform: rotate(180deg);
 }
 
 .curriculum-toggle-row b,

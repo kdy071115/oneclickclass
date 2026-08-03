@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildSourceCurriculum,
   combineClassSchedule,
   formatMediaDuration,
   formatClassSchedule,
@@ -11,6 +12,66 @@ import {
   scheduleDateValue,
   scheduleTimeValue,
 } from './classCreation';
+
+describe('source curriculum builder', () => {
+  it('YouTube 소스를 공개 가능한 첫 차시로 변환한다', () => {
+    expect(
+      buildSourceCurriculum({
+        kind: 'youtube',
+        classTitle: '업무 자동화 입문',
+        classSummary: '반복 업무를 자동화하는 방법을 배워요.',
+        youtubeUrl: 'https://youtu.be/M7lc1UVf-VE',
+        youtubeTitle: '첫 자동화 만들기',
+        youtubeDurationSeconds: 901,
+        materials: [],
+      }),
+    ).toEqual({
+      sectionTitle: '업무 자동화 입문',
+      lessons: [
+        expect.objectContaining({
+          title: '첫 자동화 만들기',
+          contentType: 'video',
+          contentUrl: 'https://youtu.be/M7lc1UVf-VE',
+          durationMinutes: 16,
+          published: true,
+        }),
+      ],
+    });
+  });
+
+  it('업로드 자료마다 파일 확장자를 제거한 차시를 만든다', () => {
+    const curriculum = buildSourceCurriculum({
+      kind: 'documents',
+      classTitle: '포트폴리오 클래스',
+      classSummary: '자료를 따라 결과물을 완성해요.',
+      materials: [
+        { name: '01-준비하기.pdf', url: 'https://cdn.example.com/prepare.pdf' },
+        { name: '02-완성하기.PPTX', url: 'https://cdn.example.com/finish.pptx' },
+      ],
+    });
+
+    expect(curriculum.lessons).toHaveLength(2);
+    expect(curriculum.lessons.map(({ title, contentType, published }) => ({
+      title,
+      contentType,
+      published,
+    }))).toEqual([
+      { title: '01-준비하기', contentType: 'document', published: true },
+      { title: '02-완성하기', contentType: 'document', published: true },
+    ]);
+  });
+
+  it('연결된 소스가 없으면 차시를 만들지 않는다', () => {
+    expect(
+      buildSourceCurriculum({
+        kind: 'none',
+        classTitle: '직접 작성 클래스',
+        classSummary: '직접 작성한 소개입니다.',
+        materials: [],
+      }).lessons,
+    ).toEqual([]);
+  });
+});
 
 describe('class source file helpers', () => {
   it('안내한 영상과 문서 확장자만 허용한다', () => {

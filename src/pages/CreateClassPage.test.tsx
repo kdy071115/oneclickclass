@@ -60,7 +60,7 @@ describe('CreateClassPage accessibility and ordering', () => {
     expect(footer?.lastElementChild).toBe(reset);
   });
 
-  it('이전과 다음 동작에 같은 화살표 계열을 사용하고 게시 문구를 간결하게 표시한다', () => {
+  it('자료가 없는 클래스는 공개 대신 기본 정보 저장으로 안내한다', () => {
     sessionStorage.setItem(
       CLASS_DRAFT_KEY,
       JSON.stringify({
@@ -80,11 +80,11 @@ describe('CreateClassPage accessibility and ordering', () => {
     const publish = container.querySelector('.creator-next');
     const confirmDialog = container.querySelector('.ui-confirm-dialog');
     expect(back?.querySelector('.lucide-arrow-left')).not.toBeNull();
-    expect(publish).toHaveTextContent('클래스 게시');
+    expect(publish).toHaveTextContent('기본 정보 저장');
     expect(publish?.querySelector('.lucide-arrow-right')).not.toBeNull();
     expect(
       Array.from(confirmDialog?.querySelectorAll('button') ?? []).map((button) => button.textContent),
-    ).toContain('클래스 게시');
+    ).toContain('저장하고 계속');
   });
 
   it('미리보기 편집기에 명시적인 이름을 제공하고 편집 종료 후 포커스를 복원한다', async () => {
@@ -130,6 +130,8 @@ describe('CreateClassPage accessibility and ordering', () => {
         title: '레이아웃 테스트 클래스',
         summary: '첫 화면에서 확인할 수 있는 클래스 소개입니다.',
         description: '상세 설명은 핵심 정보 다음 영역에 배치합니다.',
+        thumbnail: 'https://cdn.example.com/class-thumbnail.webp',
+        thumbnailPosition: 'center',
       }),
     );
     sessionStorage.setItem(
@@ -144,16 +146,21 @@ describe('CreateClassPage accessibility and ordering', () => {
     const hero = container.querySelector('.preview-public-hero');
     const detail = container.querySelector('.preview-content');
     const description = container.querySelector('[data-preview-field="description"]');
-    const enroll = container.querySelector('.preview-enroll-card');
     expect(hero?.firstElementChild).toHaveClass('preview-hero-media');
     expect(hero?.querySelector('.preview-hero-copy')).not.toBeNull();
-    expect(enroll?.parentElement).toBe(hero);
+    expect(container.querySelector('.preview-enroll-card')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '클래스 신청하기' })).not.toBeInTheDocument();
+    expect(screen.queryByText('미리보기에서는 신청되지 않아요.')).not.toBeInTheDocument();
     expect(hero?.contains(description)).toBe(false);
     expect(detail?.contains(description)).toBe(true);
     expect(screen.getByLabelText('클래스 썸네일 변경')).toHaveAttribute(
       'accept',
       'image/jpeg,image/png,image/webp',
     );
+    expect(screen.getByRole('img', { name: '클래스 썸네일 미리보기' })).toHaveStyle({
+      objectPosition: 'center',
+    });
+    expect(screen.queryByRole('group', { name: '커버 초점 위치' })).not.toBeInTheDocument();
   });
 
   it('단계별 제목과 하단 액션을 해당 콘텐츠 폭에 맞춰 정렬한다', () => {
@@ -213,6 +220,71 @@ describe('CreateClassPage accessibility and ordering', () => {
     ).toEqual(['참가비', '참가인원', '일정']);
     expect(facts?.querySelector('.preview-fact-copy.schedule b')).toHaveTextContent(
       '2026년 8월 27일 오후 7:28',
+    );
+  });
+
+  it('숫자 정보를 편집할 때 넓은 입력 영역과 명확한 완료 동작을 제공한다', async () => {
+    const user = userEvent.setup();
+    sessionStorage.setItem(
+      CLASS_DRAFT_KEY,
+      JSON.stringify({
+        ...initialClassDraft,
+        type: 'live',
+        capacity: 30,
+      }),
+    );
+    sessionStorage.setItem(
+      creationMetaKey,
+      JSON.stringify({ deliverySelected: true, informationMode: 'manual', step: 4, maxStep: 4 }),
+    );
+    const { container } = renderCreator('/classes/new?step=4');
+
+    await user.click(screen.getByRole('button', { name: '참가인원 수정' }));
+    const input = screen.getByRole('textbox', { name: '참가인원 편집' });
+    const done = screen.getByRole('button', { name: '참가인원 편집 완료' });
+    expect(input.closest('.preview-fact')).toHaveClass('is-editing');
+    expect(done).toHaveTextContent('완료');
+    expect(done.querySelector('.lucide-check')).not.toBeNull();
+    expect(container.querySelector('.inline-number-field')).toContainElement(input);
+
+    await user.clear(input);
+    await user.type(input, '45');
+    await user.click(done);
+    expect(screen.getByRole('button', { name: '참가인원 수정' })).toHaveTextContent('45명');
+  });
+
+  it('장소를 편집할 때 주소 입력과 검색·완료 동작을 명확하게 구분한다', async () => {
+    const user = userEvent.setup();
+    sessionStorage.setItem(
+      CLASS_DRAFT_KEY,
+      JSON.stringify({
+        ...initialClassDraft,
+        type: 'offline',
+        address: '서울 마포구 양화로 45',
+      }),
+    );
+    sessionStorage.setItem(
+      creationMetaKey,
+      JSON.stringify({ deliverySelected: true, informationMode: 'manual', step: 4, maxStep: 4 }),
+    );
+    const { container } = renderCreator('/classes/new?step=4');
+
+    await user.click(screen.getByRole('button', { name: '클래스 장소 수정' }));
+    const input = screen.getByRole('textbox', { name: '클래스 장소 편집' });
+    const search = screen.getByRole('button', { name: '주소 검색' });
+    const done = screen.getByRole('button', { name: '클래스 장소 편집 완료' });
+    expect(input.closest('.preview-fact')).toHaveClass('is-editing');
+    expect(container.querySelector('.inline-address-field')).toContainElement(input);
+    expect(search).toHaveTextContent('검색');
+    expect(search.querySelector('.lucide-search')).not.toBeNull();
+    expect(done).toHaveTextContent('완료');
+    expect(done.querySelector('.lucide-check')).not.toBeNull();
+
+    await user.clear(input);
+    await user.type(input, '서울 마포구 월드컵북로 21');
+    await user.click(done);
+    expect(screen.getByRole('button', { name: '클래스 장소 수정' })).toHaveTextContent(
+      '서울 마포구 월드컵북로 21',
     );
   });
 

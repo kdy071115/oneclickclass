@@ -2002,35 +2002,6 @@
   font-weight: 600;
 }
 
-.cover-position-control {
-  position: absolute;
-  z-index: 5;
-  bottom: 14px;
-  left: 14px;
-  display: flex;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 11px;
-  background: rgba(10, 20, 34, 0.78);
-  backdrop-filter: blur(8px);
-}
-
-.cover-position-control button {
-  min-width: var(--creator-touch-target);
-  min-height: var(--creator-touch-target);
-  padding: 0 9px;
-  border-radius: 8px;
-  color: rgba(255, 255, 255, 0.76);
-  font-size: 10px;
-  font-weight: 750;
-}
-
-.cover-position-control button:hover,
-.cover-position-control button.active {
-  background: #fff;
-  color: #21354f;
-}
-
 .cover-upload-error {
   position: absolute;
   z-index: 6;
@@ -2340,8 +2311,16 @@
   -webkit-line-clamp: 2;
 }
 
+.preview-fact.is-editing,
 .preview-fact-address:focus-within {
   grid-column: 1 / -1;
+}
+
+.preview-fact.is-editing {
+  min-height: 82px;
+  align-items: start;
+  border-style: solid;
+  background: var(--creator-surface) !important;
 }
 
 @media (min-width: 801px) {
@@ -2377,49 +2356,89 @@
 
 .inline-number {
   min-width: 0;
+  grid-column: 2;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto var(--creator-touch-target);
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
+  gap: 10px;
 }
 
-.inline-number > span {
-  grid-column: 1 / -1;
+.inline-number label {
+  min-width: 0;
+}
+
+.inline-number label > span:first-child,
+.inline-address label > span:first-child {
+  display: block;
+  margin-bottom: 5px;
   color: var(--creator-muted);
   font-size: 9px;
+  line-height: 1.2;
+}
+
+.inline-number-field,
+.inline-address-field {
+  width: 100%;
+  height: var(--creator-touch-target);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border: 1px solid var(--creator-control-line);
+  border-radius: 8px;
+  background: #fff;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.inline-number-field:focus-within,
+.inline-address-field:focus-within {
+  border-color: var(--creator-action);
+  box-shadow: 0 0 0 3px var(--creator-focus-ring);
 }
 
 .inline-number input {
-  width: 100%;
+  width: 0;
   min-width: 0;
-  height: var(--creator-touch-target);
-  padding: 0 4px;
+  height: 100%;
+  flex: 1;
+  padding: 0;
   border: 0;
-  border-bottom: 1px solid var(--creator-action);
   outline: 0;
   background: transparent;
   color: var(--creator-subtle);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 750;
 }
 
-.inline-number b {
-  padding: 0 4px 7px;
+.inline-number-field b {
+  flex: 0 0 auto;
+  margin-left: 8px;
   color: var(--creator-subtle);
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .inline-number button {
-  width: var(--creator-touch-target);
+  min-width: 72px;
   height: var(--creator-touch-target);
-  display: grid;
-  place-items: center;
-  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 14px;
+  border-radius: 8px;
   background: var(--creator-action);
   color: #fff;
+  font-size: 11px;
+  font-weight: 750;
 }
 
 .inline-number button svg {
-  width: 13px;
+  grid-row: auto;
+  grid-column: auto;
+  width: 14px;
+  color: currentColor;
+  opacity: 1;
 }
 
 .preview-fact-schedule.is-editing {
@@ -2527,47 +2546,54 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: end;
-  gap: 5px;
+  gap: 8px;
 }
 
-.inline-address label span {
-  display: block;
-  color: var(--creator-muted);
-  font-size: 9px;
+.inline-address label {
+  min-width: 0;
 }
 
 .inline-address input {
   width: 100%;
-  height: var(--creator-touch-target);
+  min-width: 0;
+  height: 100%;
+  padding: 0;
   border: 0;
-  border-bottom: 1px solid var(--creator-action);
   outline: 0;
   background: transparent;
-  font-size: 11px;
+  color: var(--creator-subtle);
+  font-size: 12px;
+  font-weight: 650;
 }
 
 .inline-address button {
-  min-width: 35px;
-  min-height: var(--creator-touch-target);
+  min-width: 72px;
+  height: var(--creator-touch-target);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  padding: 0 6px;
-  border-radius: 7px;
-  background: #e6eeff;
-  color: var(--creator-blue);
-  font-size: 9px;
+  gap: 5px;
+  padding: 0 12px;
+  border: 1px solid var(--creator-control-line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--creator-subtle);
+  font-size: 11px;
   font-weight: 750;
 }
 
 .inline-address button:last-child {
+  border-color: var(--creator-action);
   background: var(--creator-action);
   color: #fff;
 }
 
-.inline-address button svg {
-  width: 11px;
+.preview-fact .inline-address button svg {
+  grid-row: auto;
+  grid-column: auto;
+  width: 14px;
+  color: currentColor;
+  opacity: 1;
 }
 
 .preview-description {
@@ -2693,66 +2719,6 @@
 .preview-materials > p small {
   float: right;
   color: var(--creator-muted);
-}
-
-.preview-enroll-card {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(180px, 220px);
-  align-items: center;
-  gap: var(--space-5);
-  margin: 0;
-  padding: var(--space-6) var(--space-8);
-  border-top: 1px solid var(--creator-line);
-  background: var(--creator-surface);
-}
-
-.preview-enroll-price,
-.preview-enroll-action,
-.preview-enroll-price small,
-.preview-enroll-price strong,
-.preview-enroll-price p,
-.preview-enroll-action small {
-  display: block;
-}
-
-.preview-enroll-price small,
-.preview-enroll-action small {
-  color: var(--creator-muted);
-  font-size: var(--font-size-xs);
-}
-
-.preview-enroll-price strong {
-  display: block;
-  margin-top: 5px;
-  font-size: 24px;
-}
-
-.preview-enroll-price p {
-  margin: 10px 0 0;
-  color: var(--creator-subtle);
-  font-size: var(--font-size-xs);
-}
-
-.preview-enroll-action > button {
-  width: 100%;
-  min-height: 46px;
-  border-radius: 10px;
-  background: var(--creator-action);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.preview-enroll-action > button:disabled {
-  background: var(--color-tint-gray);
-  color: var(--creator-muted);
-  cursor: not-allowed;
-}
-
-.preview-enroll-action small {
-  margin-top: var(--space-2);
-  text-align: center;
 }
 
 .creator-form-error {
@@ -3744,15 +3710,6 @@
     display: none;
   }
 
-  .cover-position-control {
-    bottom: 12px;
-    left: 12px;
-  }
-
-  .cover-position-control button {
-    padding: 0 7px;
-  }
-
   .cover-upload-error {
     top: 12px;
     right: 12px;
@@ -3772,17 +3729,6 @@
     grid-template-columns: 1fr;
   }
 
-  .preview-enroll-card {
-    grid-template-columns: 1fr;
-    gap: var(--space-4);
-    margin: 0;
-    padding: var(--space-5) 18px 26px;
-  }
-
-  .preview-enroll-action > button {
-    min-height: 50px;
-  }
-
   .preview-description > button {
     min-height: 90px;
   }
@@ -3796,11 +3742,15 @@
   }
 
   .inline-address {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .inline-address button:last-child {
+  .inline-address label {
     grid-column: 1 / -1;
+  }
+
+  .inline-address button {
+    width: 100%;
   }
 
   .creator-form-error {

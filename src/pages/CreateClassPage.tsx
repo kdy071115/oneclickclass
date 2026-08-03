@@ -38,12 +38,16 @@ import {
   X,
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { classService, detailService, type ClassSourceMetadata } from '../api/services';
+import {
+  classService,
+  curriculumService,
+  detailService,
+  type ClassSourceMetadata,
+} from '../api/services';
 import {
   classCreationFileTypes,
   classCreationLimits,
   classCreationFlowSteps,
-  classThumbnailPositionOptions,
   classTypeOptions,
 } from '../constants/classCreation';
 import { addressSuggestions, initialClassDraft } from '../constants/classDraft';
@@ -58,6 +62,7 @@ import {
 } from '../utils/classDraft';
 import {
   combineClassSchedule,
+  buildSourceCurriculum,
   formatMediaDuration,
   formatClassSchedule,
   getYouTubeVideoId,
@@ -450,6 +455,20 @@ export function CreateClassPage() {
           : meta.source === 'documents'
             ? `참고자료 ${meta.materials.length}개`
             : '자료 선택 전';
+  const sourceCurriculumDraft = buildSourceCurriculum({
+    kind: meta.source,
+    classTitle: draft.title,
+    classSummary: draft.summary,
+    youtubeUrl: meta.youtubeConnected ? meta.youtubeUrl : undefined,
+    youtubeTitle: meta.youtubeMetadata?.title,
+    youtubeDurationSeconds: meta.youtubeMetadata?.durationSeconds,
+    materials: meta.materials.map(({ name, url, durationSeconds }) => ({
+      name,
+      url,
+      durationSeconds,
+    })),
+  });
+  const willPublish = Boolean(editId || sourceCurriculumDraft.lessons.length);
   const InformationIcon =
     meta.informationMode === 'manual'
       ? Pencil
@@ -1021,9 +1040,49 @@ export function CreateClassPage() {
     setPublishConfirmOpen(true);
   }
 
+  async function ensureSourceCurriculum(classId: string) {
+    if (!sourceCurriculumDraft.lessons.length) return false;
+
+    let sections = await curriculumService.list(classId);
+    const sourceUrls = new Set(sourceCurriculumDraft.lessons.map((lesson) => lesson.contentUrl));
+    const existingUrls = new Set(
+      sections.flatMap((section) => section.lessons.map((lesson) => lesson.contentUrl)),
+    );
+    if ([...sourceUrls].every((url) => existingUrls.has(url))) return true;
+
+    let targetSection = sections.find((section) =>
+      section.lessons.some((lesson) => sourceUrls.has(lesson.contentUrl)),
+    );
+    if (!targetSection) {
+      targetSection = sections.find(
+        (section) => section.title === sourceCurriculumDraft.sectionTitle,
+      );
+    }
+    if (!targetSection) {
+      const existingSectionIds = new Set(sections.map((section) => section.id));
+      sections = await curriculumService.createSection(
+        classId,
+        sourceCurriculumDraft.sectionTitle,
+      );
+      targetSection =
+        sections.find((section) => !existingSectionIds.has(section.id)) ??
+        sections.find((section) => section.title === sourceCurriculumDraft.sectionTitle);
+    }
+    if (!targetSection) throw new Error('source curriculum section was not created');
+
+    for (const lesson of sourceCurriculumDraft.lessons) {
+      if (existingUrls.has(lesson.contentUrl)) continue;
+      sections = await curriculumService.createLesson(classId, targetSection.id, lesson);
+      existingUrls.add(lesson.contentUrl);
+      targetSection = sections.find((section) => section.id === targetSection?.id) ?? targetSection;
+    }
+    return true;
+  }
+
   async function publishClass() {
     setSubmitting(true);
     setError('');
+    let stage: 'saving' | 'curriculum' | 'publishing' = 'saving';
     try {
       const createdId = editId || meta.createdId;
       const created = createdId
@@ -1032,15 +1091,23 @@ export function CreateClassPage() {
       setMeta((current) => ({ ...current, createdId: created.id }));
       if (draft.thumbnail) saveClassThumbnail(created.id, draft.thumbnail);
       saveClassPreview(created.id, draft);
-      const published = await classService.publish(created.id);
-      setMeta((current) => ({
-        ...current,
+      stage = 'curriculum';
+      const hasSourceCurriculum = editId ? false : await ensureSourceCurriculum(created.id);
+      let shareToken = '';
+      if (editId || hasSourceCurriculum) {
+        stage = 'publishing';
+        const published = await classService.publish(created.id);
+        shareToken = published.shareToken;
+      }
+      const nextMeta = {
+        ...metaRef.current,
         createdId: created.id,
-        shareToken: published.shareToken,
-      }));
+        shareToken,
+      };
+      setMeta(nextMeta);
       sessionStorage.setItem(
         CLASS_CREATION_META_KEY,
-        JSON.stringify({ ...meta, createdId: created.id, shareToken: published.shareToken }),
+        JSON.stringify(nextMeta),
       );
       setSaveStatus('saved');
       setMaxStep(5);
@@ -1049,7 +1116,13 @@ export function CreateClassPage() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch {
       setPublishConfirmOpen(false);
-      setError('클래스를 게시하지 못했어요. 입력 내용은 저장되어 있으니 다시 시도해 주세요.');
+      setError(
+        stage === 'curriculum'
+          ? '첫 차시를 준비하지 못했어요. 기본 정보는 저장되어 있으니 다시 시도해 주세요.'
+          : stage === 'publishing'
+            ? '클래스를 게시하지 못했어요. 첫 차시는 저장되어 있으니 다시 시도해 주세요.'
+            : '클래스 기본 정보를 저장하지 못했어요. 입력 내용은 유지되니 다시 시도해 주세요.',
+      );
     } finally {
       setSubmitting(false);
     }
@@ -1965,30 +2038,6 @@ export function CreateClassPage() {
                         {thumbnailUploadStatus === 'uploading' ? '업로드 중' : '이미지 변경'}
                         <small>권장 16:9 · 최대 5MB</small>
                       </label>
-                      {(thumbnailPreviewUrl || draft.thumbnail) && (
-                        <div
-                          className="cover-position-control"
-                          role="group"
-                          aria-label="커버 초점 위치"
-                        >
-                          {classThumbnailPositionOptions.map((option) => (
-                            <button
-                              type="button"
-                              className={draft.thumbnailPosition === option.value ? 'active' : ''}
-                              aria-pressed={draft.thumbnailPosition === option.value}
-                              onClick={() =>
-                                setDraft((current) => ({
-                                  ...current,
-                                  thumbnailPosition: option.value,
-                                }))
-                              }
-                              key={option.value}
-                            >
-                              {option.label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
                       {thumbnailUploadError && (
                         <div className="cover-upload-error" role="alert">
                           <CircleAlert />
@@ -2100,8 +2149,8 @@ export function CreateClassPage() {
                       {type === 'offline' && (
                         <div
                           className={`preview-fact preview-fact-address editable ${
-                            highlightField === 'address' ? 'highlighted' : ''
-                          }`}
+                            editField === 'address' ? 'is-editing' : ''
+                          } ${highlightField === 'address' ? 'highlighted' : ''}`}
                           data-preview-field="address"
                         >
                           <MapPin />
@@ -2109,21 +2158,23 @@ export function CreateClassPage() {
                             <div className="inline-address">
                               <label>
                                 <span>주소</span>
-                                <input
-                                  autoFocus
-                                  value={draft.address}
-                                  aria-label="클래스 장소 편집"
-                                  onChange={(event) =>
-                                    setDraft((current) => ({
-                                      ...current,
-                                      address: event.target.value,
-                                    }))
-                                  }
-                                  onKeyDown={(event) => {
-                                    if (event.key === 'Escape') cancelInlineEdit('address');
-                                    if (event.key === 'Enter') finishInlineEdit('address');
-                                  }}
-                                />
+                                <span className="inline-address-field">
+                                  <input
+                                    autoFocus
+                                    value={draft.address}
+                                    aria-label="클래스 장소 편집"
+                                    onChange={(event) =>
+                                      setDraft((current) => ({
+                                        ...current,
+                                        address: event.target.value,
+                                      }))
+                                    }
+                                    onKeyDown={(event) => {
+                                      if (event.key === 'Escape') cancelInlineEdit('address');
+                                      if (event.key === 'Enter') finishInlineEdit('address');
+                                    }}
+                                  />
+                                </span>
                               </label>
                               <button
                                 type="button"
@@ -2131,13 +2182,15 @@ export function CreateClassPage() {
                                 onClick={openAddressDialog}
                               >
                                 <Search />
-                                검색
+                                <span>검색</span>
                               </button>
                               <button
                                 type="button"
+                                aria-label="클래스 장소 편집 완료"
                                 onClick={() => finishInlineEdit('address')}
                               >
-                                완료
+                                <Check />
+                                <span>완료</span>
                               </button>
                             </div>
                           ) : (
@@ -2158,19 +2211,6 @@ export function CreateClassPage() {
                     </div>
                   </div>
 
-                  <aside className="preview-enroll-card">
-                    <span className="preview-enroll-price">
-                      <small>참가비</small>
-                      <strong>{formatPrice(draft.price)}</strong>
-                      {type !== 'online' && <p>신청 가능 인원 {draft.capacity}명</p>}
-                    </span>
-                    <span className="preview-enroll-action">
-                      <button type="button" disabled>
-                        클래스 신청하기
-                      </button>
-                      <small>미리보기에서는 신청되지 않아요.</small>
-                    </span>
-                  </aside>
                 </section>
 
                 <div className="preview-content">
@@ -2283,8 +2323,9 @@ export function CreateClassPage() {
             </div>
             <p className="creator-publish-note">
               <ExternalLink />
-              입력 내용은 자동 저장됩니다. 게시하면 공유 링크가 활성화되고 누구나 클래스 페이지를 볼
-              수 있어요.
+              {willPublish
+                ? '입력 내용과 첫 차시는 자동 저장됩니다. 게시하면 공유 링크가 활성화돼요.'
+                : '기본 정보를 저장한 뒤 첫 차시를 만들면 공유 링크를 열 수 있어요.'}
             </p>
           </section>
         )}
@@ -2298,36 +2339,68 @@ export function CreateClassPage() {
               <i />
               <i />
             </div>
-            <h1>{stepInfo.title}</h1>
-            <p>{stepInfo.description}</p>
-            <div className="share-link-card">
-              <span>
-                <Link2 />
-                <input aria-label="클래스 링크" readOnly value={shareUrl} />
-              </span>
-              <button type="button" className={copied ? 'copied' : ''} onClick={copyShareLink}>
-                {copied ? <Check /> : <Copy />}
-                {copied ? '복사됨' : '링크 복사'}
-              </button>
-            </div>
-            {copied && (
-              <div className="copy-toast" role="status">
-                <Check />
-                클래스 링크를 복사했어요.
-              </div>
+            <h1>
+              {meta.shareToken
+                ? editId
+                  ? '클래스 수정이 완료됐어요'
+                  : '클래스와 첫 차시가 완성됐어요!'
+                : '클래스 기본 정보가 준비됐어요'}
+            </h1>
+            <p>
+              {meta.shareToken
+                ? '신청 링크를 공유하면 수강생이 클래스 정보를 확인하고 바로 신청할 수 있어요.'
+                : '첫 차시를 추가하고 공개 페이지를 확인하면 신청 링크를 만들 수 있어요.'}
+            </p>
+            {meta.shareToken && (
+              <>
+                <div className="share-link-card">
+                  <span>
+                    <Link2 />
+                    <input aria-label="클래스 링크" readOnly value={shareUrl} />
+                  </span>
+                  <button type="button" className={copied ? 'copied' : ''} onClick={copyShareLink}>
+                    {copied ? <Check /> : <Copy />}
+                    {copied ? '복사됨' : '링크 복사'}
+                  </button>
+                </div>
+                {copied && (
+                  <div className="copy-toast" role="status">
+                    <Check />
+                    클래스 링크를 복사했어요.
+                  </div>
+                )}
+              </>
             )}
             <div className="completion-actions">
-              <button
-                type="button"
-                className="view-class"
-                onClick={() => nav(`/s/${meta.shareToken}`)}
-              >
-                클래스 보러가기
-                <ExternalLink />
-              </button>
-              <button type="button" onClick={restart}>
-                새 클래스 만들기
-              </button>
+              {meta.shareToken ? (
+                <>
+                  <button
+                    type="button"
+                    className="view-class"
+                    onClick={() => nav(`/s/${meta.shareToken}`)}
+                  >
+                    클래스 보러가기
+                    <ExternalLink />
+                  </button>
+                  <button type="button" onClick={restart}>
+                    새 클래스 만들기
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="view-class"
+                    onClick={() => nav(`/classes/${meta.createdId}/curriculum?setup=1`)}
+                  >
+                    첫 차시 만들기
+                    <ArrowRight />
+                  </button>
+                  <button type="button" onClick={() => nav(`/classes/${meta.createdId}`)}>
+                    클래스 관리
+                  </button>
+                </>
+              )}
             </div>
           </section>
         )}
@@ -2366,11 +2439,11 @@ export function CreateClassPage() {
                 {submitting ? (
                   <>
                     <LoaderCircle className="spin" />
-                    클래스를 게시하고 있어요
+                    {willPublish ? '클래스를 게시하고 있어요' : '기본 정보를 저장하고 있어요'}
                   </>
                 ) : (
                   <>
-                    {step === 4 ? '클래스 게시' : '다음'}
+                    {step === 4 ? (willPublish ? '클래스 게시' : '기본 정보 저장') : '다음'}
                     <ArrowRight />
                   </>
                 )}
@@ -2396,12 +2469,14 @@ export function CreateClassPage() {
 
       <ConfirmDialog
         open={publishConfirmOpen}
-        title="클래스를 게시할까요?"
+        title={willPublish ? '클래스를 게시할까요?' : '기본 정보를 저장할까요?'}
         description={
           <div className="publish-summary">
             <p>
-              게시하면 공유 링크가 활성화되고 누구나 클래스 페이지를 볼 수 있어요.
-              {type !== 'online' && !draft.startDate
+              {willPublish
+                ? '등록한 자료를 첫 차시로 만들고 공유 링크를 활성화해요.'
+                : '기본 정보를 먼저 저장하고, 다음 화면에서 첫 차시를 만들 수 있어요.'}
+              {willPublish && type !== 'online' && !draft.startDate
                 ? ' 일정은 게시 후 클래스 정보에서 추가할 수 있어요.'
                 : ''}
             </p>
@@ -2439,7 +2514,7 @@ export function CreateClassPage() {
             </dl>
           </div>
         }
-        confirmText="클래스 게시"
+        confirmText={willPublish ? '클래스 게시' : '저장하고 계속'}
         cancelText="계속 수정하기"
         tone="primary"
         loading={submitting}
@@ -2764,29 +2839,36 @@ function InlineFact({
 }) {
   return (
     <div
-      className={`preview-fact editable ${highlighted ? 'highlighted' : ''}`}
+      className={`preview-fact editable ${active ? 'is-editing' : ''} ${
+        highlighted ? 'highlighted' : ''
+      }`}
       data-preview-field={field}
     >
       {icon}
       {active ? (
-        <label className="inline-number">
-          <span>{label}</span>
-          <input
-            autoFocus
-            inputMode="numeric"
-            aria-label={`${label} 편집`}
-            value={value}
-            onChange={(event) => onChange(Number(event.target.value.replace(/\D/g, '')) || 0)}
-            onKeyDown={(event) => {
-              if (event.key === 'Escape') onCancel(field);
-              if (event.key === 'Enter') onDone();
-            }}
-          />
-          <b>{unit}</b>
+        <div className="inline-number">
+          <label>
+            <span>{label}</span>
+            <span className="inline-number-field">
+              <input
+                autoFocus
+                inputMode="numeric"
+                aria-label={`${label} 편집`}
+                value={value}
+                onChange={(event) => onChange(Number(event.target.value.replace(/\D/g, '')) || 0)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') onCancel(field);
+                  if (event.key === 'Enter') onDone();
+                }}
+              />
+              <b aria-hidden="true">{unit}</b>
+            </span>
+          </label>
           <button type="button" onClick={onDone} aria-label={`${label} 편집 완료`}>
             <Check />
+            <span>완료</span>
           </button>
-        </label>
+        </div>
       ) : (
         <button type="button" aria-label={`${label} 수정`} onClick={() => onStart(field)}>
           <span className="preview-fact-copy">

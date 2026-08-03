@@ -1,4 +1,79 @@
-import { classCreationFileTypes } from '../constants/classCreation';
+import {
+  classCreationDefaults,
+  classCreationFileTypes,
+} from '../constants/classCreation';
+import type { CurriculumLesson } from '../types/class';
+
+export type ClassSourceCurriculumInput = {
+  kind: 'none' | 'youtube' | 'video' | 'documents';
+  classTitle: string;
+  classSummary: string;
+  youtubeUrl?: string;
+  youtubeTitle?: string;
+  youtubeDurationSeconds?: number;
+  materials: Array<{
+    name: string;
+    url?: string;
+    durationSeconds?: number;
+  }>;
+};
+
+export type ClassSourceCurriculumDraft = {
+  sectionTitle: string;
+  lessons: Array<Omit<CurriculumLesson, 'id'>>;
+};
+
+const sourceTitle = (name: string) => {
+  const trimmed = name.trim();
+  const extensionIndex = trimmed.lastIndexOf('.');
+  return extensionIndex > 0 ? trimmed.slice(0, extensionIndex) : trimmed;
+};
+
+const sourceDurationMinutes = (seconds?: number) =>
+  seconds && Number.isFinite(seconds)
+    ? Math.max(1, Math.ceil(seconds / 60))
+    : classCreationDefaults.lessonDurationMinutes;
+
+export function buildSourceCurriculum(
+  input: ClassSourceCurriculumInput,
+): ClassSourceCurriculumDraft {
+  const common = {
+    description: input.classSummary.trim(),
+    preview: false,
+    published: true,
+    required: true,
+    sequential: false,
+    markers: [],
+    resources: [],
+  } satisfies Partial<Omit<CurriculumLesson, 'id'>>;
+
+  const lessons: Array<Omit<CurriculumLesson, 'id'>> = [];
+  if (input.kind === 'youtube' && input.youtubeUrl) {
+    lessons.push({
+      ...common,
+      title: input.youtubeTitle?.trim() || input.classTitle.trim(),
+      contentType: 'video',
+      contentUrl: input.youtubeUrl,
+      durationMinutes: sourceDurationMinutes(input.youtubeDurationSeconds),
+    });
+  } else if (input.kind === 'video' || input.kind === 'documents') {
+    input.materials.forEach((material) => {
+      if (!material.url) return;
+      lessons.push({
+        ...common,
+        title: sourceTitle(material.name) || input.classTitle.trim(),
+        contentType: input.kind === 'video' ? 'video' : 'document',
+        contentUrl: material.url,
+        durationMinutes: sourceDurationMinutes(material.durationSeconds),
+      });
+    });
+  }
+
+  return {
+    sectionTitle: input.classTitle.trim(),
+    lessons,
+  };
+}
 
 export function getYouTubeVideoId(value: string) {
   try {

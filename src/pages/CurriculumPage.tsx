@@ -135,6 +135,7 @@ export function CurriculumPage() {
   const [titleError, setTitleError] = useState('');
   const [contentUrlError, setContentUrlError] = useState('');
   const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
+  const [advancedSettingsOpen, setAdvancedSettingsOpen] = useState(false);
   const [markerDraft, setMarkerDraft] = useState(emptyMarker);
   const [markerError, setMarkerError] = useState('');
   const [markerOpen, setMarkerOpen] = useState(false);
@@ -265,6 +266,7 @@ export function CurriculumPage() {
     setMarkerPreviewSeconds(0);
     setVideoDurationSeconds(0);
     setDiscardConfirmOpen(false);
+    setAdvancedSettingsOpen(false);
     setEditor({ sectionId });
   };
 
@@ -282,6 +284,9 @@ export function CurriculumPage() {
     setMarkerPreviewSeconds(0);
     setVideoDurationSeconds(0);
     setDiscardConfirmOpen(false);
+    setAdvancedSettingsOpen(
+      Boolean(nextValue.preview || nextValue.required === false || nextValue.sequential),
+    );
     setEditor({ sectionId, lessonId });
   };
 
@@ -338,6 +343,7 @@ export function CurriculumPage() {
     }
     setEditor(undefined);
     setDiscardConfirmOpen(false);
+    setAdvancedSettingsOpen(false);
     setTitleError('');
     setContentUrlError('');
   };
@@ -979,39 +985,52 @@ export function CurriculumPage() {
               hint={videoDurationSeconds > 0 ? `영상 길이 ${formatMarkerTime(videoDurationSeconds)}를 자동 반영했어요.` : undefined}
             />
           </div>
-          <div className="curriculum-toggle-row">
-            <span>
-              <b>무료 미리보기</b>
-              <small>신청 전에도 이 차시를 볼 수 있어요.</small>
-            </span>
-            <Toggle
-              label="무료 미리보기 설정"
-              checked={lesson.preview}
-              onChange={(preview) => setLesson({ ...lesson, preview })}
-            />
-          </div>
-          <div className="curriculum-toggle-row">
-            <span>
-              <b>필수 차시</b>
-              <small>이수 조건을 계산할 때 반드시 완료해야 하는 차시예요.</small>
-            </span>
-            <Toggle
-              label="필수 차시 설정"
-              checked={lesson.required ?? true}
-              onChange={(required) => setLesson({ ...lesson, required })}
-            />
-          </div>
-          <div className="curriculum-toggle-row">
-            <span>
-              <b>순서대로 학습</b>
-              <small>이전 차시를 완료한 뒤 이 차시를 열 수 있어요.</small>
-            </span>
-            <Toggle
-              label="순차 학습 설정"
-              checked={lesson.sequential ?? false}
-              onChange={(sequential) => setLesson({ ...lesson, sequential })}
-            />
-          </div>
+          <details
+            className="lesson-advanced-settings"
+            open={advancedSettingsOpen}
+            onToggle={(event) => setAdvancedSettingsOpen(event.currentTarget.open)}
+          >
+            <summary>
+              <span>
+                <b>고급 이수 설정</b>
+                <small>미리보기와 학습 순서를 필요할 때만 조정하세요.</small>
+              </span>
+              <ChevronDown aria-hidden="true" />
+            </summary>
+            <div className="curriculum-toggle-row">
+              <span>
+                <b>무료 미리보기</b>
+                <small>신청 전에도 이 차시를 볼 수 있어요.</small>
+              </span>
+              <Toggle
+                label="무료 미리보기 설정"
+                checked={lesson.preview}
+                onChange={(preview) => setLesson({ ...lesson, preview })}
+              />
+            </div>
+            <div className="curriculum-toggle-row">
+              <span>
+                <b>필수 차시</b>
+                <small>이수 조건을 계산할 때 반드시 완료해야 하는 차시예요.</small>
+              </span>
+              <Toggle
+                label="필수 차시 설정"
+                checked={lesson.required ?? true}
+                onChange={(required) => setLesson({ ...lesson, required })}
+              />
+            </div>
+            <div className="curriculum-toggle-row">
+              <span>
+                <b>순서대로 학습</b>
+                <small>이전 차시를 완료한 뒤 이 차시를 열 수 있어요.</small>
+              </span>
+              <Toggle
+                label="순차 학습 설정"
+                checked={lesson.sequential ?? false}
+                onChange={(sequential) => setLesson({ ...lesson, sequential })}
+              />
+            </div>
+          </details>
           <div className="curriculum-toggle-row">
             <span>
               <b>수강생에게 공개</b>
