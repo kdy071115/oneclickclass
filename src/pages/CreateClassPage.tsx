@@ -81,7 +81,14 @@ type SourceKind = 'none' | 'youtube' | 'video' | 'documents';
 type InformationMode = 'source' | 'manual' | 'analyzing' | 'generated' | 'analysis-error';
 type SaveStatus = 'saving' | 'saved' | 'error';
 type ThumbnailUploadStatus = 'idle' | 'uploading' | 'error';
-type EditableField = 'title' | 'summary' | 'description' | 'price' | 'capacity' | 'address';
+type EditableField =
+  | 'title'
+  | 'summary'
+  | 'description'
+  | 'price'
+  | 'capacity'
+  | 'address'
+  | 'startDate';
 type FormField =
   | 'title'
   | 'summary'
@@ -117,6 +124,22 @@ interface CreationMeta {
   shareToken: string;
   step: number;
   maxStep: number;
+}
+
+interface ScheduleEditValue {
+  date: string;
+  time: string;
+}
+
+function getScheduleInputError(date: string, time: string, hasValue = Boolean(date || time)) {
+  if (hasValue && (!date || !time)) {
+    return '일정을 설정하려면 시작 날짜와 시간을 모두 입력해 주세요.';
+  }
+  const schedule = combineClassSchedule(date, time);
+  if (schedule && isPastClassSchedule(schedule)) {
+    return '클래스 시작 일정은 현재 이후로 선택해 주세요.';
+  }
+  return '';
 }
 
 const CLASS_CREATION_META_KEY = 'oneclick-class-creation-meta';
@@ -173,7 +196,20 @@ function editDraftFromClass(item: ClassItem, detail: ClassDetail): ClassDraft {
   };
 }
 
-function loadCreationMeta(hasDraft: boolean, editing: boolean): CreationMeta {
+function loadCreationMeta(
+  hasDraft: boolean,
+  editing: boolean,
+  requestedSource: string | null,
+): CreationMeta {
+  if (!editing && requestedSource === 'youtube') {
+    return {
+      ...initialCreationMeta,
+      deliverySelected: true,
+      informationMode: 'source',
+      step: 2,
+      maxStep: 2,
+    };
+  }
   try {
     const saved = sessionStorage.getItem(CLASS_CREATION_META_KEY);
     if (!saved) {
@@ -281,6 +317,7 @@ export function CreateClassPage() {
   const nav = useNavigate();
   const [params] = useSearchParams();
   const editId = params.get('edit');
+  const requestedSource = params.get('source');
   const requestedStep = Math.min(4, Math.max(1, Number(params.get('step')) || 1));
   const [draft, setDraft] = useState<ClassDraft>(() => {
     const savedDraft = editId
@@ -294,7 +331,11 @@ export function CreateClassPage() {
     };
   });
   const [meta, setMeta] = useState<CreationMeta>(() =>
-    loadCreationMeta(Boolean(draft.title || draft.summary || draft.description), Boolean(editId)),
+    loadCreationMeta(
+      Boolean(draft.title || draft.summary || draft.description),
+      Boolean(editId),
+      requestedSource,
+    ),
   );
   const [step, setStep] = useState(() =>
     params.has('step') || editId ? requestedStep : meta.step,
@@ -316,6 +357,10 @@ export function CreateClassPage() {
   const [query, setQuery] = useState('');
   const [editField, setEditField] = useState<EditableField | null>(null);
   const [highlightField, setHighlightField] = useState<EditableField | null>(null);
+  const [scheduleEditValue, setScheduleEditValue] = useState<ScheduleEditValue>({
+    date: '',
+    time: '',
+  });
   const [showPreviewHint, setShowPreviewHint] = useState(false);
   const [editLoading, setEditLoading] = useState(() => Boolean(editId && !hasClassPreview(editId)));
   const [editLoadError, setEditLoadError] = useState('');
@@ -352,6 +397,39 @@ export function CreateClassPage() {
   const stepInfo = classCreationFlowSteps[step - 1];
   const progressPercent = Math.round(((step - 1) / (classCreationFlowSteps.length - 1)) * 100);
   const todayDateValue = localDateInputValue();
+  const commitScheduleInlineEdit = useCallback(
+    (restoreFocus = true) => {
+      const scheduleError = getScheduleInputError(
+        scheduleEditValue.date,
+        scheduleEditValue.time,
+      );
+      if (scheduleError) {
+        setFieldErrors((current) => ({ ...current, startDate: scheduleError }));
+        return false;
+      }
+
+      setDraft((current) => ({
+        ...current,
+        startDate: combineClassSchedule(scheduleEditValue.date, scheduleEditValue.time),
+      }));
+      setFieldErrors((current) => {
+        if (!current.startDate) return current;
+        const next = { ...current };
+        delete next.startDate;
+        return next;
+      });
+      setEditField(null);
+      if (restoreFocus) {
+        requestAnimationFrame(() => {
+          document
+            .querySelector<HTMLElement>('[data-preview-field="startDate"] button')
+            ?.focus();
+        });
+      }
+      return true;
+    },
+    [scheduleEditValue],
+  );
   const informationDescription =
     meta.informationMode === 'manual'
       ? '핵심 정보만 입력하면 공개 페이지에서 바로 다듬을 수 있어요.'
@@ -477,11 +555,15 @@ export function CreateClassPage() {
       const target = event.target as Node | null;
       if (!target || fieldRoot?.contains(target)) return;
       if ((target as Element).closest?.('.creator-address-dialog')) return;
+      if (editField === 'startDate') {
+        commitScheduleInlineEdit(false);
+        return;
+      }
       setEditField(null);
     };
     document.addEventListener('pointerdown', finishEditOutside);
     return () => document.removeEventListener('pointerdown', finishEditOutside);
-  }, [editField]);
+  }, [commitScheduleInlineEdit, editField]);
 
   useEffect(
     () => () => {
@@ -786,14 +868,13 @@ export function CreateClassPage() {
     ) {
       errors.capacity = '참가인원은 1명 이상 10,000명 이하로 입력해 주세요.';
     }
-    if (
-      type !== 'online' &&
-      draft.startDate &&
-      (!scheduleDateValue(draft.startDate) || !scheduleTimeValue(draft.startDate))
-    )
-      errors.startDate = '일정을 설정하려면 시작 날짜와 시간을 모두 입력해 주세요.';
-    else if (type !== 'online' && isPastClassSchedule(draft.startDate)) {
-      errors.startDate = '클래스 시작 일정은 현재 이후로 선택해 주세요.';
+    if (type !== 'online') {
+      const scheduleError = getScheduleInputError(
+        scheduleDateValue(draft.startDate),
+        scheduleTimeValue(draft.startDate),
+        Boolean(draft.startDate),
+      );
+      if (scheduleError) errors.startDate = scheduleError;
     }
     if (type !== 'online' && draft.recruitEndDate && !scheduleDateValue(draft.startDate)) {
       errors.recruitEndDate = '모집 마감일을 설정하려면 시작 일정을 먼저 입력해 주세요.';
@@ -1015,6 +1096,10 @@ export function CreateClassPage() {
   }
 
   function finishInlineEdit(field: EditableField) {
+    if (field === 'startDate') {
+      commitScheduleInlineEdit();
+      return;
+    }
     setEditField(null);
     requestAnimationFrame(() => {
       document
@@ -1024,12 +1109,29 @@ export function CreateClassPage() {
   }
 
   function startInlineEdit(field: EditableField) {
-    inlineOriginal.current = { ...inlineOriginal.current, [field]: draft[field] };
+    if (field === 'startDate') {
+      setScheduleEditValue({
+        date: scheduleDateValue(draft.startDate),
+        time: scheduleTimeValue(draft.startDate),
+      });
+    } else {
+      inlineOriginal.current = { ...inlineOriginal.current, [field]: draft[field] };
+    }
     setHighlightField(null);
     setEditField(field);
   }
 
   function cancelInlineEdit(field: EditableField) {
+    if (field === 'startDate') {
+      clearFieldError('startDate');
+      setEditField(null);
+      requestAnimationFrame(() => {
+        document
+          .querySelector<HTMLElement>('[data-preview-field="startDate"] button')
+          ?.focus();
+      });
+      return;
+    }
     const previous = inlineOriginal.current[field];
     if (previous !== undefined) {
       setDraft((current) => ({ ...current, [field]: previous }));
@@ -1973,13 +2075,26 @@ export function CreateClassPage() {
                             onDone={() => finishInlineEdit('capacity')}
                             onCancel={cancelInlineEdit}
                           />
-                          <div className="preview-fact preview-fact-schedule">
-                            <Clock3 />
-                            <span className="preview-fact-copy schedule">
-                              <small>일정</small>
-                              <b>{formatClassSchedule(draft.startDate)}</b>
-                            </span>
-                          </div>
+                          <InlineScheduleFact
+                            active={editField === 'startDate'}
+                            highlighted={highlightField === 'startDate'}
+                            display={formatClassSchedule(draft.startDate)}
+                            date={scheduleEditValue.date}
+                            time={scheduleEditValue.time}
+                            minDate={todayDateValue}
+                            error={fieldErrors.startDate}
+                            onStart={startInlineEdit}
+                            onDateChange={(date) => {
+                              clearFieldError('startDate');
+                              setScheduleEditValue((current) => ({ ...current, date }));
+                            }}
+                            onTimeChange={(time) => {
+                              clearFieldError('startDate');
+                              setScheduleEditValue((current) => ({ ...current, time }));
+                            }}
+                            onDone={() => finishInlineEdit('startDate')}
+                            onCancel={() => cancelInlineEdit('startDate')}
+                          />
                         </>
                       )}
                       {type === 'offline' && (
@@ -2676,6 +2791,102 @@ function InlineFact({
         <button type="button" aria-label={`${label} 수정`} onClick={() => onStart(field)}>
           <span className="preview-fact-copy">
             <small>{label}</small>
+            <b>{display}</b>
+          </span>
+          <Pencil />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function InlineScheduleFact({
+  active,
+  highlighted,
+  display,
+  date,
+  time,
+  minDate,
+  error,
+  onStart,
+  onDateChange,
+  onTimeChange,
+  onDone,
+  onCancel,
+}: {
+  active: boolean;
+  highlighted: boolean;
+  display: string;
+  date: string;
+  time: string;
+  minDate: string;
+  error?: string;
+  onStart: (field: EditableField) => void;
+  onDateChange: (date: string) => void;
+  onTimeChange: (time: string) => void;
+  onDone: () => void;
+  onCancel: () => void;
+}) {
+  const errorId = useId();
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Escape') onCancel();
+    if (event.key === 'Enter') onDone();
+  };
+
+  return (
+    <div
+      className={`preview-fact preview-fact-schedule editable ${active ? 'is-editing' : ''} ${
+        highlighted ? 'highlighted' : ''
+      }`}
+      data-preview-field="startDate"
+    >
+      <Clock3 />
+      {active ? (
+        <fieldset className="inline-schedule" aria-describedby={error ? errorId : undefined}>
+          <legend className="sr-only">클래스 일정 편집</legend>
+          <label>
+            <span>시작 날짜</span>
+            <input
+              autoFocus
+              type="date"
+              min={minDate}
+              value={date}
+              aria-label="클래스 시작 날짜 편집"
+              aria-invalid={Boolean(error)}
+              onChange={(event) => onDateChange(event.target.value)}
+              onKeyDown={handleKeyDown}
+            />
+          </label>
+          <label>
+            <span>시작 시간</span>
+            <input
+              type="time"
+              value={time}
+              aria-label="클래스 시작 시간 편집"
+              aria-invalid={Boolean(error)}
+              onChange={(event) => onTimeChange(event.target.value)}
+              onKeyDown={handleKeyDown}
+            />
+          </label>
+          <span className="inline-schedule-actions">
+            <button type="button" aria-label="클래스 일정 편집 취소" onClick={onCancel}>
+              <X />
+            </button>
+            <button type="button" aria-label="클래스 일정 편집 완료" onClick={onDone}>
+              <Check />
+            </button>
+          </span>
+          {error && (
+            <small className="inline-schedule-error" id={errorId} role="alert">
+              <CircleAlert />
+              {error}
+            </small>
+          )}
+        </fieldset>
+      ) : (
+        <button type="button" aria-label="클래스 일정 수정" onClick={() => onStart('startDate')}>
+          <span className="preview-fact-copy schedule">
+            <small>일정</small>
             <b>{display}</b>
           </span>
           <Pencil />

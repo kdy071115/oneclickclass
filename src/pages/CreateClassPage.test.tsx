@@ -216,6 +216,52 @@ describe('CreateClassPage accessibility and ordering', () => {
     );
   });
 
+  it('미리보기 일정 카드에서 날짜와 시간을 함께 수정하고 유효성을 안내한다', async () => {
+    const user = userEvent.setup();
+    sessionStorage.setItem(
+      CLASS_DRAFT_KEY,
+      JSON.stringify({
+        ...initialClassDraft,
+        type: 'live',
+        title: '일정 편집 테스트 클래스',
+        summary: '미리보기에서 일정을 바로 수정할 수 있는지 확인합니다.',
+        description: '날짜와 시간을 함께 입력하고 검증하는 일정 편집 동작을 확인합니다.',
+      }),
+    );
+    sessionStorage.setItem(
+      creationMetaKey,
+      JSON.stringify({ deliverySelected: true, informationMode: 'manual', step: 4, maxStep: 4 }),
+    );
+    renderCreator('/classes/new?step=4');
+
+    await user.click(screen.getByRole('button', { name: '클래스 일정 수정' }));
+    const dateInput = screen.getByLabelText('클래스 시작 날짜 편집');
+    const timeInput = screen.getByLabelText('클래스 시작 시간 편집');
+    expect(dateInput).toHaveFocus();
+
+    fireEvent.change(dateInput, { target: { value: '2027-08-27' } });
+    fireEvent.change(timeInput, { target: { value: '19:28' } });
+    await user.click(screen.getByRole('button', { name: '클래스 일정 편집 완료' }));
+    expect(screen.getByRole('button', { name: '클래스 일정 수정' })).toHaveTextContent(
+      '2027년 8월 27일 오후 7:28',
+    );
+
+    await user.click(screen.getByRole('button', { name: '클래스 일정 수정' }));
+    fireEvent.change(screen.getByLabelText('클래스 시작 날짜 편집'), {
+      target: { value: '' },
+    });
+    await user.click(screen.getByRole('button', { name: '클래스 일정 편집 완료' }));
+    expect(
+      screen.getByText('일정을 설정하려면 시작 날짜와 시간을 모두 입력해 주세요.'),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('클래스 시작 시간 편집')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '클래스 일정 편집 취소' }));
+    expect(screen.getByRole('button', { name: '클래스 일정 수정' })).toHaveTextContent(
+      '2027년 8월 27일 오후 7:28',
+    );
+  });
+
   it('설정 카드의 DOM 순서와 화면 순서를 동일하게 유지하고 주소 검색 후 포커스를 복원한다', async () => {
     const user = userEvent.setup();
     sessionStorage.setItem(
