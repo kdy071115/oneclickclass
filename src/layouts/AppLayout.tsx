@@ -6,25 +6,26 @@ import {
   UserRound,
   Users,
 } from 'lucide-react';
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useCallback, useState } from 'react';
 import { applicantService, classService } from '../api/services';
-import { clearSession, getSession } from '../auth/session';
+import { getSession } from '../auth/session';
 import { StatusBar } from '../components/common/StatusBar';
 import { NotificationPopover } from '../components/feature/NotificationPopover';
 import { mobileNav, teacherNav } from '../constants/navigation';
 import { useAsync } from '../hooks/useAsync';
 import { useRole } from '../hooks/useRole';
 import { useProfileImage } from '../hooks/useProfileImage';
+import { useLogout } from '../hooks/useLogout';
 
 export function AppLayout() {
   const { role } = useRole();
-  const navigate = useNavigate();
   const { pathname } = useLocation();
   const user = getSession()?.user;
   const teacher = role === 'teacher';
   const [title, subtitle] = getPageTitle(pathname, teacher);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const logout = useLogout();
   const profileImage = useProfileImage();
   const loadClasses = useCallback(() => classService.list(), []);
   const { data: classItems = [] } = useAsync(loadClasses);
@@ -52,7 +53,7 @@ export function AppLayout() {
           </div> */}
           <nav className="oc-side-nav">
             {teacherNav.map(([to, Icon, label, badge]) => {
-              const resolvedBadge = label === '신청자' ? applicantItems.length : badge;
+              const resolvedBadge = to === '/applicants' ? applicantItems.length : badge;
               return (
                 <NavLink key={to} to={to} end={to === '/dashboard'}>
                   <Icon size={21} />
@@ -66,7 +67,7 @@ export function AppLayout() {
             <span>{profileImage ? <img src={profileImage} alt="프로필" /> : (user?.name.slice(0, 1) ?? '지')}</span>
             <b>{user?.name ?? '김지훈'}<small>{teacher ? '스탠다드 플랜' : '수강생'}</small></b>
             <Link to="/settings" aria-label="설정" title="설정"><Settings size={17} /></Link>
-            <button aria-label="로그아웃" onClick={() => { clearSession(); navigate('/login', { replace: true }); }}>
+            <button aria-label="로그아웃" onClick={() => void logout()}>
               <LogOut size={17} />
             </button>
           </div>
@@ -128,7 +129,7 @@ function getPageTitle(pathname: string, teacher: boolean) {
   if (pathname === '/' || pathname === '/dashboard') return teacher ? ['홈', '오늘 강의 2개, 신규 신청 3건이 있어요'] : ['홈', '이어서 들을 강의를 확인하세요'];
   if (pathname.startsWith('/classes')) return ['클래스', teacher ? '내가 연 강의를 관리하세요' : '수강 중인 클래스를 확인하세요'];
   if (pathname.startsWith('/learn/classes')) return ['학습', '수강 중인 클래스를 이어서 학습하세요'];
-  if (pathname.startsWith('/applicants')) return ['신청자', '신청 현황과 결제 상태를 확인하세요'];
+  if (pathname.startsWith('/applicants')) return ['전체 신청자', '모든 클래스의 신청 현황과 결제 상태를 확인하세요'];
   if (pathname.startsWith('/settlement')) return ['정산 관리', '매출과 정산 예정 금액을 확인하세요'];
   if (pathname.startsWith('/my')) return ['마이', '계정과 이용 현황을 확인하세요'];
   return ['원클릭 클래스', '클래스 운영을 한 곳에서 관리하세요'];

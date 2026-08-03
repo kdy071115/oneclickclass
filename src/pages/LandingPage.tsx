@@ -63,9 +63,9 @@ const operationGroups = [
     step: '02',
     icon: ClipboardCheck,
     caption: '실시간 QR 출석',
-    title: '수업 운영',
-    description: '현장 QR 출석부터 온라인 진도, 설문과 시험까지 이어져요.',
-    items: ['출석 QR', '학습 진도', '설문·시험'],
+    title: '출석 운영',
+    description: '현장 QR을 발급하고 참석 현황과 출석 상태를 한 화면에서 확인해요.',
+    items: ['출석 QR', '실시간 현황', '출석 상태'],
     image: attendanceScreen,
     mobileImage: attendanceMobileScreen,
     imageAlt: '원클릭 클래스의 실제 QR 출석 관리 화면',
@@ -769,7 +769,7 @@ export function LandingPage() {
               })}
             </div>
 
-            <div className="landing-operation-pagination" aria-label="운영 화면 선택">
+            <div className="landing-operation-pagination" role="group" aria-label="운영 화면 선택">
               {operationGroups.map((group, index) => (
                 <button
                   type="button"

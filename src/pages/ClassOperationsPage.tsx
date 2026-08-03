@@ -1393,6 +1393,7 @@ function WebCertificates({
     candidates.find((candidate) => selected.includes(candidate.applicantId)) ??
     eligible[0] ??
     issued[0];
+  const previewIsExample = !previewCandidate;
   const policySummary = [
     `진도 ${policy.minProgress}%`,
     policy.requireRequiredLessons ? '필수 차시 완료' : '',
@@ -1451,8 +1452,10 @@ function WebCertificates({
       <div className="certificate-layout">
         <div className="oc-panel oc-cert-preview refined">
           <div className="oc-panel-title">
-            <h2>수료증 미리보기</h2>
-            <button onClick={() => setEditOpen(true)}>편집</button>
+            <h2>
+              수료증 미리보기
+              {previewIsExample && <small>예시</small>}
+            </h2>
           </div>
           <CertificateDocument
             policy={policy}

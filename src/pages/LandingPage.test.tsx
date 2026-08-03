@@ -34,7 +34,7 @@ describe('LandingPage', () => {
       '/signup',
     );
     expect(screen.getByRole('link', { name: '제품 화면 보기' })).toHaveAttribute('href', '#create');
-    expect(screen.getAllByRole('button', { name: /화면 확대 보기/ })).toHaveLength(7);
+    expect(screen.getAllByRole('button', { name: /화면 확대 보기/ })).toHaveLength(5);
     expect(
       screen.getByRole('img', { name: '원클릭 클래스의 실제 5단계 강의 개설 화면' }),
     ).toBeInTheDocument();
@@ -51,7 +51,9 @@ describe('LandingPage', () => {
       screen.getByRole('img', { name: '원클릭 클래스의 실제 수료증 발급 관리 화면' }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('img', { name: '원클릭 클래스의 실제 모바일 수강실 화면' }),
+      screen.getByRole('img', {
+        name: '공유 링크에서 클래스 정보를 확인하고 신청하는 모바일 화면 예시',
+      }),
     ).toBeInTheDocument();
     expect(screen.getByRole('list', { name: '강의 개설 5단계' }).children).toHaveLength(5);
     expect(

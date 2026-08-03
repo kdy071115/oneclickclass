@@ -1283,10 +1283,12 @@
   overflow: hidden;
 }
 .take-progress i {
+  width: 100%;
   display: block;
   height: 100%;
   background: #3182f6;
-  transition: width 0.3s ease;
+  transform-origin: left;
+  transition: transform 0.3s ease;
 }
 .student-exact header > em {
   font-size: 13px;
@@ -2386,6 +2388,9 @@
   width: min(calc(100% - 36px), 1200px);
   margin: 14px auto 0;
 }
+.learner-hero-body {
+  width: 100%;
+}
 .learner-hero h1 {
   max-width: 760px;
   margin: 12px 0 0;
@@ -2410,6 +2415,32 @@
   background: #ffffff29;
   font-size: 12px;
   font-weight: 900;
+}
+.learner-hero-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.learner-hero-actions > button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 850;
+}
+.learner-hero-actions > button:disabled {
+  opacity: 0.55;
+}
+.learner-hero-actions > button svg {
+  width: 17px;
+  height: 17px;
 }
 .learner-quick-stats {
   display: grid;
@@ -4488,6 +4519,16 @@
     background: #edf5ff;
     color: var(--color-primary);
     font-size: 10px;
+  }
+  .learner-hero-actions > button {
+    border-color: var(--color-border);
+    background: #fff;
+    color: var(--color-text-secondary);
+  }
+  .learner-hero-actions > button[aria-pressed='true'] {
+    border-color: #cfe0ff;
+    background: var(--color-tint-blue);
+    color: var(--color-primary);
   }
   .learner-quick-stats {
     display: none;

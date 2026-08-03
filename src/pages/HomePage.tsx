@@ -1,11 +1,21 @@
-import { Bell, BookOpen, CheckSquare, ChevronRight, Plus, TrendingUp, Wallet } from 'lucide-react';
+import {
+  ArrowRight,
+  Bell,
+  CheckSquare,
+  ChevronRight,
+  Plus,
+  Sparkles,
+  TrendingUp,
+  Wallet,
+  Youtube,
+} from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCallback, useState } from 'react';
 import { classService } from '../api/services';
 import { AsyncState } from '../components/common/AsyncState';
 import { ApplicantRow } from '../components/feature/ApplicantRow';
 import { ClassCard } from '../components/feature/ClassCard';
-import { Badge, BarChart, EmptyState, Table, Tabs, type TableColumn } from '../components/ui';
+import { Badge, BarChart, Table, Tabs, type TableColumn } from '../components/ui';
 import { useAsync } from '../hooks/useAsync';
 import { useRole } from '../hooks/useRole';
 import { getSession } from '../auth/session';
@@ -20,6 +30,30 @@ const classColumns: TableColumn<ClassItem>[] = [
   { key: 'enrolled', header: '신청/정원', render: (item) => <>{item.enrolled} / {item.capacity}명</> },
   { key: 'schedule', header: '일정', render: (item) => <>{item.type} · {item.date}</> },
 ];
+
+function CreatorActivation({ compact = false }: { compact?: boolean }) {
+  return (
+    <section className={`creator-activation${compact ? ' compact' : ''}`}>
+      <span className="creator-activation-icon" aria-hidden="true">
+        <Sparkles />
+      </span>
+      <div className="creator-activation-copy">
+        <h2>YouTube 링크 하나로 첫 강의를 시작해 보세요</h2>
+        <p>영상을 확인한 뒤 제목과 소개의 초안을 만들고, 공개할 페이지에서 바로 다듬을 수 있어요.</p>
+      </div>
+      <div className="creator-activation-actions">
+        <Link className="ui-button ui-button-primary" to="/classes/new?source=youtube&step=2">
+          <Youtube />
+          YouTube 링크로 시작
+          <ArrowRight />
+        </Link>
+        <Link className="ui-button ui-button-secondary" to="/classes/new">
+          다른 방식으로 만들기
+        </Link>
+      </div>
+    </section>
+  );
+}
 
 export function HomePage() {
   const nav = useNavigate();
@@ -107,19 +141,7 @@ export function HomePage() {
                 <AsyncState loading />
               </section>
             ) : classItems.length === 0 ? (
-              <section className="oc-panel">
-                <EmptyState
-                  icon={<BookOpen size={32} />}
-                  title="아직 만든 클래스가 없어요"
-                  description="클래스를 만들면 신청 현황, 매출, 통계를 한눈에 확인할 수 있어요"
-                  action={
-                    <Link className="ui-button ui-button-primary" to="/classes/new">
-                      <Plus size={16} />
-                      클래스 만들기
-                    </Link>
-                  }
-                />
-              </section>
+              <CreatorActivation />
             ) : (
               <>
                 <div className="oc-kpi-grid">
@@ -358,7 +380,12 @@ export function HomePage() {
           </button>
         </div> */}
         {teacher ? (
-          <>
+          classesLoading ? (
+            <AsyncState loading />
+          ) : classItems.length === 0 ? (
+            <CreatorActivation compact />
+          ) : (
+            <>
             <button className="hero" onClick={() => nav('/attendance/select')}>
               <strong>
                 {userName}님, 오늘
@@ -403,7 +430,7 @@ export function HomePage() {
               <Link to="/classes/new">
                 <Plus />
                 <b>클래스 만들기</b>
-                <small>1분이면 완성</small>
+                <small>링크 입력부터 시작</small>
               </Link>
             </div>
             <div className="section-title">
@@ -419,7 +446,8 @@ export function HomePage() {
                 <ApplicantRow item={a} index={i} key={a.id} />
               ))}
             </div>
-          </>
+            </>
+          )
         ) : (
           <>
             <button className="hero student-hero" onClick={() => nav('/classes')}>

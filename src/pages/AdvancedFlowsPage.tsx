@@ -2,10 +2,7 @@ import {
   Check,
   ChevronRight,
   CircleCheck,
-  Eye,
   Link2,
-  Minus,
-  Plus,
   QrCode,
   Share2,
   Star,
@@ -125,94 +122,6 @@ export function ExamTakerPage() {
           ))}
         </article>
       ))}
-    </div>
-  );
-}
-
-export function CertificateSetupPage() {
-  const { id = 'notion' } = useParams();
-  const [attendance, setAttendance] = useState(80);
-  const [score, setScore] = useState(70);
-  const [auto, setAuto] = useState(true);
-  const [color, setColor] = useState('#3182f6');
-  return (
-    <div className="page subpage certificate-setup">
-      <PageHeader title="수료증 설정" subtitle="발급 조건과 증서 내용을 직접 정해요" backTo={`/classes/${id}/certificates`} />
-      <h3>발급 조건</h3>
-      <Stepper
-        label="최소 출석률"
-        value={`${attendance}%`}
-        down={() => setAttendance(Math.max(50, attendance - 5))}
-        up={() => setAttendance(Math.min(100, attendance + 5))}
-      />
-      <Stepper
-        label="최소 시험 점수"
-        value={`${score}점`}
-        down={() => setScore(Math.max(0, score - 5))}
-        up={() => setScore(Math.min(100, score + 5))}
-      />
-      <button className="auto-issue" onClick={() => setAuto(!auto)}>
-        <span>
-          <b>자동 발급 대기 등록</b>
-          <small>조건 충족 시 자동으로 대기 목록에 추가</small>
-        </span>
-        <i className={auto ? 'on' : ''}>
-          <em />
-        </i>
-      </button>
-      <h3>수료증 내용</h3>
-      <label className="field-label">
-        증서 문구
-        <textarea defaultValue="위 사람은 본 과정을 성실히 이수하였기에 이 수료증을 수여합니다." />
-      </label>
-      <label className="field-label">
-        발급 기관 · 서명
-        <input defaultValue="원클릭 클래스 · 이지훈 강사" />
-      </label>
-      <h3>테두리 색상</h3>
-      <div className="cert-colors">
-        {['#3182f6', '#7048e8', '#12b886', '#f59f00', '#191f28'].map((c) => (
-          <button
-            style={{ background: c }}
-            className={color === c ? 'active' : ''}
-            onClick={() => setColor(c)}
-            key={c}
-          >
-            {color === c && <Check />}
-          </button>
-        ))}
-      </div>
-      <button className="soft-primary">
-        <Eye />
-        수료증 미리보기
-      </button>
-      <button className="primary">저장하기</button>
-    </div>
-  );
-}
-function Stepper({
-  label,
-  value,
-  down,
-  up,
-}: {
-  label: string;
-  value: string;
-  down: () => void;
-  up: () => void;
-}) {
-  return (
-    <div className="cert-stepper">
-      <b>{label}</b>
-      <span>
-        <button onClick={down}>
-          <Minus />
-        </button>
-        <strong>{value}</strong>
-        <button onClick={up}>
-          <Plus />
-        </button>
-      </span>
     </div>
   );
 }
