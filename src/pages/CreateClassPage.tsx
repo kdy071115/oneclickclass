@@ -12,6 +12,7 @@ import {
 } from 'react';
 import {
   ArrowLeft,
+  ArrowRight,
   Check,
   ChevronRight,
   CircleAlert,
@@ -112,7 +113,6 @@ interface CreationMeta {
   youtubeMetadata?: ClassSourceMetadata;
   materials: UploadedMaterial[];
   informationMode: InformationMode;
-  previewHintSeen: boolean;
   createdId: string;
   shareToken: string;
   step: number;
@@ -130,7 +130,6 @@ const initialCreationMeta: CreationMeta = {
   youtubeMetadata: undefined,
   materials: [],
   informationMode: 'source',
-  previewHintSeen: false,
   createdId: '',
   shareToken: '',
   step: 1,
@@ -349,6 +348,7 @@ export function CreateClassPage() {
 
   const type = supportedType(draft.type);
   const typeOption = classTypeOptions.find((option) => option.value === type)!;
+  const TypeIcon = typeIcons[type];
   const stepInfo = classCreationFlowSteps[step - 1];
   const progressPercent = Math.round(((step - 1) / (classCreationFlowSteps.length - 1)) * 100);
   const todayDateValue = localDateInputValue();
@@ -372,6 +372,22 @@ export function CreateClassPage() {
           : meta.source === 'documents'
             ? `참고자료 ${meta.materials.length}개`
             : '자료 선택 전';
+  const InformationIcon =
+    meta.informationMode === 'manual'
+      ? Pencil
+      : meta.informationMode === 'generated'
+        ? Sparkles
+        : meta.informationMode === 'analyzing'
+          ? LoaderCircle
+          : meta.informationMode === 'analysis-error'
+            ? CircleAlert
+            : meta.source === 'youtube'
+              ? Play
+              : meta.source === 'video'
+                ? Video
+                : meta.source === 'documents'
+                  ? FileText
+                  : Upload;
   const shareUrl = useMemo(
     () =>
       meta.shareToken
@@ -453,11 +469,6 @@ export function CreateClassPage() {
     },
     [persistDraftSnapshot],
   );
-
-  useEffect(() => {
-    if (step !== 4 || meta.previewHintSeen) return;
-    setShowPreviewHint(true);
-  }, [meta.previewHintSeen, step]);
 
   useEffect(() => {
     if (!editField) return;
@@ -1039,7 +1050,6 @@ export function CreateClassPage() {
 
   function dismissPreviewHint() {
     setShowPreviewHint(false);
-    setMeta((current) => ({ ...current, previewHintSeen: true }));
     requestAnimationFrame(() => previewHelpButtonRef.current?.focus());
   }
 
@@ -1103,42 +1113,16 @@ export function CreateClassPage() {
 
   return (
     <main className={`class-creator ${step === 4 ? 'is-preview-step' : ''}`}>
-      <header className="creator-header">
+      <header className="creator-progress">
         <button className="creator-brand" type="button" onClick={() => leaveCreator('/dashboard')}>
           <span aria-hidden="true">
             <Check />
           </span>
           <strong>원클릭 클래스</strong>
-          <small>클래스 만들기</small>
         </button>
-        <div className={`creator-save-status ${saveStatus}`} role="status" aria-live="polite">
-          {saveStatus === 'error' ? (
-            <button
-              type="button"
-              onClick={() => {
-                setSaveStatus('saving');
-                setSaveRetryToken((current) => current + 1);
-              }}
-            >
-              <CircleAlert />
-              저장 실패 · 다시 시도
-            </button>
-          ) : (
-            <>
-              {saveStatus === 'saving' ? <LoaderCircle className="spin" /> : <Check />}
-              {saveStatus === 'saving' ? '저장 중...' : '저장됨'}
-            </>
-          )}
-        </div>
-        <button className="creator-exit" type="button" onClick={() => leaveCreator('/classes')}>
-          나가기
-        </button>
-      </header>
-
-      <nav className="creator-progress" aria-label="클래스 만들기 진행률">
-        <div className="creator-progress-inner">
+        <nav className="creator-progress-inner" aria-label="클래스 만들기 진행률">
           <div className="creator-progress-copy">
-            <span>클래스 만들기</span>
+            <span>{stepInfo.label}</span>
           </div>
           <div
             className="creator-progress-track"
@@ -1149,30 +1133,72 @@ export function CreateClassPage() {
             aria-valuenow={progressPercent}
             aria-valuetext={`${stepInfo.label} 진행 중`}
           >
-            <span style={{ width: `${progressPercent}%` }} />
+            <span style={{ transform: `scaleX(${progressPercent / 100})` }} />
           </div>
-        </div>
-      </nav>
+        </nav>
+        <button className="creator-exit" type="button" onClick={() => leaveCreator('/classes')}>
+          나가기
+        </button>
+      </header>
+
+      <div className={`creator-save-status ${saveStatus}`} role="status" aria-live="polite">
+        {saveStatus === 'error' ? (
+          <button
+            type="button"
+            onClick={() => {
+              setSaveStatus('saving');
+              setSaveRetryToken((current) => current + 1);
+            }}
+          >
+            <CircleAlert />
+            저장 실패 · 다시 시도
+          </button>
+        ) : (
+          <>
+            {saveStatus === 'saving' ? <LoaderCircle className="spin" /> : <Check />}
+            {saveStatus === 'saving' ? '저장 중...' : '저장됨'}
+          </>
+        )}
+      </div>
 
       <form className="creator-form" onSubmit={submitFlow}>
         {step < 5 && (
-          <header className="creator-step-heading">
+          <header
+            className={`creator-step-heading ${step === 1 ? 'is-wide' : ''} ${
+              step === 3 ? 'is-compact' : ''
+            }`}
+          >
             <h1>{stepInfo.title}</h1>
             <p>{step === 2 ? informationDescription : stepInfo.description}</p>
           </header>
         )}
 
         {step > 1 && step < 4 && (
-          <div className="creator-context" aria-label="현재 클래스 설정">
-            <span>
-              <small>진행 방식</small>
-              <b>{typeOption.label}</b>
-            </span>
-            <span>
-              <small>정보 준비</small>
-              <b>{informationSourceLabel}</b>
-            </span>
-          </div>
+          <dl
+            className={`creator-context ${step === 3 ? 'is-compact' : ''}`}
+            aria-label="현재 클래스 설정"
+          >
+            <div className="creator-context-item">
+              <i aria-hidden="true">
+                <TypeIcon />
+              </i>
+              <span>
+                <dt>진행 방식</dt>
+                <dd>{typeOption.label}</dd>
+              </span>
+            </div>
+            <div className="creator-context-item">
+              <i aria-hidden="true">
+                <InformationIcon
+                  className={meta.informationMode === 'analyzing' ? 'spin' : undefined}
+                />
+              </i>
+              <span>
+                <dt>정보 준비</dt>
+                <dd>{informationSourceLabel}</dd>
+              </span>
+            </div>
+          </dl>
         )}
 
         {step === 1 && (
@@ -1376,7 +1402,7 @@ export function CreateClassPage() {
                                 style={
                                   file.progress === undefined
                                     ? undefined
-                                    : { width: `${file.progress}%` }
+                                    : { transform: `scaleX(${file.progress / 100})` }
                                 }
                               />
                             </em>
@@ -1460,46 +1486,32 @@ export function CreateClassPage() {
 
             {(meta.informationMode === 'manual' || meta.informationMode === 'generated') && (
               <div className="information-editor">
-                <div className="information-ready">
-                  <i>{meta.informationMode === 'generated' ? <Sparkles /> : <Pencil />}</i>
-                  <span>
-                    <b>
-                      {meta.informationMode === 'generated'
-                        ? '클래스 정보 초안을 준비했어요'
-                        : draft.title || draft.summary || draft.description
-                          ? '작성한 클래스 정보를 이어서 편집해 주세요'
-                          : '클래스 정보를 직접 작성해 주세요'}
-                    </b>
-                    <p>모든 내용은 지금 수정할 수 있고 자동으로 저장됩니다.</p>
-                  </span>
-                  <button type="button" onClick={resetSource}>
-                    자료 다시 선택
-                  </button>
+                <div className="information-basics">
+                  <TextField
+                    field="title"
+                    label="클래스 제목"
+                    value={draft.title}
+                    error={fieldErrors.title}
+                    maxLength={classCreationLimits.title}
+                    placeholder="예) 처음 시작하는 React 웹 개발"
+                    onChange={(title) => {
+                      clearFieldError('title');
+                      setDraft((current) => ({ ...current, title }));
+                    }}
+                  />
+                  <TextAreaField
+                    field="summary"
+                    label="클래스 소개"
+                    value={draft.summary}
+                    error={fieldErrors.summary}
+                    maxLength={classCreationLimits.summary}
+                    placeholder="어떤 분을 위한 클래스인지 짧게 소개해 주세요."
+                    onChange={(summary) => {
+                      clearFieldError('summary');
+                      setDraft((current) => ({ ...current, summary }));
+                    }}
+                  />
                 </div>
-                <TextField
-                  field="title"
-                  label="클래스 제목"
-                  value={draft.title}
-                  error={fieldErrors.title}
-                  maxLength={classCreationLimits.title}
-                  placeholder="예) 처음 시작하는 React 웹 개발"
-                  onChange={(title) => {
-                    clearFieldError('title');
-                    setDraft((current) => ({ ...current, title }));
-                  }}
-                />
-                <TextAreaField
-                  field="summary"
-                  label="클래스 소개"
-                  value={draft.summary}
-                  error={fieldErrors.summary}
-                  maxLength={classCreationLimits.summary}
-                  placeholder="어떤 분을 위한 클래스인지 짧게 소개해 주세요."
-                  onChange={(summary) => {
-                    clearFieldError('summary');
-                    setDraft((current) => ({ ...current, summary }));
-                  }}
-                />
                 <RichTextEditor
                   textareaRef={informationDescriptionRef}
                   value={draft.description}
@@ -1509,13 +1521,36 @@ export function CreateClassPage() {
                     setDraft((current) => ({ ...current, description }));
                   }}
                 />
+                <div className="information-footer">
+                  <div className="information-ready">
+                    <i>{meta.informationMode === 'generated' ? <Sparkles /> : <Pencil />}</i>
+                    <span>
+                      <b>
+                        {meta.informationMode === 'generated'
+                          ? '클래스 정보 초안을 준비했어요'
+                          : draft.title || draft.summary || draft.description
+                            ? '작성한 클래스 정보를 이어서 편집해 주세요'
+                            : '클래스 정보를 직접 작성해 주세요'}
+                      </b>
+                      <p>모든 내용은 지금 수정할 수 있고 자동으로 저장됩니다.</p>
+                    </span>
+                  </div>
+                  <button
+                    className="information-source-reset"
+                    type="button"
+                    onClick={resetSource}
+                  >
+                    <RefreshCw />
+                    자료 다시 선택
+                  </button>
+                </div>
               </div>
             )}
           </section>
         )}
 
         {step === 3 && (
-          <section className="settings-panel">
+          <section className={`settings-panel ${type}`}>
             <article className="setting-card">
               <div className="setting-card-heading">
                 <i>
@@ -1766,7 +1801,7 @@ export function CreateClassPage() {
             <div className="preview-toolbar">
               <span>
                 <Sparkles />
-                실제 공개 페이지를 편집하고 있어요
+                공개 페이지 미리보기를 편집하고 있어요
               </span>
               <button
                 ref={previewHelpButtonRef}
@@ -1798,74 +1833,80 @@ export function CreateClassPage() {
             )}
             <div className="class-preview-frame">
               <article className="class-public-preview">
-                <div className="preview-cover editable">
-                  {thumbnailPreviewUrl || draft.thumbnail ? (
-                    <img
-                      src={thumbnailPreviewUrl || draft.thumbnail}
-                      alt="클래스 썸네일 미리보기"
-                      style={{ objectPosition: draft.thumbnailPosition }}
-                    />
-                  ) : (
-                    <span className="cover-placeholder">
-                      <em>ONECLICK CLASS</em>
-                      <b>{draft.title || typeOption.label}</b>
-                    </span>
-                  )}
-                  <label className="cover-edit">
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      aria-label="클래스 썸네일 변경"
-                      onChange={addThumbnail}
-                    />
-                    {thumbnailUploadStatus === 'uploading' ? (
-                      <LoaderCircle className="spin" />
-                    ) : (
-                      <ImageIcon />
-                    )}
-                    {thumbnailUploadStatus === 'uploading' ? '업로드 중' : '이미지 변경'}
-                    <small>권장 16:9 · 최대 5MB</small>
-                  </label>
-                  {(thumbnailPreviewUrl || draft.thumbnail) && (
-                    <div className="cover-position-control" role="group" aria-label="커버 초점 위치">
-                      {classThumbnailPositionOptions.map((option) => (
-                        <button
-                          type="button"
-                          className={draft.thumbnailPosition === option.value ? 'active' : ''}
-                          aria-pressed={draft.thumbnailPosition === option.value}
-                          onClick={() =>
-                            setDraft((current) => ({
-                              ...current,
-                              thumbnailPosition: option.value,
-                            }))
-                          }
-                          key={option.value}
+                <section className="preview-public-hero" aria-label="클래스 핵심 정보">
+                  <div className="preview-hero-media">
+                    <div className="preview-cover editable">
+                      {thumbnailPreviewUrl || draft.thumbnail ? (
+                        <img
+                          src={thumbnailPreviewUrl || draft.thumbnail}
+                          alt="클래스 썸네일 미리보기"
+                          style={{ objectPosition: draft.thumbnailPosition }}
+                        />
+                      ) : (
+                        <span className="cover-placeholder">
+                          <em>ONECLICK CLASS</em>
+                          <b>{draft.title || typeOption.label}</b>
+                        </span>
+                      )}
+                      <label className="cover-edit">
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          aria-label="클래스 썸네일 변경"
+                          onChange={addThumbnail}
+                        />
+                        {thumbnailUploadStatus === 'uploading' ? (
+                          <LoaderCircle className="spin" />
+                        ) : (
+                          <ImageIcon />
+                        )}
+                        {thumbnailUploadStatus === 'uploading' ? '업로드 중' : '이미지 변경'}
+                        <small>권장 16:9 · 최대 5MB</small>
+                      </label>
+                      {(thumbnailPreviewUrl || draft.thumbnail) && (
+                        <div
+                          className="cover-position-control"
+                          role="group"
+                          aria-label="커버 초점 위치"
                         >
-                          {option.label}
-                        </button>
-                      ))}
+                          {classThumbnailPositionOptions.map((option) => (
+                            <button
+                              type="button"
+                              className={draft.thumbnailPosition === option.value ? 'active' : ''}
+                              aria-pressed={draft.thumbnailPosition === option.value}
+                              onClick={() =>
+                                setDraft((current) => ({
+                                  ...current,
+                                  thumbnailPosition: option.value,
+                                }))
+                              }
+                              key={option.value}
+                            >
+                              {option.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {thumbnailUploadError && (
+                        <div className="cover-upload-error" role="alert">
+                          <CircleAlert />
+                          <span>{thumbnailUploadError}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (pendingThumbnailFile.current) {
+                                void uploadThumbnail(pendingThumbnailFile.current);
+                              }
+                            }}
+                          >
+                            다시 시도
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  )}
-                  {thumbnailUploadError && (
-                    <div className="cover-upload-error" role="alert">
-                      <CircleAlert />
-                      <span>{thumbnailUploadError}</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (pendingThumbnailFile.current) {
-                            void uploadThumbnail(pendingThumbnailFile.current);
-                          }
-                        }}
-                      >
-                        다시 시도
-                      </button>
-                    </div>
-                  )}
-                </div>
+                  </div>
 
-                <div className="preview-content">
-                  <div className="preview-main">
+                  <div className="preview-hero-copy">
                     <span className={`class-type-badge ${type}`}>{typeOption.label}</span>
                     <InlineEditor
                       field="title"
@@ -1893,7 +1934,7 @@ export function CreateClassPage() {
                       onCancel={cancelInlineEdit}
                     />
 
-                    <div className="preview-facts">
+                    <div className={`preview-facts ${type}`}>
                       <InlineFact
                         field="price"
                         icon={<WalletCards />}
@@ -1916,13 +1957,6 @@ export function CreateClassPage() {
                       />
                       {type !== 'online' && (
                         <>
-                          <div className="preview-fact">
-                            <Clock3 />
-                            <span>
-                              <small>일정</small>
-                              <b>{formatClassSchedule(draft.startDate)}</b>
-                            </span>
-                          </div>
                           <InlineFact
                             field="capacity"
                             icon={<Users />}
@@ -1939,11 +1973,18 @@ export function CreateClassPage() {
                             onDone={() => finishInlineEdit('capacity')}
                             onCancel={cancelInlineEdit}
                           />
+                          <div className="preview-fact preview-fact-schedule">
+                            <Clock3 />
+                            <span className="preview-fact-copy schedule">
+                              <small>일정</small>
+                              <b>{formatClassSchedule(draft.startDate)}</b>
+                            </span>
+                          </div>
                         </>
                       )}
                       {type === 'offline' && (
                         <div
-                          className={`preview-fact editable ${
+                          className={`preview-fact preview-fact-address editable ${
                             highlightField === 'address' ? 'highlighted' : ''
                           }`}
                           data-preview-field="address"
@@ -1990,15 +2031,35 @@ export function CreateClassPage() {
                               aria-label="클래스 장소 수정"
                               onClick={() => startInlineEdit('address')}
                             >
-                              <small>장소</small>
-                              <b>{draft.address || '주소를 입력해 주세요'}</b>
+                              <span className="preview-fact-copy">
+                                <small>장소</small>
+                                <b>{draft.address || '주소를 입력해 주세요'}</b>
+                              </span>
                               <Pencil />
                             </button>
                           )}
                         </div>
                       )}
                     </div>
+                  </div>
 
+                  <aside className="preview-enroll-card">
+                    <span className="preview-enroll-price">
+                      <small>참가비</small>
+                      <strong>{formatPrice(draft.price)}</strong>
+                      {type !== 'online' && <p>신청 가능 인원 {draft.capacity}명</p>}
+                    </span>
+                    <span className="preview-enroll-action">
+                      <button type="button" disabled>
+                        클래스 신청하기
+                      </button>
+                      <small>미리보기에서는 신청되지 않아요.</small>
+                    </span>
+                  </aside>
+                </section>
+
+                <div className="preview-content">
+                  <div className="preview-main">
                     <section
                       className={`preview-description editable ${
                         highlightField === 'description' ? 'highlighted' : ''
@@ -2102,16 +2163,6 @@ export function CreateClassPage() {
                       </details>
                     )}
                   </div>
-
-                  <aside className="preview-enroll-card">
-                    <small>참가비</small>
-                    <strong>{formatPrice(draft.price)}</strong>
-                    {type !== 'online' && <p>신청 가능 인원 {draft.capacity}명</p>}
-                    <button type="button" disabled>
-                      클래스 신청하기
-                    </button>
-                    <span>미리보기에서는 신청되지 않아요.</span>
-                  </aside>
                 </div>
               </article>
             </div>
@@ -2174,36 +2225,42 @@ export function CreateClassPage() {
         )}
 
         {step < 5 && (
-          <footer className={`creator-actions ${step === 1 ? 'single' : ''}`}>
-            {step > 1 && (
-              <button type="button" className="creator-back" onClick={() => goToStep(step - 1)}>
-                <ArrowLeft />
-                이전
-              </button>
-            )}
-            <button
-              className="creator-next"
-              type="submit"
-              disabled={
-                (step === 1 && !meta.deliverySelected) ||
-                (step === 2 &&
-                  meta.informationMode !== 'manual' &&
-                  meta.informationMode !== 'generated') ||
-                submitting
-              }
-            >
-              {submitting ? (
-                <>
-                  <LoaderCircle className="spin" />
-                  클래스를 게시하고 있어요
-                </>
-              ) : (
-                <>
-                  {step === 4 ? '클래스 게시하기' : '다음'}
-                  <ChevronRight />
-                </>
+          <footer
+            className={`creator-actions ${step === 1 ? 'single' : ''} ${
+              step === 2 ? 'is-information' : step === 3 ? 'is-compact' : ''
+            }`}
+          >
+            <div className="creator-action-group">
+              {step > 1 && (
+                <button type="button" className="creator-back" onClick={() => goToStep(step - 1)}>
+                  <ArrowLeft />
+                  이전
+                </button>
               )}
-            </button>
+              <button
+                className="creator-next"
+                type="submit"
+                disabled={
+                  (step === 1 && !meta.deliverySelected) ||
+                  (step === 2 &&
+                    meta.informationMode !== 'manual' &&
+                    meta.informationMode !== 'generated') ||
+                  submitting
+                }
+              >
+                {submitting ? (
+                  <>
+                    <LoaderCircle className="spin" />
+                    클래스를 게시하고 있어요
+                  </>
+                ) : (
+                  <>
+                    {step === 4 ? '클래스 게시' : '다음'}
+                    <ArrowRight />
+                  </>
+                )}
+              </button>
+            </div>
           </footer>
         )}
       </form>
@@ -2267,7 +2324,7 @@ export function CreateClassPage() {
             </dl>
           </div>
         }
-        confirmText="클래스 게시하기"
+        confirmText="클래스 게시"
         cancelText="계속 수정하기"
         tone="primary"
         loading={submitting}
@@ -2617,8 +2674,10 @@ function InlineFact({
         </label>
       ) : (
         <button type="button" aria-label={`${label} 수정`} onClick={() => onStart(field)}>
-          <small>{label}</small>
-          <b>{display}</b>
+          <span className="preview-fact-copy">
+            <small>{label}</small>
+            <b>{display}</b>
+          </span>
           <Pencil />
         </button>
       )}
