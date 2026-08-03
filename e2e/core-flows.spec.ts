@@ -95,12 +95,25 @@ test('공개 신청 페이지에서 필수 신청 정보를 검증한다', async
   });
   await page.goto('/s/e2e-paid-application');
   await expect(page.getByRole('heading', { name: '필수 신청 정보 테스트' })).toBeVisible();
+  if ((page.viewportSize()?.width ?? 0) < 900) {
+    const mobileApplyBar = page.locator('.learner-mobile-apply-bar');
+    await expect(mobileApplyBar).toBeVisible();
+    await page.locator('#learner-application').scrollIntoViewIfNeeded();
+    await expect(mobileApplyBar).toHaveCount(0);
+  }
   await page.getByRole('button', { name: '휴대전화 확인하기' }).click();
   await expect(page.getByText('이름을 입력해 주세요.')).toBeVisible();
   await page.getByPlaceholder('이름을 입력하세요').fill('테스트 수강생');
   await page.getByPlaceholder('010-0000-0000').fill('010-1234-5678');
   await page.getByRole('checkbox', { name: /개인정보 수집/ }).check();
-  await page.getByRole('checkbox', { name: /결제 및 환불/ }).check();
+  await page.getByText('결제·환불 안내 보기').click();
+  await expect(page.getByText('최종 결제 전에 상세 기준 확인')).toBeVisible();
+  await page.getByRole('checkbox', { name: /결제 단계로 이동/ }).check();
+  await page.getByRole('button', { name: '휴대전화 확인하기' }).click();
+  await expect(page.getByRole('button', { name: '휴대전화 번호 변경' })).toBeVisible();
+  await page.getByRole('button', { name: '휴대전화 번호 변경' }).click();
+  await expect(page.getByPlaceholder('010-0000-0000')).toBeEditable();
+  await expect(page.getByPlaceholder('010-0000-0000')).toBeFocused();
   await page.getByRole('button', { name: '휴대전화 확인하기' }).click();
   const verificationHint = await page.getByText(/테스트 인증번호는/).textContent();
   await page.getByPlaceholder('6자리 인증번호').fill(verificationHint?.match(/\d{6}/)?.[0] ?? '');

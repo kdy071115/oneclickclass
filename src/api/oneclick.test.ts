@@ -133,7 +133,8 @@ describe('oneclick learner service', () => {
       summary: '직접 입력한 강의 소개',
       price: 30000,
       paymentType: 'PAID',
-      scheduleText: '2026-08-09',
+      deliveryTypeText: '온라인 녹화',
+      scheduleText: '자유 수강',
       capacity: 10,
     });
   });

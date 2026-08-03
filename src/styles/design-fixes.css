@@ -3962,7 +3962,8 @@
 }
 .learner-card label.learner-check {
   display: flex;
-  align-items: flex-start;
+  min-height: 44px;
+  align-items: center;
   gap: 9px;
   margin-top: 12px;
   color: #4e5968;
@@ -3970,11 +3971,61 @@
   line-height: 1.45;
 }
 .learner-card label.learner-check input {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   margin: 0;
   accent-color: #3182f6;
   flex: none;
+}
+.learner-phone-change {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 4px 0 0 auto;
+  padding: 0 10px;
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 850;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.learner-payment-guide {
+  margin-top: 14px;
+  border-radius: 12px;
+  background: #f8f9fb;
+}
+.learner-payment-guide summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 13px;
+  color: #4e5968;
+  font-size: 13px;
+  font-weight: 850;
+  cursor: pointer;
+}
+.learner-payment-guide dl {
+  margin: 0;
+  padding: 0 13px 13px;
+}
+.learner-payment-guide dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 8px;
+  border-top: 1px solid #e8ebef;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.learner-payment-guide dt {
+  color: #6b7684;
+}
+.learner-payment-guide dd {
+  margin: 0;
+  color: #333d4b;
+  font-weight: 750;
+  text-align: right;
 }
 .verify-help {
   margin: 8px 0 0 !important;

@@ -327,7 +327,7 @@ export function PublicEnrollmentPage() {
     if (!application || !('IntersectionObserver' in window)) return;
     const observer = new IntersectionObserver(
       ([entry]) => setApplicationInView(Boolean(entry?.isIntersecting)),
-      { rootMargin: '0px 0px -12% 0px', threshold: 0.2 },
+      { threshold: 0.01 },
     );
     observer.observe(application);
     return () => observer.disconnect();
@@ -354,7 +354,7 @@ export function PublicEnrollmentPage() {
         privacyInputRef,
       );
     if (share.paymentType === 'PAID' && !form.paymentConsent)
-      return setFormError('결제 및 환불 안내를 확인해 주세요.', 'payment', paymentInputRef);
+      return setFormError('결제 안내를 확인하고 결제 단계 이동에 동의해 주세요.', 'payment', paymentInputRef);
     setSubmitting(true);
     setError('');
     setErrorTarget('');
@@ -563,7 +563,7 @@ export function PublicEnrollmentPage() {
                   <small>난이도</small>
                 </span>
                 <span>
-                  <b>{share?.scheduleText || '자유 수강'}</b>
+                  <b>{share?.deliveryTypeText || '수강 방식 확인 중'}</b>
                   <small>수강 방식</small>
                 </span>
               </div>
@@ -841,6 +841,22 @@ export function PublicEnrollmentPage() {
                 />
               </label>
               {verificationSent && (
+                <button
+                  className="learner-phone-change"
+                  type="button"
+                  onClick={() => {
+                    setVerificationSent(false);
+                    setVerificationCode('');
+                    setVerificationHint('');
+                    setError('');
+                    setErrorTarget('');
+                    window.setTimeout(() => phoneInputRef.current?.focus(), 0);
+                  }}
+                >
+                  휴대전화 번호 변경
+                </button>
+              )}
+              {verificationSent && (
                 <label>
                   인증번호
                   <input
@@ -889,22 +905,41 @@ export function PublicEnrollmentPage() {
                 개인정보 수집 및 수강 안내 발송에 동의해요
               </label>
               {share?.paymentType === 'PAID' && (
-                <label className="learner-check">
-                  <input
-                    ref={paymentInputRef}
-                    aria-invalid={errorTarget === 'payment'}
-                    type="checkbox"
-                    checked={form.paymentConsent}
-                    onChange={(e) => {
-                      setForm({ ...form, paymentConsent: e.target.checked });
-                      if (errorTarget === 'payment') {
-                        setError('');
-                        setErrorTarget('');
-                      }
-                    }}
-                  />{' '}
-                  결제 및 환불 안내를 확인했어요
-                </label>
+                <>
+                  <details className="learner-payment-guide">
+                    <summary>결제·환불 안내 보기</summary>
+                    <dl>
+                      <div>
+                        <dt>결제 예정 금액</dt>
+                        <dd>{priceText}</dd>
+                      </div>
+                      <div>
+                        <dt>결제 시점</dt>
+                        <dd>신청 정보 저장 후 결제 단계에서 확인</dd>
+                      </div>
+                      <div>
+                        <dt>환불 조건</dt>
+                        <dd>최종 결제 전에 상세 기준 확인</dd>
+                      </div>
+                    </dl>
+                  </details>
+                  <label className="learner-check">
+                    <input
+                      ref={paymentInputRef}
+                      aria-invalid={errorTarget === 'payment'}
+                      type="checkbox"
+                      checked={form.paymentConsent}
+                      onChange={(e) => {
+                        setForm({ ...form, paymentConsent: e.target.checked });
+                        if (errorTarget === 'payment') {
+                          setError('');
+                          setErrorTarget('');
+                        }
+                      }}
+                    />{' '}
+                    결제 단계로 이동하는 데 동의해요
+                  </label>
+                </>
               )}
               <div className="entry-note">
                 <LockKeyhole /> {applyGuide}
@@ -932,7 +967,7 @@ export function PublicEnrollmentPage() {
               <CalendarDays />
               <span>
                 <small>수강 방식</small>
-                <b>{share?.scheduleText || '확인 중'}</b>
+                <b>{share?.deliveryTypeText || '확인 중'}</b>
               </span>
             </div>
             <div>
