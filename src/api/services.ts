@@ -46,6 +46,7 @@ import type {
 import { initialClassDraft } from '../constants/classDraft';
 import { classExampleContent } from '../constants/classCreation';
 import {
+  clearClassData,
   hasClassData,
   hasClassPreview,
   listClassPreviewIds,
@@ -58,6 +59,7 @@ import { getYouTubeVideoId, type SupportedVideoProvider } from '../utils/content
 const mock = import.meta.env.VITE_USE_MOCK !== 'false';
 const delay = <T>(data: T) => new Promise<T>((resolve) => setTimeout(() => resolve(data), 350));
 const MOCK_CLASSES_KEY = 'oneclick.mock.classes';
+const MOCK_DELETED_CLASSES_KEY = 'oneclick.mock.deleted-class-ids';
 const LEGACY_MOCK_CLASS_IDS = new Set([
   'calligraphy',
   'branding',
@@ -144,6 +146,14 @@ const savedMockClasses = (): ClassItem[] => {
     return [];
   }
 };
+const deletedMockClassIds = (): string[] => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(MOCK_DELETED_CLASSES_KEY) || '[]') as unknown;
+    return Array.isArray(saved) ? saved.filter((id): id is string => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+};
 const previewClassItem = (id: string): ClassItem => {
   const draft = loadClassPreview(id, initialClassDraft);
   const settings = mockSettings(id, draft.capacity);
@@ -179,13 +189,16 @@ const previewClassItem = (id: string): ClassItem => {
   };
 };
 const mockClasses = () => {
-  const saved = savedMockClasses();
+  const deletedIds = new Set(deletedMockClassIds());
+  const saved = savedMockClasses().filter((item) => !deletedIds.has(item.id));
   const combined = [
     ...saved,
-    ...classes.filter((item) => !saved.some((row) => row.id === item.id)),
+    ...classes.filter(
+      (item) => !deletedIds.has(item.id) && !saved.some((row) => row.id === item.id),
+    ),
   ];
   for (const id of listClassPreviewIds()) {
-    if (LEGACY_MOCK_CLASS_IDS.has(id)) continue;
+    if (LEGACY_MOCK_CLASS_IDS.has(id) || deletedIds.has(id)) continue;
     if (!combined.some((item) => item.id === id)) combined.unshift(previewClassItem(id));
   }
   return combined.map((item) => {
@@ -643,7 +656,11 @@ export const classService = {
   },
   remove: (id: string): Promise<void> => {
     if (!mock) return apiClient.delete<void>(`/classes/${id}`).then((r) => r.data);
+    const deletedIds = new Set(deletedMockClassIds());
+    deletedIds.add(id);
+    localStorage.setItem(MOCK_DELETED_CLASSES_KEY, JSON.stringify([...deletedIds]));
     saveMockClasses(savedMockClasses().filter((item) => item.id !== id));
+    clearClassData(id);
     return delay(undefined);
   },
   uploadImage: (file: File): Promise<{ url: string }> => {

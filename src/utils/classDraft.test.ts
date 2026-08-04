@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { initialClassDraft } from '../constants/classDraft';
 import {
   CLASS_DRAFT_KEY,
+  clearClassData,
   loadClassDraft,
   loadClassPreview,
   saveClassDraft,
@@ -39,5 +40,21 @@ describe('class draft persistence', () => {
 
     expect(() => saveClassDraft(initialClassDraft)).toThrow('quota exceeded');
     expect(setItem).toHaveBeenCalledWith(CLASS_DRAFT_KEY, expect.any(String));
+  });
+
+  it('강의를 삭제하면 강의별 로컬 데이터도 함께 정리한다', () => {
+    localStorage.setItem('oneclick-class-preview:course-1', '{}');
+    localStorage.setItem('oneclick.curriculum.course-1', '[]');
+    localStorage.setItem('oneclick.lesson-progress.course-1.lesson-1', '100');
+    sessionStorage.setItem('oneclick.assessment.course-1.exam', 'done');
+    sessionStorage.setItem('oneclick.class-thumbnail.course-1', 'data:image/png;base64,dGVzdA==');
+
+    clearClassData('course-1');
+
+    expect(localStorage.getItem('oneclick-class-preview:course-1')).toBeNull();
+    expect(localStorage.getItem('oneclick.curriculum.course-1')).toBeNull();
+    expect(localStorage.getItem('oneclick.lesson-progress.course-1.lesson-1')).toBeNull();
+    expect(sessionStorage.getItem('oneclick.assessment.course-1.exam')).toBeNull();
+    expect(sessionStorage.getItem('oneclick.class-thumbnail.course-1')).toBeNull();
   });
 });

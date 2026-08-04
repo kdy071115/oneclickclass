@@ -1126,6 +1126,8 @@ function WebManage({
     try {
       await classService.remove(id);
       nav('/classes');
+    } catch {
+      notify('강의를 삭제하지 못했어요. 잠시 후 다시 시도해 주세요.');
     } finally {
       setDeleting(false);
     }
@@ -2203,6 +2205,8 @@ function Manage({
     try {
       await classService.remove(id);
       nav('/classes');
+    } catch {
+      notify('강의를 삭제하지 못했어요. 잠시 후 다시 시도해 주세요.');
     } finally {
       setDeleting(false);
     }

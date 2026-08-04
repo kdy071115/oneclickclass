@@ -119,6 +119,30 @@ describe('instructor mock services', () => {
     });
   });
 
+  it('removes a course without restoring it from bundled or preview data', async () => {
+    localStorage.setItem(
+      'oneclick-class-preview:custom-course',
+      JSON.stringify({ _schemaVersion: 2, title: '삭제할 강의' }),
+    );
+    localStorage.setItem('oneclick.curriculum.custom-course', JSON.stringify([]));
+    localStorage.setItem('oneclick.lesson-progress.custom-course.lesson-1', '100');
+
+    await classService.remove('custom-course');
+    await classService.remove('notion');
+
+    await expect(classService.list()).resolves.not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'custom-course' }),
+        expect.objectContaining({ id: 'notion' }),
+      ]),
+    );
+    await expect(classService.get('custom-course')).rejects.toThrow('class not found');
+    await expect(classService.get('notion')).rejects.toThrow('class not found');
+    expect(localStorage.getItem('oneclick-class-preview:custom-course')).toBeNull();
+    expect(localStorage.getItem('oneclick.curriculum.custom-course')).toBeNull();
+    expect(localStorage.getItem('oneclick.lesson-progress.custom-course.lesson-1')).toBeNull();
+  });
+
   it('generates a class draft through the source-analysis service boundary', async () => {
     await expect(
       classService.analyzeSource({

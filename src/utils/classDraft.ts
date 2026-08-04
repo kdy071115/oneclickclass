@@ -39,6 +39,41 @@ export function clearClassDraft() {
   sessionStorage.removeItem(CLASS_DRAFT_KEY);
 }
 
+const classStorageKeys = (id: string) => [
+  `${CLASS_PREVIEW_KEY}:${id}`,
+  `oneclick.curriculum.${id}`,
+  `oneclick.enrollment.${id}`,
+  `oneclick.class-settings.${id}`,
+  `oneclick.surveys.${id}`,
+  `oneclick.certificate-policy.${id}`,
+  `oneclick.certificate-issuances.${id}`,
+  `oneclick.review.${id}`,
+  `oneclick.course-bookmark.${id}`,
+  `oneclick.exam-result.${id}`,
+  `oneclick.class-thumbnail.${id}`,
+];
+
+const classStoragePrefixes = (id: string) => [
+  `oneclick.verification.${id}.`,
+  `oneclick.assessment.${id}.`,
+  `oneclick.notice-read.${id}.`,
+  `oneclick.lesson-progress.${id}.`,
+];
+
+function clearClassStorage(storage: Storage, id: string) {
+  classStorageKeys(id).forEach((key) => storage.removeItem(key));
+  const prefixes = classStoragePrefixes(id);
+  for (let index = storage.length - 1; index >= 0; index -= 1) {
+    const key = storage.key(index);
+    if (key && prefixes.some((prefix) => key.startsWith(prefix))) storage.removeItem(key);
+  }
+}
+
+export function clearClassData(id: string) {
+  clearClassStorage(localStorage, id);
+  clearClassStorage(sessionStorage, id);
+}
+
 export function saveClassPreview(id: string, draft: ClassDraft) {
   const preview = { ...draft, _schemaVersion: CLASS_PREVIEW_SCHEMA_VERSION };
   localStorage.setItem(`${CLASS_PREVIEW_KEY}:${id}`, JSON.stringify(preview));
