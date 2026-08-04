@@ -2984,6 +2984,13 @@
   font-size: 14px;
   line-height: 1.6;
 }
+.learner-account-switch-note {
+  display: block;
+  margin-top: 9px;
+  color: #8b95a1;
+  font-size: 12px;
+  line-height: 1.5;
+}
 .learner-verify {
   display: grid;
   place-items: center;
@@ -3013,6 +3020,115 @@
 }
 .learner-room-shell {
   background: var(--color-background);
+}
+.learner-availability-main {
+  width: min(calc(100% - 36px), 960px);
+  margin: 0 auto;
+  padding: 40px 0 72px;
+  display: grid;
+  gap: 16px;
+}
+.learner-availability-state {
+  padding: 32px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 22px;
+}
+.learner-availability-state > svg {
+  width: 56px;
+  height: 56px;
+  padding: 15px;
+  border-radius: 16px;
+  background: #eff6ff;
+  color: var(--color-primary);
+}
+.learner-availability-state span {
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 900;
+}
+.learner-availability-state h1 {
+  max-width: 680px;
+  margin: 8px 0 0;
+  font-size: 25px;
+  line-height: 1.35;
+  word-break: keep-all;
+}
+.learner-availability-state p {
+  max-width: 680px;
+  margin: 10px 0 0;
+  color: #6b7684;
+  font-size: 14px;
+  line-height: 1.65;
+  word-break: keep-all;
+}
+.learner-availability-state .form-error {
+  color: #c92a2a;
+}
+.learner-availability-actions {
+  max-width: 520px;
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.learner-availability-actions .primary,
+.learner-availability-actions .secondary {
+  margin-top: 0;
+}
+.learner-availability-curriculum {
+  padding: 26px 32px;
+}
+.learner-availability-curriculum > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+}
+.learner-availability-curriculum h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.learner-availability-curriculum p {
+  margin: 0;
+  color: #8b95a1;
+  font-size: 13px;
+}
+.learner-availability-curriculum ul {
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.learner-availability-curriculum li {
+  min-height: 64px;
+  padding: 12px 0;
+  border-top: 1px solid #edf0f3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.learner-availability-curriculum li span {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+.learner-availability-curriculum li small {
+  color: #8b95a1;
+  font-size: 11px;
+  font-weight: 800;
+}
+.learner-availability-curriculum li b {
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+.learner-availability-curriculum li em {
+  flex: none;
+  color: #8b95a1;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
 }
 .learner-room-topbar span {
   color: #6b7684;
@@ -3483,8 +3599,8 @@
   font-weight: 800;
 }
 .learner-curriculum-close {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   flex: 0 0 auto;
   display: grid;
   place-items: center;
@@ -4093,7 +4209,7 @@
   border-top: 1px solid #edf0f3;
 }
 .learner-navigation button {
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 12px;
   border-radius: 10px;
   background: #f8f9fb;
@@ -4203,8 +4319,8 @@
   gap: 8px;
 }
 .learner-room-back {
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   display: grid;
   flex: 0 0 auto;
   place-items: center;
@@ -4377,7 +4493,7 @@
   color: #8b95a1;
 }
 .learner-room-actions button {
-  min-height: 38px;
+  min-height: 44px;
   padding: 0 12px;
   border-radius: 11px;
   background: #f2f4f6;
@@ -4856,8 +4972,8 @@
     gap: 5px;
   }
   .learner-room-back {
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
   }
   .learner-room-actions {
     gap: 0;
@@ -4866,8 +4982,33 @@
     display: none;
   }
   .learner-room-actions button {
-    min-height: 36px;
+    min-height: 44px;
     padding-inline: 10px;
+  }
+  .learner-availability-main {
+    width: 100%;
+    padding: 20px 16px calc(40px + env(safe-area-inset-bottom));
+  }
+  .learner-availability-state {
+    padding: 22px;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .learner-availability-state h1 {
+    font-size: 21px;
+  }
+  .learner-availability-actions {
+    grid-template-columns: 1fr;
+  }
+  .learner-availability-curriculum {
+    padding: 22px;
+  }
+  .learner-availability-curriculum > div {
+    display: block;
+  }
+  .learner-availability-curriculum p {
+    margin-top: 7px;
+    line-height: 1.55;
   }
   .learner-room-grid {
     padding: 0 16px calc(92px + env(safe-area-inset-bottom));

@@ -6,18 +6,18 @@ type EnrollmentActionInput = {
   applicationStarted: boolean;
   enrollment?: EnrollmentState | null;
   existingChecked: boolean;
+  hasPlayableLesson: boolean;
   hasShare: boolean;
   priceText: string;
-  showCurriculum: boolean;
 };
 
 export const getEnrollmentAction = ({
   applicationStarted,
   enrollment,
   existingChecked,
+  hasPlayableLesson,
   hasShare,
   priceText,
-  showCurriculum,
 }: EnrollmentActionInput) => {
   if (!hasShare || !existingChecked) {
     return {
@@ -28,10 +28,18 @@ export const getEnrollmentAction = ({
     };
   }
   if (enrollment?.canLearn) {
+    if (!hasPlayableLesson) {
+      return {
+        disabled: false,
+        label: '강의 상태',
+        text: '강의 준비 현황 보기',
+        value: '준비 중',
+      };
+    }
     return {
       disabled: false,
       label: '수강 진행률',
-      text: showCurriculum ? '바로 이어보기' : '강의 준비 상태 확인',
+      text: '바로 이어보기',
       value: `${Math.round(Math.max(0, Math.min(100, enrollment.progress)))}%`,
     };
   }

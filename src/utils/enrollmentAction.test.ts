@@ -4,9 +4,9 @@ import { getEnrollmentAction } from './enrollmentAction';
 const base = {
   applicationStarted: false,
   existingChecked: true,
+  hasPlayableLesson: true,
   hasShare: true,
   priceText: '45,000원',
-  showCurriculum: true,
 };
 
 describe('모바일 수강 CTA', () => {
@@ -25,6 +25,17 @@ describe('모바일 수강 CTA', () => {
       label: '수강 진행률',
       text: '바로 이어보기',
       value: '35%',
+    });
+    expect(
+      getEnrollmentAction({
+        ...base,
+        enrollment: { accessReason: 'AVAILABLE', canLearn: true, progress: 35 },
+        hasPlayableLesson: false,
+      }),
+    ).toMatchObject({
+      label: '강의 상태',
+      text: '강의 준비 현황 보기',
+      value: '준비 중',
     });
     expect(
       getEnrollmentAction({

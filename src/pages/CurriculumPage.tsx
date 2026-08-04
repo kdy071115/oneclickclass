@@ -41,21 +41,11 @@ import type {
 import {
   contentProviderLabel,
   detectContentProvider,
+  getYouTubeVideoId,
   validateContentUrl,
 } from '../utils/content';
+import { VimeoPlayer } from '../components/VimeoPlayer';
 import { YouTubePlayer } from '../components/YouTubePlayer';
-
-const getYouTubeVideoId = (url: string) => {
-  try {
-    const parsed = new URL(url);
-    if (parsed.hostname === 'youtu.be') return parsed.pathname.slice(1).split('/')[0];
-    if (parsed.pathname.startsWith('/embed/') || parsed.pathname.startsWith('/shorts/'))
-      return parsed.pathname.split('/')[2];
-    return parsed.searchParams.get('v') || '';
-  } catch {
-    return '';
-  }
-};
 
 const lessonTypes: Record<
   LessonContentType,
@@ -807,9 +797,20 @@ export function CurriculumPage() {
                     }}
                     onDuration={applyVideoDuration}
                   />
+                ) : detectedProvider === 'VIMEO' ? (
+                  <VimeoPlayer
+                    url={lesson.contentUrl}
+                    onPlayingChange={setMarkerPreviewPlaying}
+                    onProgress={(seconds) => setMarkerPreviewSeconds(seconds)}
+                    onTimeChange={(seconds) => {
+                      setMarkerPreviewSeconds(seconds);
+                      return false;
+                    }}
+                    onDuration={applyVideoDuration}
+                  />
                 ) : (
                   <div className="lesson-marker-preview-empty">
-                    Vimeo·외부 영상은 재생 화면에서 시간을 확인한 뒤 직접 입력해 주세요.
+                    이 영상 주소는 미리보기를 지원하지 않아요. 지원되는 주소로 다시 등록해 주세요.
                   </div>
                 )}
                 <div>
