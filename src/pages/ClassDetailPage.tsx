@@ -4,12 +4,16 @@ import {
   CalendarDays,
   CheckCircle2,
   CheckSquare,
+  CirclePlay,
   ClipboardList,
   Copy,
   Edit3,
   Eye,
+  FileText,
   Image,
   Link2,
+  NotebookPen,
+  Radio,
   type LucideIcon,
   QrCode,
   Settings,
@@ -24,7 +28,14 @@ import { AsyncState } from '../components/common/AsyncState';
 import { PageHeader } from '../components/common/PageHeader';
 import { getClassThumbnail } from '../utils/classThumbnail';
 import { detailService } from '../api/services';
-import type { ClassDetail } from '../types/class';
+import type { ClassDetail, LessonContentType } from '../types/class';
+
+const lessonContentPresentation: Record<LessonContentType, { Icon: LucideIcon; label: string }> = {
+  video: { Icon: CirclePlay, label: '녹화 영상' },
+  live: { Icon: Radio, label: '라이브 강의' },
+  document: { Icon: FileText, label: '학습 자료' },
+  assignment: { Icon: NotebookPen, label: '과제' },
+};
 
 const parseDurationMinutes = (durationText: string) => {
   const hours = durationText.match(/(\d+)\s*시간/)?.[1];
@@ -300,15 +311,21 @@ export function ClassDetailPage() {
                       <strong>{section.title}</strong>
                       <small>{formatSectionSummary(section.items.length, section.totalMinutes)}</small>
                     </header>
-                    {section.items.map((item, lessonIndex) => (
-                      <div className="oc-curriculum-row reference" key={item.id}>
-                        <span>{sectionIndex + 1}-{lessonIndex + 1}</span>
-                        <i><ClipboardList size={18} /></i>
-                        <b>{item.title}<small>{item.description}</small></b>
-                        <em><CalendarDays size={16} /> {item.durationText}</em>
-                        {item.published ? <CheckCircle2 className="done" size={20} /> : <CheckCircle2 size={20} />}
-                      </div>
-                    ))}
+                    {section.items.map((item, lessonIndex) => {
+                      const content = lessonContentPresentation[item.contentType ?? 'video'];
+                      const LessonIcon = content.Icon;
+                      return (
+                        <div className="oc-curriculum-row reference" key={item.id}>
+                          <span>{sectionIndex + 1}-{lessonIndex + 1}</span>
+                          <i role="img" aria-label={content.label}>
+                            <LessonIcon size={18} aria-hidden="true" />
+                          </i>
+                          <b>{item.title}<small>{item.description}</small></b>
+                          <em><CalendarDays size={16} /> {item.durationText}</em>
+                          {item.published ? <CheckCircle2 className="done" size={20} /> : <CheckCircle2 size={20} />}
+                        </div>
+                      );
+                    })}
                   </section>
                 ))}
                 {!curriculum.length && (

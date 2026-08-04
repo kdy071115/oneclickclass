@@ -47,7 +47,9 @@ describe('instructor mock services', () => {
       rating: 0,
       reviewCount: 0,
       sessions: 1,
-      curriculum: [expect.objectContaining({ id: 'lesson-1', title: '첫 강의' })],
+      curriculum: [
+        expect.objectContaining({ id: 'lesson-1', title: '첫 강의', contentType: 'video' }),
+      ],
     });
   });
 

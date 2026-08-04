@@ -888,6 +888,7 @@ export const detailService = {
               description: lesson.description,
               durationText: `${lesson.durationMinutes}분`,
               published: lesson.published,
+              contentType: lesson.contentType,
             })),
           )
         : baseDetail.curriculum,

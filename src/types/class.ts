@@ -102,6 +102,7 @@ export interface ClassDetail extends ClassItem {
     description: string;
     durationText: string;
     published: boolean;
+    contentType?: LessonContentType;
   }[];
   recentActivities: {
     id: string;
