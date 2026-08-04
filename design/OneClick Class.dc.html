@@ -220,10 +220,14 @@
                 </div>
               </sc-for>
             </div>
+            <sc-if value="{{ wishlistEmpty }}" hint-placeholder-val="{{ false }}">
+              <div style="text-align: center; padding: 70px 20px; color: #ADB5BD;">
+                <div style="width: 56px; height: 56px; border-radius: 18px; background: #FFF0F0; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFA8A8" stroke-width="1.8" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"></path></svg></div>
+                <div style="font-size: 14.5px; font-weight: 600; line-height: 1.6;">아직 관심 클래스가 없어요<br>클래스에서 하트를 눌러 담아보세요</div>
+              </div>
+            </sc-if>
           </div>
         </sc-if>
-
-        <!-- ============ CLASSES TAB ============ -->
         <sc-if value="{{ isClasses }}" hint-placeholder-val="{{ false }}">
           <div class="oc-screen" style="padding: 62px 20px 120px;">
             <div style="font-size: 26px; font-weight: 800; letter-spacing: -.6px; margin-bottom: 18px;">클래스</div>
@@ -240,9 +244,10 @@
             </div>
             <!-- list -->
             <sc-for list="{{ classList }}" as="c" hint-placeholder-count="3">
+              <div style="position: relative;">
               <button onClick="{{ openClass }}" style="{{ c.cardStyle }}">
                 <div style="{{ c.thumbStyle }}"></div>
-                <div style="flex: 1; min-width: 0;">
+                <div style="flex: 1; min-width: 0; padding-right: 30px;">
                   <div style="display: inline-block; font-size: 11px; font-weight: 700; color: {{ c.badgeColor }}; background: {{ c.badgeBg }}; padding: 3px 8px; border-radius: 6px;">{{ c.badgeText }}</div>
                   <div style="font-size: 15.5px; font-weight: 700; margin-top: 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ c.title }}</div>
                   <div style="font-size: 12.5px; color: #8B95A1; font-weight: 600; margin-top: 5px;">{{ c.meta }}</div>
@@ -250,8 +255,11 @@
                     <div style="height: 5px; background: #EDF0F3; border-radius: 3px; margin-top: 9px; overflow: hidden;"><div style="width: {{ c.barPct }}; height: 100%; background: {{ c.badgeColor }}; border-radius: 3px;"></div></div>
                   </sc-if>
                 </div>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4CBD3" stroke-width="2.2" style="flex: none; align-self: center;"><path d="M9 18l6-6-6-6"></path></svg>
               </button>
+              <button onClick="{{ c.heartToggle }}" style="position: absolute; top: 14px; right: 14px; width: 34px; height: 34px; border-radius: 50%; background: {{ c.heartBg }}; display: flex; align-items: center; justify-content: center;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="{{ c.heartFill }}" stroke="{{ c.heartStroke }}" stroke-width="2" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"></path></svg>
+              </button>
+              </div>
             </sc-for>
             <sc-if value="{{ classEmpty }}" hint-placeholder-val="{{ false }}">
               <div style="text-align: center; padding: 60px 20px; color: #ADB5BD;">
@@ -1764,6 +1772,7 @@ class Component extends DCLogic {
     addrQuery: '',
     classTab: 'mine',
     classFilter: 'all',
+    wishlist: ['브랜딩 기초 클래스', '실전 유튜브 편집 8주 과정', '초보를 위한 홈카페 클래스'],
     caFilter: 'all',
     role: 'teacher',
     notifPush: { apply: true, pay: true, settle: true, review: true, notice: false, event: false, benefit: true },
@@ -1983,6 +1992,19 @@ class Component extends DCLogic {
   goClasses = () => this.setState({ screen: 'main', tab: 'classes' });
   onClassTab(t) { return () => this.setState({ classTab: t, classFilter: 'all' }); }
   onClassFilter(f) { return () => this.setState({ classFilter: f }); }
+  toggleWish(title) { return (e) => { if (e && e.stopPropagation) e.stopPropagation(); this.setState(s => { const has = s.wishlist.includes(title); this.showToast(has ? '관심 목록에서 제거했어요' : '관심 목록에 추가했어요'); return { wishlist: has ? s.wishlist.filter(t => t !== title) : [...s.wishlist, title] }; }); }; }
+  _catalog() {
+    const d = this._classData();
+    const rec = [
+      { title: '브랜딩 기초 클래스', meta: '온라인 · 4주 과정', grad: 'linear-gradient(135deg,#F76707,#FFA94D)', price: '55,000원' },
+      { title: '실전 유튜브 편집 8주 과정', meta: '라이브 · 8주 과정', grad: 'linear-gradient(135deg,#7048E8,#9775FA)', price: '89,000원' },
+      { title: '초보를 위한 홈카페 클래스', meta: '오프라인 · 원데이', grad: 'linear-gradient(135deg,#22B573,#5BD79A)', price: '40,000원' }
+    ];
+    const map = {};
+    [...d.mine, ...d.watch].forEach(c => { map[c.title] = { title: c.title, meta: (c.type || '') + ' · 클래스', grad: c.grad, price: '' }; });
+    rec.forEach(r => { map[r.title] = r; });
+    return map;
+  }
   _classVals(s) {
     const accent = this.props.accentColor || '#3182F6';
     const accentSoft = this.hexToRgba(accent, 0.12);
@@ -2018,10 +2040,15 @@ class Component extends DCLogic {
       };
     });
 
+    const wished = (t) => (s.wishlist || []).includes(t);
     const classList = filtered.map(c => {
       const col = statusColor(c.status);
+      const w = wished(c.title);
       return {
         title: c.title, meta: c.meta,
+        wished: w, heartToggle: this.toggleWish(c.title),
+        heartFill: w ? '#F03E3E' : 'none', heartStroke: w ? '#F03E3E' : '#C4CBD3',
+        heartBg: w ? '#FFF0F0' : '#F5F6F8',
         badgeText: c.status + ' · ' + c.type, badgeColor: col.c, badgeBg: col.b,
         thumbStyle: { width: compact ? '46px' : '60px', height: compact ? '46px' : '60px', borderRadius: compact ? '12px' : '15px', background: c.grad, flex: 'none' },
         cardStyle: {
@@ -2681,14 +2708,14 @@ class Component extends DCLogic {
     ];
     const recommendClasses = [
       { title: '브랜딩 기초 클래스', meta: '32명 수강 · 만족도 4.9', grad: 'linear-gradient(135deg,#F76707,#FFA94D)', price: '55,000원' },
-
       { title: '실전 유튜브 편집 8주 과정', meta: '20명 수강 · 만족도 4.8', grad: 'linear-gradient(135deg,#7048E8,#9775FA)', price: '89,000원' }
     ];
-    const wishlistItems = [
-      { title: '브랜딩 기초 클래스', meta: '온라인 · 4주 과정', grad: 'linear-gradient(135deg,#F76707,#FFA94D)', price: '55,000원' },
-      { title: '실전 유튜브 편집 8주 과정', meta: '라이브 · 8주 과정', grad: 'linear-gradient(135deg,#7048E8,#9775FA)', price: '89,000원' },
-      { title: '초보를 위한 홈카페 클래스', meta: '오프라인 · 원데이', grad: 'linear-gradient(135deg,#22B573,#5BD79A)', price: '40,000원' }
-    ].map(w => ({ ...w, unheart: () => this.showToast('관심 목록에서 제거했어요') }));
+    const catalog = this._catalog();
+    const wishlistItems = (s.wishlist || []).map(t => {
+      const info = catalog[t] || { title: t, meta: '클래스', grad: 'linear-gradient(135deg,#868E96,#ADB5BD)', price: '' };
+      return { ...info, unheart: this.toggleWish(t) };
+    });
+    const wishlistEmpty = (s.wishlist || []).length === 0;
 
     return {
       isTeacherRole: role === 'teacher', isStudentRole: role === 'student',
@@ -2700,7 +2727,7 @@ class Component extends DCLogic {
       goClassesWatch: this.goClassesWatch, goWishlist: this.goWishlist,
       isWishlist: isMain && s.tab === 'wishlist',
       wishColor: (isMain && s.tab === 'wishlist') ? accent : idleCol,
-      studentStats, studentInProgress, recommendClasses, wishlistItems,
+      studentStats, studentInProgress, recommendClasses, wishlistItems, wishlistEmpty,
       isNotifications: s.screen === 'notifications',
       isSettle: s.screen === 'settle',
       isNotifSettings: s.screen === 'notifSettings',
@@ -3039,4 +3066,3 @@ class Component extends DCLogic {
 </script>
 </body>
 </html>
-
