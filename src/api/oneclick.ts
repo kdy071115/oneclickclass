@@ -2,7 +2,13 @@ import { apiClient } from './client';
 import { classDetail, classes, examQuestions, surveyQuestions } from '../constants/mockData';
 import { initialClassDraft } from '../constants/classDraft';
 import { loadClassPreviewPatch } from '../utils/classDraft';
-import type { ExamQuestion, LessonMarker, SurveyQuestion } from '../types/class';
+import { getClassThumbnail } from '../utils/classThumbnail';
+import type {
+  ClassThumbnailPosition,
+  ExamQuestion,
+  LessonMarker,
+  SurveyQuestion,
+} from '../types/class';
 import { detectContentProvider, type ContentProvider } from '../utils/content';
 import { formatClassSchedule } from '../utils/classCreation';
 import type { ApiError } from '../types/api';
@@ -24,6 +30,8 @@ export type OneClickShare = {
   title: string;
   summary: string;
   description: string;
+  thumbnail?: string;
+  thumbnailPosition?: ClassThumbnailPosition;
   price: number;
   capacity: number;
   enrolled: number;
@@ -321,6 +329,9 @@ const pickString = (source: Record<string, unknown>, keys: string[], fallback = 
   return fallback;
 };
 
+const normalizeThumbnailPosition = (value: string): ClassThumbnailPosition =>
+  value === 'top' || value === 'bottom' ? value : 'center';
+
 const pickNumber = (source: Record<string, unknown>, keys: string[], fallback = 0) => {
   for (const key of keys) {
     const value = source[key];
@@ -496,11 +507,12 @@ const mockShare = (shareToken: string): OneClickShare => {
     : canonicalItem?.type === '온라인'
       ? '온라인 녹화'
       : canonicalItem?.type || '수강 방식 안내 예정';
-  const scheduleText = draftPatch?.type === 'online'
-    ? '자유 수강'
-    : draftPatch?.startDate
-      ? formatClassSchedule(draftPatch.startDate)
-      : canonicalItem?.date || '일정 미정';
+  const scheduleText =
+    draftPatch?.type === 'online'
+      ? '자유 수강'
+      : draftPatch?.startDate
+        ? formatClassSchedule(draftPatch.startDate)
+        : canonicalItem?.date || '일정 미정';
   const displayTitle = displayText(
     draftPatch?.title?.trim() || canonicalItem?.title || baseDetail?.title,
     classDetail.title,
@@ -513,6 +525,11 @@ const mockShare = (shareToken: string): OneClickShare => {
     draftPatch?.description?.trim() || baseDetail?.description,
     classDetail.description || displaySummary,
   );
+  const thumbnail =
+    draftPatch?.thumbnail ||
+    canonicalItem?.thumbnail ||
+    getClassThumbnail(courseActiveSeq) ||
+    getClassThumbnail(shareToken);
   return {
     shareToken,
     courseActiveSeq,
@@ -520,6 +537,9 @@ const mockShare = (shareToken: string): OneClickShare => {
     title: displayTitle,
     summary: displaySummary,
     description: displayDescription,
+    thumbnail: thumbnail || undefined,
+    thumbnailPosition:
+      draftPatch?.thumbnailPosition || canonicalItem?.thumbnailPosition || 'center',
     price,
     capacity,
     enrolled,
@@ -723,6 +743,17 @@ const normalizeShare = (raw: unknown, shareToken: string): OneClickShare => {
       'intro',
       'contents',
     ]),
+    thumbnail:
+      pickString(merged, [
+        'thumbnail',
+        'thumbnailUrl',
+        'thumbnailPath',
+        'coverImage',
+        'coverImageUrl',
+      ]) || undefined,
+    thumbnailPosition: normalizeThumbnailPosition(
+      pickString(merged, ['thumbnailPosition', 'thumbnailFocus'], 'center'),
+    ),
     price,
     capacity,
     enrolled: pickNumber(merged, ['enrolled', 'applyCnt', 'takeCnt', 'memberCnt'], confirmedCount),

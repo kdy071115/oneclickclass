@@ -52,6 +52,7 @@ import { ConfirmDialog } from '../components/ui';
 import { VimeoPlayer } from '../components/VimeoPlayer';
 import { YouTubePlayer } from '../components/YouTubePlayer';
 import { CourseCurriculum } from '../components/feature/CourseCurriculum';
+import { ClassThumbnail } from '../components/feature/ClassThumbnail';
 import { formatSectionSummary, groupCurriculumItems } from '../utils/curriculumDisplay';
 
 const defaultResumeLessonIndex = 0;
@@ -486,11 +487,13 @@ export function PublicEnrollmentPage() {
       <main className="learner-apply-grid">
         <section className="learner-content learner-public-content">
           <div className="learner-hero">
-            <div className="learner-mobile-cover" aria-hidden="true">
-              <span>
-                <Play fill="currentColor" />
-              </span>
-              <b>온라인 클래스</b>
+            <div className="learner-course-cover">
+              <ClassThumbnail
+                src={share?.thumbnail}
+                position={share?.thumbnailPosition}
+                title={title}
+                alt={`${title} 대표 이미지`}
+              />
             </div>
             <div className="learner-hero-body">
               <div className="learner-hero-actions">
@@ -510,16 +513,16 @@ export function PublicEnrollmentPage() {
               <p>{summary}</p>
               <div className="learner-quick-stats">
                 <span>
-                  <b>{share?.instructorName || '강사 안내'}</b>
                   <small>강사</small>
+                  <b>{share?.instructorName || '강사 안내'}</b>
                 </span>
                 <span>
-                  <b>{share?.difficulty || '초급'}</b>
                   <small>난이도</small>
+                  <b>{share?.difficulty || '초급'}</b>
                 </span>
                 <span>
-                  <b>{share?.deliveryTypeText || '수강 방식 확인 중'}</b>
                   <small>수강 방식</small>
+                  <b>{share?.deliveryTypeText || '수강 방식 확인 중'}</b>
                 </span>
               </div>
               <div className="learner-mobile-instructor">
@@ -2614,18 +2617,12 @@ function ClassPublicPage({ preview = false }: { preview?: boolean }) {
         )}
         <section className="student-learning-hero">
           <div className="student-learning-cover">
-            {draft.thumbnail ? (
-              <img
-                src={draft.thumbnail}
-                alt="클래스 썸네일"
-                style={{ objectPosition: draft.thumbnailPosition }}
-              />
-            ) : (
-              <div>
-                <Play size={32} />
-                <b>대표 썸네일</b>
-              </div>
-            )}
+            <ClassThumbnail
+              src={draft.thumbnail}
+              position={draft.thumbnailPosition}
+              title={title}
+              alt={`${title} 대표 이미지`}
+            />
           </div>
           <div className="student-learning-copy">
             <span className="operation-status wait">
@@ -2760,13 +2757,12 @@ function ClassPublicPage({ preview = false }: { preview?: boolean }) {
           </button>
         )}
         <div className="preview-hero">
-          {draft.thumbnail && (
-            <img
-              src={draft.thumbnail}
-              alt="클래스 썸네일"
-              style={{ objectPosition: draft.thumbnailPosition }}
-            />
-          )}
+          <ClassThumbnail
+            src={draft.thumbnail}
+            position={draft.thumbnailPosition}
+            title={title}
+            alt={`${title} 대표 이미지`}
+          />
         </div>
         <main>
           <span className="badge blue">모집중</span>

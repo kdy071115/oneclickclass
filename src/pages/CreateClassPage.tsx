@@ -52,6 +52,7 @@ import {
 } from '../constants/classCreation';
 import { addressSuggestions, initialClassDraft } from '../constants/classDraft';
 import { Button, ConfirmDialog, EmptyState, Input, Skeleton } from '../components/ui';
+import { ClassThumbnail } from '../components/feature/ClassThumbnail';
 import {
   clearClassDraft,
   hasClassPreview,
@@ -2063,18 +2064,12 @@ export function CreateClassPage() {
                 <section className="preview-public-hero" aria-label="클래스 핵심 정보">
                   <div className="preview-hero-media">
                     <div className="preview-cover editable">
-                      {thumbnailPreviewUrl || draft.thumbnail ? (
-                        <img
-                          src={thumbnailPreviewUrl || draft.thumbnail}
-                          alt="클래스 썸네일 미리보기"
-                          style={{ objectPosition: draft.thumbnailPosition }}
-                        />
-                      ) : (
-                        <span className="cover-placeholder">
-                          <em>ONECLICK CLASS</em>
-                          <b>{draft.title || typeOption.label}</b>
-                        </span>
-                      )}
+                      <ClassThumbnail
+                        src={thumbnailPreviewUrl || draft.thumbnail}
+                        position={draft.thumbnailPosition}
+                        title={draft.title || typeOption.label}
+                        alt="클래스 썸네일 미리보기"
+                      />
                       <label className="cover-edit">
                         <input
                           type="file"

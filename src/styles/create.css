@@ -11,11 +11,7 @@
   --creator-surface: var(--color-surface);
   --creator-success: var(--color-success);
   --creator-danger: var(--color-danger);
-  --creator-control-line: color-mix(
-    in srgb,
-    var(--creator-muted) 22%,
-    var(--creator-line)
-  );
+  --creator-control-line: color-mix(in srgb, var(--creator-muted) 22%, var(--creator-line));
   --creator-focus-ring: color-mix(in srgb, var(--creator-accent) 24%, transparent);
   --creator-touch-target: 44px;
   --creator-thumbnail-ratio: 16 / 9;
@@ -1946,60 +1942,6 @@
   outline-offset: 3px;
 }
 
-.preview-cover > img {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: cover;
-  object-position: center;
-}
-
-.cover-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  padding: 44px;
-  background:
-    radial-gradient(circle at 75% 25%, rgba(131, 180, 255, 0.85) 0 8%, transparent 8.5%),
-    linear-gradient(135deg, rgba(9, 26, 52, 0.06) 25%, transparent 25%) 0 0 / 36px 36px,
-    linear-gradient(128deg, #0d2343, #164b97 55%, #4d92ff);
-  color: #fff;
-}
-
-.cover-placeholder::before {
-  content: '';
-  position: absolute;
-  top: 14%;
-  right: 10%;
-  width: 24%;
-  aspect-ratio: 1;
-  border: 1px solid rgba(255, 255, 255, 0.34);
-  border-radius: 50%;
-  box-shadow:
-    40px 24px 0 -12px rgba(255, 255, 255, 0.14),
-    -55px 22px 0 -18px rgba(255, 255, 255, 0.2);
-}
-
-.cover-placeholder em {
-  position: relative;
-  margin-bottom: 8px;
-  opacity: 0.8;
-  font-size: 11px;
-  font-style: normal;
-  font-weight: 750;
-  letter-spacing: 1.5px;
-}
-
-.cover-placeholder b {
-  position: relative;
-  max-width: 68%;
-  font-size: clamp(24px, 3vw, 42px);
-  line-height: 1.2;
-  letter-spacing: -1px;
-}
-
 .cover-edit {
   position: absolute;
   inset: 0;
@@ -3288,21 +3230,19 @@
     padding: var(--space-6);
   }
 
-  .cover-placeholder {
+  .class-thumbnail-placeholder {
     padding: var(--space-6);
   }
 
-  .cover-placeholder em {
-    margin-bottom: 5px;
+  .class-thumbnail-placeholder small {
     font-size: 9px;
   }
 
-  .cover-placeholder b {
+  .class-thumbnail-placeholder b {
     max-width: 88%;
     font-size: 22px;
     line-height: 1.18;
   }
-
 }
 
 @media (max-width: 800px) {
@@ -3727,11 +3667,11 @@
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   }
 
-  .cover-placeholder {
+  .class-thumbnail-placeholder {
     padding: 25px;
   }
 
-  .cover-placeholder b {
+  .class-thumbnail-placeholder b {
     max-width: 90%;
     font-size: 26px;
   }

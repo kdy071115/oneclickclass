@@ -41,6 +41,39 @@
 .ui-stat-neutral { background: var(--color-background); }
 .ui-avatar { display: inline-grid; place-items: center; flex: 0 0 auto; border-radius: 50%; object-fit: cover; background: var(--color-tint-blue); color: var(--color-primary); font-weight: 800; }
 
+.class-thumbnail-image,
+.class-thumbnail-placeholder {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.class-thumbnail-image {
+  object-fit: cover;
+  object-position: center;
+}
+.class-thumbnail-placeholder {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: clamp(24px, 5vw, 44px);
+  background: #173b6c;
+  color: #fff;
+}
+.class-thumbnail-placeholder small {
+  color: #c9d9ee;
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+.class-thumbnail-placeholder b {
+  max-width: 18ch;
+  font-size: clamp(24px, 3vw, 42px);
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  word-break: keep-all;
+}
+
 .ui-field { display: grid; gap: 7px; color: var(--color-text-secondary); font-size: var(--font-size-sm); font-weight: 700; }
 .ui-field small { color: var(--color-text-tertiary); font-weight: 500; }
 .ui-field .ui-field-error { color: var(--color-danger); }

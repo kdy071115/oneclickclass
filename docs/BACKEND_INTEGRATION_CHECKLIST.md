@@ -275,6 +275,7 @@ file: File
 `GET /oneclick/shares/{shareToken}`
 
 - 공개 신청 페이지 데이터
+- 강의 만들기에서 저장한 `thumbnail`, `thumbnailPosition(top|center|bottom)`을 그대로 반환
 - 수강 전에는 유료/비공개 자료 URL을 내려주지 않는다.
 - 커리큘럼은 제목, 설명, 시간, 섹션 정보 정도만 내려줘도 된다.
 
