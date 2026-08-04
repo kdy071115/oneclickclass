@@ -31,15 +31,20 @@ describe('LandingPage', () => {
         name: /필요할 때는 출석과 수료까지\s*같은 흐름에서 이어가세요/,
       }),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: /무료로 시작하기/ })[0]).toHaveAttribute(
+    expect(screen.getAllByRole('link', { name: /무료로 강의 만들기/ })[0]).toHaveAttribute(
       'href',
       '/signup',
     );
-    expect(screen.getByRole('link', { name: '만드는 과정 보기' })).toHaveAttribute(
-      'href',
-      '#create',
-    );
-    expect(screen.getByText('YouTube·영상·자료 링크 지원')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '실제 화면 보기' })).toHaveAttribute('href', '#create');
+    expect(screen.getByText('영상 링크·파일·문서 지원')).toBeInTheDocument();
+    expect(screen.getByText('콘텐츠 불러오기')).toBeInTheDocument();
+    expect(
+      screen.getByRole('figure', { name: '강사용 운영 화면과 수강생용 신청 화면' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('img', { name: '히어로의 원클릭 클래스 운영 대시보드' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/YouTube/i)).not.toBeInTheDocument();
     expect(screen.getByText('무료·유료 강의 설정')).toBeInTheDocument();
     expect(screen.getByText('공개 전까지 언제든 수정')).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /화면 확대 보기/ })).toHaveLength(5);
@@ -70,6 +75,20 @@ describe('LandingPage', () => {
       [...container.querySelectorAll('#landing-content > section[id]')].map(({ id }) => id),
     ).toEqual(['create', 'learner', 'product', 'operations']);
     expect(container.querySelector('.landing-reveal')).toHaveClass('is-visible');
+    expect(container.querySelector('.landing-hero-inline-product')).not.toBeInTheDocument();
+  });
+
+  it('히어로는 강사 운영 화면과 수강생 모바일 화면을 하나의 장면으로 보여준다', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <LandingPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByRole('button', { name: '변환 과정 다시 보기' })).not.toBeInTheDocument();
+    expect(container.querySelector('.landing-product-story')).not.toBeInTheDocument();
+    expect(container.querySelector('.hero-product-mockup__desktop')).toBeInTheDocument();
+    expect(container.querySelector('.hero-product-mockup__mobile')).toBeInTheDocument();
   });
 
   it('운영 갤러리를 스크롤하면 현재 단계를 갱신하고 방향키 이동을 지원한다', () => {

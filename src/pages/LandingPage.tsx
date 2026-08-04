@@ -13,10 +13,10 @@ import {
   Play,
   Sparkles,
   Users,
-  Youtube,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import '@fontsource-variable/geist';
 import attendanceMobileScreen from '../assets/landing/attendance-mobile.png';
 import attendanceScreen from '../assets/landing/attendance.png';
 import certificatesScreen from '../assets/landing/certificates.jpg';
@@ -27,6 +27,8 @@ import operationsScreen from '../assets/landing/operations.jpg';
 import settlementsScreen from '../assets/landing/settlements.jpg';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { Modal } from '../components/ui';
+import { HeroProductMockup } from '../components/ui/HeroProductMockup';
+import { HeroWithProductMockup } from '../components/ui/hero-with-product-mockup';
 import { classes, classDetail } from '../constants/mockData';
 import { won } from '../utils/format';
 
@@ -39,9 +41,9 @@ const navItems = [
 
 const creatorPath = [
   {
-    icon: Youtube,
-    title: '링크·자료 추가',
-    description: 'YouTube, 영상, 문서 링크에서 시작해요.',
+    icon: FileText,
+    title: '콘텐츠 불러오기',
+    description: '영상 링크를 연결하거나 영상 파일과 문서를 올려 시작해요.',
   },
   {
     icon: Sparkles,
@@ -56,7 +58,7 @@ const creatorPath = [
 ] as const;
 
 const creatorAssurances = [
-  'YouTube·영상·자료 링크 지원',
+  '영상 링크·파일·문서 지원',
   '무료·유료 강의 설정',
   '공개 전까지 언제든 수정',
 ] as const;
@@ -116,6 +118,80 @@ const learnerJourney = [
 ] as const;
 
 const course = classes[0];
+
+function LearnerCoursePhone({ showShareChip = false }: { showShareChip?: boolean }) {
+  return (
+    <>
+      <div className="landing-learner-device" aria-hidden="true">
+        <div className="landing-device-top">
+          <span>9:41</span>
+          <i />
+        </div>
+        <div className="landing-learner-cover">
+          <Play size={30} fill="currentColor" />
+          <span>온라인 클래스</span>
+        </div>
+        <div className="landing-learner-content">
+          <StatusBadge>{course.status}</StatusBadge>
+          <h3>{classDetail.title}</h3>
+          <p>{classDetail.summary}</p>
+          <div className="landing-learner-instructor">
+            <i>이</i>
+            <span>
+              <small>강사</small>
+              <b>{classDetail.instructor}</b>
+            </span>
+          </div>
+          <dl>
+            <div>
+              <dt>
+                <CalendarDays size={15} /> 일정
+              </dt>
+              <dd>{course.date}</dd>
+            </div>
+            <div>
+              <dt>
+                <MonitorSmartphone size={15} /> 장소
+              </dt>
+              <dd>{classDetail.location}</dd>
+            </div>
+            <div>
+              <dt>
+                <Users size={15} /> 남은 자리
+              </dt>
+              <dd>{course.capacity - course.enrolled}자리</dd>
+            </div>
+          </dl>
+          <div className="landing-curriculum">
+            <div>
+              <b>커리큘럼</b>
+              <small>총 {classDetail.sessions}회</small>
+            </div>
+            {classDetail.curriculum.slice(0, 2).map((lesson, index) => (
+              <p key={lesson.id}>
+                <span>{index + 1}</span>
+                <b>{lesson.title}</b>
+                <small>{lesson.durationText}</small>
+              </p>
+            ))}
+          </div>
+        </div>
+        <div className="landing-learner-sticky">
+          <span>
+            <small>수강료</small>
+            <b>{won(classDetail.price)}</b>
+          </span>
+          <span className="landing-learner-apply">신청하기</span>
+        </div>
+      </div>
+      {showShareChip && (
+        <span className="landing-share-chip" aria-hidden="true">
+          <Link2 size={16} /> 링크 공유 완료
+        </span>
+      )}
+    </>
+  );
+}
 
 export function LandingPage() {
   const [activeSection, setActiveSection] = useState('');
@@ -268,118 +344,52 @@ export function LandingPage() {
               className="landing-button landing-button-primary landing-button-small"
               to="/signup"
             >
-              무료로 시작하기
+              무료로 강의 만들기
             </Link>
           </div>
         </div>
       </header>
 
       <div id="landing-content">
-        <section className="landing-hero" aria-labelledby="landing-hero-title">
-          <div className="landing-container">
-            <div className="landing-hero-copy">
-              <h1 id="landing-hero-title">
-                링크와 자료가,
-                <br />
-                <span>판매할 강의가 돼요</span>
-              </h1>
-              <p className="landing-hero-description">
-                이미 올린 YouTube 영상이나 준비한 자료에서 시작하세요.
-                <br />
-                강의 구성부터 신청 링크와 학습 화면까지 한곳에서 준비해요.
-              </p>
-              <div className="landing-hero-actions">
-                <Link className="landing-button landing-button-primary" to="/signup">
-                  무료로 강의 만들기 <ArrowRight size={18} />
-                </Link>
-                <a className="landing-button landing-button-secondary" href="#create">
-                  <ArrowDown size={17} /> 만드는 과정 보기
-                </a>
-              </div>
-              <ul className="landing-hero-assurances" aria-label="강의 개설 핵심 안내">
-                {creatorAssurances.map((assurance) => (
-                  <li key={assurance}>
-                    <Check size={15} strokeWidth={2.5} /> {assurance}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div
-              className="landing-hero-preview"
-              role="img"
-              aria-label="YouTube 링크와 자료를 불러와 판매 가능한 강의와 신청 링크를 만드는 과정"
-            >
-              <div className="landing-creator-canvas" aria-hidden="true">
-                <header className="landing-creator-canvas-header">
-                  <span>
-                    <Check size={14} strokeWidth={3} /> 원클릭 클래스
-                  </span>
-                  <em>초안 저장됨</em>
-                </header>
-                <div className="landing-creator-workflow">
-                  <section className="landing-source-panel">
-                    <header>
-                      <span>1</span>
-                      <div>
-                        <small>가지고 있는 콘텐츠</small>
-                        <strong>링크와 자료를 불러오세요</strong>
-                      </div>
-                    </header>
-                    <ul>
-                      <li>
-                        <Youtube size={19} />
-                        <span>
-                          <b>YouTube 링크</b>
-                          <small>youtube.com/watch?v=...</small>
-                        </span>
-                        <em>연결됨</em>
-                      </li>
-                      <li>
-                        <FileText size={19} />
-                        <span>
-                          <b>강의 자료</b>
-                          <small>업무자동화-워크북.pdf</small>
-                        </span>
-                        <em>추가됨</em>
-                      </li>
-                    </ul>
-                  </section>
-
-                  <div className="landing-flow-connector">
-                    <span>
-                      <Sparkles size={16} /> 강의로 구성
-                    </span>
-                    <ArrowRight size={22} />
-                  </div>
-
-                  <section className="landing-result-panel">
-                    <header>
-                      <span>2</span>
-                      <em>공개 준비</em>
-                    </header>
-                    <div className="landing-result-cover">
-                      <Play size={22} fill="currentColor" />
-                      <span>온라인 강의</span>
-                    </div>
-                    <div className="landing-result-copy">
-                      <small>생성된 강의</small>
-                      <strong>{classDetail.title}</strong>
-                      <p>영상과 자료를 차시로 정리하고 가격과 공개 범위를 설정해요.</p>
-                    </div>
-                    <footer>
-                      <span>
-                        <small>수강료</small>
-                        <b>{won(classDetail.price)}</b>
-                      </span>
-                      <em>신청 링크 만들기</em>
-                    </footer>
-                  </section>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+        <HeroWithProductMockup
+          titleId="landing-hero-title"
+          title={
+            <>
+              링크와 자료가,
+              <br />
+              <span>판매할 강의가 돼요</span>
+            </>
+          }
+          description={
+            <>
+              영상 링크를 연결하거나 PDF와 문서를 올리세요.
+              <br /> 강의 구성부터 신청 링크와 학습 화면까지 한곳에서 준비할 수 있어요.
+            </>
+          }
+          actions={
+            <>
+              <Link className="landing-button landing-button-primary" to="/signup">
+                무료로 강의 만들기 <ArrowRight size={18} />
+              </Link>
+              <a className="landing-button landing-button-secondary" href="#create">
+                <ArrowDown size={17} /> 실제 화면 보기
+              </a>
+            </>
+          }
+          assurances={creatorAssurances}
+          assurancesLabel="강의 개설 핵심 안내"
+          productMockup={
+            <HeroProductMockup
+              ariaLabel="강사용 운영 화면과 수강생용 신청 화면"
+              brandLabel="원클릭 클래스"
+              caption="강사 운영부터 수강생 신청과 학습까지 이어지는 실제 제품 화면"
+              desktopImage={dashboardScreen}
+              desktopImageAlt="히어로의 원클릭 클래스 운영 대시보드"
+              desktopTitle="강사 홈"
+              mobileContent={<LearnerCoursePhone />}
+            />
+          }
+        />
 
         <section
           className="landing-section landing-create"
@@ -390,7 +400,7 @@ export function LandingPage() {
             <div className="landing-section-heading centered landing-reveal">
               <h2 id="create-title">가지고 있는 콘텐츠에서 판매할 강의까지</h2>
               <p>
-                YouTube 영상과 자료를 차시에 연결하고, 가격과 공개 범위를 정하면 신청 링크가
+                영상 링크를 연결하거나 파일·문서를 올린 뒤, 가격과 공개 범위를 정하면 신청 링크가
                 완성됩니다.
               </p>
             </div>
@@ -434,7 +444,12 @@ export function LandingPage() {
                   </button>
                 </figcaption>
                 <div className="landing-product-shot-crop">
-                  <img src={createClassScreen} alt="원클릭 클래스의 실제 강의 개설 화면" />
+                  <img
+                    src={createClassScreen}
+                    alt="원클릭 클래스의 실제 강의 개설 화면"
+                    loading="lazy"
+                    decoding="async"
+                  />
                 </div>
               </figure>
             </div>
@@ -475,71 +490,7 @@ export function LandingPage() {
               role="img"
               aria-label="공유 링크에서 클래스 정보를 확인하고 신청하는 모바일 화면 예시"
             >
-              <div className="landing-learner-device" aria-hidden="true">
-                <div className="landing-device-top">
-                  <span>9:41</span>
-                  <i />
-                </div>
-                <div className="landing-learner-cover">
-                  <Play size={30} fill="currentColor" />
-                  <span>온라인 클래스</span>
-                </div>
-                <div className="landing-learner-content">
-                  <StatusBadge>{course.status}</StatusBadge>
-                  <h3>{classDetail.title}</h3>
-                  <p>{classDetail.summary}</p>
-                  <div className="landing-learner-instructor">
-                    <i>이</i>
-                    <span>
-                      <small>강사</small>
-                      <b>{classDetail.instructor}</b>
-                    </span>
-                  </div>
-                  <dl>
-                    <div>
-                      <dt>
-                        <CalendarDays size={15} /> 일정
-                      </dt>
-                      <dd>{course.date}</dd>
-                    </div>
-                    <div>
-                      <dt>
-                        <MonitorSmartphone size={15} /> 장소
-                      </dt>
-                      <dd>{classDetail.location}</dd>
-                    </div>
-                    <div>
-                      <dt>
-                        <Users size={15} /> 남은 자리
-                      </dt>
-                      <dd>{course.capacity - course.enrolled}자리</dd>
-                    </div>
-                  </dl>
-                  <div className="landing-curriculum">
-                    <div>
-                      <b>커리큘럼</b>
-                      <small>총 {classDetail.sessions}회</small>
-                    </div>
-                    {classDetail.curriculum.slice(0, 2).map((lesson, index) => (
-                      <p key={lesson.id}>
-                        <span>{index + 1}</span>
-                        <b>{lesson.title}</b>
-                        <small>{lesson.durationText}</small>
-                      </p>
-                    ))}
-                  </div>
-                </div>
-                <div className="landing-learner-sticky">
-                  <span>
-                    <small>수강료</small>
-                    <b>{won(classDetail.price)}</b>
-                  </span>
-                  <span className="landing-learner-apply">신청하기</span>
-                </div>
-              </div>
-              <span className="landing-share-chip" aria-hidden="true">
-                <Link2 size={16} /> 링크 공유 완료
-              </span>
+              <LearnerCoursePhone showShareChip />
             </div>
           </div>
         </section>
@@ -767,8 +718,8 @@ export function LandingPage() {
                 다음 강의를 시작하세요.
               </h2>
               <span>
-                링크나 자료부터 불러오세요. 공개 전까지 언제든 수정하고, 준비가 끝나면 신청 링크로
-                바로 공유할 수 있어요.
+                영상 링크를 연결하거나 파일·문서를 올리세요. 공개 전까지 언제든 수정하고, 준비가
+                끝나면 신청 링크로 바로 공유할 수 있어요.
               </span>
             </div>
             <Link className="landing-button landing-button-light" to="/signup">
