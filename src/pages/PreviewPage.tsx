@@ -49,6 +49,8 @@ import { getPublishIssues, type PublishIssue } from '../utils/classReadiness';
 import { getEnrollmentAction } from '../utils/enrollmentAction';
 import { ConfirmDialog } from '../components/ui';
 import { YouTubePlayer } from '../components/YouTubePlayer';
+import { CourseCurriculum } from '../components/feature/CourseCurriculum';
+import { formatSectionSummary, groupCurriculumItems } from '../utils/curriculumDisplay';
 
 const defaultResumeLessonIndex = 0;
 const lessonCompletionPercent = 90;
@@ -68,58 +70,6 @@ const formatFileSize = (size?: number) => {
   if (!size) return '';
   if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))}KB`;
   return `${(size / 1024 / 1024).toFixed(size >= 10 * 1024 * 1024 ? 0 : 1)}MB`;
-};
-
-const parseDurationMinutes = (durationText: string) => {
-  const hours = durationText.match(/(\d+)\s*시간/)?.[1];
-  const minutes = durationText.match(/(\d+)\s*분/)?.[1];
-  if (hours || minutes) return Number(hours || 0) * 60 + Number(minutes || 0);
-  return Number(durationText.match(/\d+/)?.[0] || 0);
-};
-
-const formatSectionSummary = (count: number, minutes: number) => {
-  if (!minutes) return `${count}개 차시`;
-  if (minutes >= 60) {
-    const hours = Math.floor(minutes / 60);
-    const remainder = minutes % 60;
-    return `${count}개 차시 · ${hours}시간${remainder ? ` ${remainder}분` : ''}`;
-  }
-  return `${count}개 차시 · ${minutes}분`;
-};
-
-const groupCurriculumItems = <
-  T extends { sectionId?: string; sectionTitle?: string; durationText: string },
->(
-  items: T[],
-) => {
-  const groups = items.reduce<
-    Array<{ key: string; title: string; items: T[]; totalMinutes: number }>
-  >((groups, item, index) => {
-    const title = item.sectionTitle || '커리큘럼';
-    const key = item.sectionId || item.sectionTitle || `default-${index}`;
-    const previous = groups[groups.length - 1];
-    if (previous && previous.key === key) {
-      previous.items.push(item);
-      previous.totalMinutes += parseDurationMinutes(item.durationText);
-      return groups;
-    }
-    groups.push({
-      key,
-      title,
-      items: [item],
-      totalMinutes: parseDurationMinutes(item.durationText),
-    });
-    return groups;
-  }, []);
-  return groups.map((group, index) => ({
-    ...group,
-    title:
-      !group.title.trim() || group.title.trim() === '커리큘럼'
-        ? index === 0
-          ? '전체 과정'
-          : `섹션 ${index + 1}`
-        : group.title,
-  }));
 };
 
 const hasLessonContent = (lesson: OneClickLesson) =>
@@ -354,7 +304,11 @@ export function PublicEnrollmentPage() {
         privacyInputRef,
       );
     if (share.paymentType === 'PAID' && !form.paymentConsent)
-      return setFormError('결제 안내를 확인하고 결제 단계 이동에 동의해 주세요.', 'payment', paymentInputRef);
+      return setFormError(
+        '결제 안내를 확인하고 결제 단계 이동에 동의해 주세요.',
+        'payment',
+        paymentInputRef,
+      );
     setSubmitting(true);
     setError('');
     setErrorTarget('');
@@ -646,38 +600,7 @@ export function PublicEnrollmentPage() {
             {!showCurriculum ? (
               <p className="curriculum-empty">상세 커리큘럼은 강의자가 준비한 뒤 안내해 드려요.</p>
             ) : (
-              <div className="learner-curriculum">
-                {curriculumGroups.map((section, sectionIndex) => (
-                  <details
-                    className="learner-curriculum-group"
-                    key={section.key}
-                    open={sectionIndex === 0}
-                  >
-                    <summary className="learner-curriculum-section">
-                      <span>{String(sectionIndex + 1).padStart(2, '0')}</span>
-                      <strong>{section.title}</strong>
-                      <small>
-                        {formatSectionSummary(section.items.length, section.totalMinutes)}
-                      </small>
-                      <ChevronDown aria-hidden="true" />
-                    </summary>
-                    {section.items.map((lesson, lessonIndex) => (
-                      <article className="learner-curriculum-row" key={lesson.lessonId}>
-                        <i>
-                          <Play size={14} fill="currentColor" />
-                        </i>
-                        <span>
-                          <b>
-                            {sectionIndex + 1}-{lessonIndex + 1}차시 · {lesson.title}
-                          </b>
-                          <small>{lesson.description}</small>
-                        </span>
-                        <em>{lesson.durationText}</em>
-                      </article>
-                    ))}
-                  </details>
-                ))}
-              </div>
+              <CourseCurriculum groups={curriculumGroups} />
             )}
           </section>
           <section className="learner-section" id="reviews">
@@ -727,9 +650,7 @@ export function PublicEnrollmentPage() {
         <aside
           ref={applicationRef}
           className={`learner-apply-side ${
-            existing && !showNewApplication && canEnterLearnerRoom(existing)
-              ? 'is-resumable'
-              : ''
+            existing && !showNewApplication && canEnterLearnerRoom(existing) ? 'is-resumable' : ''
           }`}
           id="learner-application"
         >

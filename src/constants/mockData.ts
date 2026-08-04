@@ -137,6 +137,8 @@ export const classDetail: ClassDetail = {
   curriculum: [
     {
       id: '1',
+      sectionId: 'notion-basics',
+      sectionTitle: '기초와 데이터베이스',
       title: '노션 기본기와 데이터베이스',
       description: '데이터베이스 / 필터 / 관계형 DB',
       durationText: '45분',
@@ -144,6 +146,8 @@ export const classDetail: ClassDetail = {
     },
     {
       id: '2',
+      sectionId: 'automation-design',
+      sectionTitle: '자동화 설계',
       title: '반복 업무 자동화 설계',
       description: '자동화 로직 / 템플릿 설계',
       durationText: '50분',
@@ -151,6 +155,8 @@ export const classDetail: ClassDetail = {
     },
     {
       id: '3',
+      sectionId: 'team-workspace',
+      sectionTitle: '팀 협업',
       title: '팀 협업 워크스페이스 구축',
       description: '권한 / 페이지 구성 / 협업 전략',
       durationText: '55분',
@@ -158,6 +164,8 @@ export const classDetail: ClassDetail = {
     },
     {
       id: '4',
+      sectionId: 'final-project',
+      sectionTitle: '실전 프로젝트',
       title: '실전 프로젝트 & Q&A',
       description: '실습 / 피드백 / 질의응답',
       durationText: '60분',

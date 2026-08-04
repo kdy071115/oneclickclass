@@ -65,7 +65,9 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test('자료가 없는 새 클래스는 첫 차시를 만든 뒤 공개하도록 안내한다', async ({ page }, testInfo) => {
+test('자료가 없는 새 클래스는 첫 차시를 만든 뒤 공개하도록 안내한다', async ({
+  page,
+}, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop');
   await completeOnlineClass(page, '신규 클래스 흐름 테스트');
   await expect(page.getByLabel('클래스 링크')).toHaveCount(0);
@@ -91,7 +93,10 @@ test('YouTube 차시를 공개하고 수강생이 강의실까지 입장한다',
   await page.getByRole('link', { name: '신청 페이지 열기' }).click();
   await expect(page.getByRole('heading', { name: 'YouTube 공개 흐름 테스트' })).toBeVisible();
   await expect(
-    page.getByRole('article').filter({ hasText: 'YouTube 공개 흐름 테스트' }),
+    page
+      .getByRole('list', { name: '커리큘럼 차시' })
+      .getByRole('listitem')
+      .filter({ hasText: 'YouTube 공개 흐름 테스트' }),
   ).toBeVisible();
 
   await page.getByPlaceholder('이름을 입력하세요').fill('연결 테스트 수강생');
