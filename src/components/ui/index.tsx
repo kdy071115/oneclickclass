@@ -179,8 +179,11 @@ export function DonutChart({ value, label, tone = 'var(--color-primary)' }: { va
 export function BarChart({ data, label }: { data: readonly { label: string; value: number }[]; label: string }) {
   const max = Math.max(...data.map((item) => item.value), 1);
   const axisSteps = [max, max * 0.75, max * 0.5, max * 0.25, 0];
+  const accessibleSummary = data.length
+    ? `${label}: ${data.map((item) => `${item.label} ${item.value}건`).join(', ')}`
+    : `${label}: 데이터 없음`;
   return (
-    <div className="ui-bar-chart-wrap" role="img" aria-label={label}>
+    <div className="ui-bar-chart-wrap" role="img" aria-label={accessibleSummary}>
       <div className="ui-bar-chart-body">
         <div className="ui-bar-chart-axis">
           {axisSteps.map((step, index) => (
