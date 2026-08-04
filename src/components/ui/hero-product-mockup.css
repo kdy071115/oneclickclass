@@ -1,9 +1,13 @@
 .hero-product-mockup {
+  --hero-mockup-bleed: min(
+    calc(var(--space-12) + var(--space-6)),
+    max(0px, calc((100vw - var(--landing-max)) / 2))
+  );
   position: relative;
-  width: calc(100% + 72px);
+  width: calc(100% + var(--hero-mockup-bleed));
   min-width: 0;
   min-height: 570px;
-  margin: 0 -72px 0 0;
+  margin: 0 calc(0px - var(--hero-mockup-bleed)) 0 0;
   isolation: isolate;
 }
 
@@ -104,9 +108,7 @@
 
 @media (max-width: 1040px) {
   .hero-product-mockup {
-    width: calc(100% + 36px);
     min-height: 540px;
-    margin-right: -36px;
   }
 
   .hero-product-mockup__desktop {

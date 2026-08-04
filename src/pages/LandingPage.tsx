@@ -355,9 +355,13 @@ export function LandingPage() {
           titleId="landing-hero-title"
           title={
             <>
-              링크와 자료가,
+              강의를 여는 일도,
               <br />
-              <span>판매할 강의가 돼요</span>
+              <span>
+                링크 하나면
+                <br />
+                가벼워져요
+              </span>
             </>
           }
           description={

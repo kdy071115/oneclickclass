@@ -18,7 +18,9 @@ describe('LandingPage', () => {
     );
 
     expect(
-      screen.getByRole('heading', { name: /링크와 자료가,\s*판매할 강의가 돼요/ }),
+      screen.getByRole('heading', {
+        name: /강의를 여는 일도,\s*링크 하나면\s*가벼워져요/,
+      }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole('heading', { name: /공개한 뒤에는 오늘 할 일만\s*한눈에 확인하세요/ }),
