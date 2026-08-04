@@ -92,13 +92,7 @@ type InformationMode = 'source' | 'manual' | 'analyzing' | 'generated' | 'analys
 type SaveStatus = 'saving' | 'saved' | 'error';
 type ThumbnailUploadStatus = 'idle' | 'uploading' | 'error';
 type EditableField =
-  | 'title'
-  | 'summary'
-  | 'description'
-  | 'price'
-  | 'capacity'
-  | 'address'
-  | 'startDate';
+  'title' | 'summary' | 'description' | 'price' | 'capacity' | 'address' | 'startDate';
 type FormField =
   | 'title'
   | 'summary'
@@ -136,6 +130,13 @@ interface CreationMeta {
   maxStep: number;
 }
 
+type StoredCreationMeta = Partial<Omit<CreationMeta, 'source'>> & {
+  source?: SourceKind | 'youtube';
+  youtubeUrl?: string;
+  youtubeConnected?: boolean;
+  youtubeMetadata?: ClassSourceMetadata;
+};
+
 interface ScheduleEditValue {
   date: string;
   time: string;
@@ -153,6 +154,8 @@ function getScheduleInputError(date: string, time: string, hasValue = Boolean(da
 }
 
 const CLASS_CREATION_META_KEY = 'oneclick-class-creation-meta';
+const classCreationMetaStorageKey = (editId: string | null) =>
+  editId ? `${CLASS_CREATION_META_KEY}:edit:${editId}` : CLASS_CREATION_META_KEY;
 
 const initialCreationMeta: CreationMeta = {
   deliverySelected: false,
@@ -168,6 +171,30 @@ const initialCreationMeta: CreationMeta = {
   step: 1,
   maxStep: 1,
 };
+
+function clearCompletedCreationSession(storageKey: string) {
+  try {
+    const saved = sessionStorage.getItem(storageKey);
+    if (!saved) return false;
+    const parsed = JSON.parse(saved) as StoredCreationMeta;
+    const normalized: CreationMeta = {
+      ...initialCreationMeta,
+      ...parsed,
+      source: parsed.source === 'youtube' ? 'video-url' : (parsed.source ?? 'none'),
+      videoUrl: parsed.videoUrl || parsed.youtubeUrl || '',
+      videoConnected: parsed.videoConnected ?? parsed.youtubeConnected ?? false,
+      videoMetadata: parsed.videoMetadata ?? parsed.youtubeMetadata,
+      materials: Array.isArray(parsed.materials) ? parsed.materials : [],
+    };
+    if (!normalized.createdId || (!normalized.shareToken && sourceIsReady(normalized)))
+      return false;
+    clearClassDraft();
+    sessionStorage.removeItem(storageKey);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 const typeIcons = {
   online: MonitorPlay,
@@ -210,6 +237,7 @@ function loadCreationMeta(
   hasDraft: boolean,
   editing: boolean,
   requestedSource: string | null,
+  storageKey: string,
 ): CreationMeta {
   if (!editing && (requestedSource === 'video' || requestedSource === 'youtube')) {
     return {
@@ -221,7 +249,7 @@ function loadCreationMeta(
     };
   }
   try {
-    const saved = sessionStorage.getItem(CLASS_CREATION_META_KEY);
+    const saved = sessionStorage.getItem(storageKey);
     if (!saved) {
       return {
         ...initialCreationMeta,
@@ -229,12 +257,7 @@ function loadCreationMeta(
         informationMode: hasDraft || editing ? 'generated' : 'source',
       };
     }
-    const parsed = JSON.parse(saved) as Partial<Omit<CreationMeta, 'source'>> & {
-      source?: SourceKind | 'youtube';
-      youtubeUrl?: string;
-      youtubeConnected?: boolean;
-      youtubeMetadata?: ClassSourceMetadata;
-    };
+    const parsed = JSON.parse(saved) as StoredCreationMeta;
     const restoredStep = Math.min(4, Math.max(1, Number(parsed.step) || 1));
     const restoredMaxStep = Math.min(
       4,
@@ -341,7 +364,9 @@ export function CreateClassPage() {
   const editId = params.get('edit');
   const requestedSource = params.get('source');
   const requestedStep = Math.min(4, Math.max(1, Number(params.get('step')) || 1));
+  const metaStorageKey = classCreationMetaStorageKey(editId);
   const [draft, setDraft] = useState<ClassDraft>(() => {
+    if (!editId) clearCompletedCreationSession(metaStorageKey);
     const savedDraft = editId
       ? loadClassPreview(editId, initialClassDraft)
       : loadClassDraft(initialClassDraft);
@@ -357,6 +382,7 @@ export function CreateClassPage() {
       Boolean(draft.title || draft.summary || draft.description),
       Boolean(editId),
       requestedSource,
+      metaStorageKey,
     ),
   );
   const [step, setStep] = useState(() =>
@@ -388,8 +414,7 @@ export function CreateClassPage() {
   const [editLoadError, setEditLoadError] = useState('');
   const [editReload, setEditReload] = useState(0);
   const [thumbnailPreviewUrl, setThumbnailPreviewUrl] = useState('');
-  const [thumbnailUploadStatus, setThumbnailUploadStatus] =
-    useState<ThumbnailUploadStatus>('idle');
+  const [thumbnailUploadStatus, setThumbnailUploadStatus] = useState<ThumbnailUploadStatus>('idle');
   const [thumbnailUploadError, setThumbnailUploadError] = useState('');
   const analysisAbort = useRef<AbortController>();
   const videoMetadataAbort = useRef<AbortController>();
@@ -421,10 +446,7 @@ export function CreateClassPage() {
   const todayDateValue = localDateInputValue();
   const commitScheduleInlineEdit = useCallback(
     (restoreFocus = true) => {
-      const scheduleError = getScheduleInputError(
-        scheduleEditValue.date,
-        scheduleEditValue.time,
-      );
+      const scheduleError = getScheduleInputError(scheduleEditValue.date, scheduleEditValue.time);
       if (scheduleError) {
         setFieldErrors((current) => ({ ...current, startDate: scheduleError }));
         return false;
@@ -443,9 +465,7 @@ export function CreateClassPage() {
       setEditField(null);
       if (restoreFocus) {
         requestAnimationFrame(() => {
-          document
-            .querySelector<HTMLElement>('[data-preview-field="startDate"] button')
-            ?.focus();
+          document.querySelector<HTMLElement>('[data-preview-field="startDate"] button')?.focus();
         });
       }
       return true;
@@ -521,7 +541,7 @@ export function CreateClassPage() {
       if (editId) saveClassPreview(editId, draftRef.current);
       else saveClassDraft(draftRef.current);
       sessionStorage.setItem(
-        CLASS_CREATION_META_KEY,
+        metaStorageKey,
         JSON.stringify({
           ...metaRef.current,
           step: stepRef.current,
@@ -534,7 +554,7 @@ export function CreateClassPage() {
       setSaveStatus('error');
       return false;
     }
-  }, [editId, editLoading]);
+  }, [editId, editLoading, metaStorageKey]);
 
   useEffect(() => {
     if (!editId || hasClassPreview(editId)) return;
@@ -800,8 +820,7 @@ export function CreateClassPage() {
     const invalid = files.find((file) => {
       if (type === 'online') {
         return (
-          !isSupportedClassSourceFile(file, 'video') ||
-          file.size > classCreationLimits.videoBytes
+          !isSupportedClassSourceFile(file, 'video') || file.size > classCreationLimits.videoBytes
         );
       }
       return (
@@ -1088,10 +1107,7 @@ export function CreateClassPage() {
     }
     if (!targetSection) {
       const existingSectionIds = new Set(sections.map((section) => section.id));
-      sections = await curriculumService.createSection(
-        classId,
-        sourceCurriculumDraft.sectionTitle,
-      );
+      sections = await curriculumService.createSection(classId, sourceCurriculumDraft.sectionTitle);
       targetSection =
         sections.find((section) => !existingSectionIds.has(section.id)) ??
         sections.find((section) => section.title === sourceCurriculumDraft.sectionTitle);
@@ -1133,10 +1149,8 @@ export function CreateClassPage() {
         shareToken,
       };
       setMeta(nextMeta);
-      sessionStorage.setItem(
-        CLASS_CREATION_META_KEY,
-        JSON.stringify(nextMeta),
-      );
+      if (!editId) clearClassDraft();
+      sessionStorage.removeItem(metaStorageKey);
       setSaveStatus('saved');
       setMaxStep(5);
       setStep(5);
@@ -1203,9 +1217,7 @@ export function CreateClassPage() {
     }
     setEditField(null);
     requestAnimationFrame(() => {
-      document
-        .querySelector<HTMLElement>(`[data-preview-field="${field}"] button`)
-        ?.focus();
+      document.querySelector<HTMLElement>(`[data-preview-field="${field}"] button`)?.focus();
     });
   }
 
@@ -1227,9 +1239,7 @@ export function CreateClassPage() {
       clearFieldError('startDate');
       setEditField(null);
       requestAnimationFrame(() => {
-        document
-          .querySelector<HTMLElement>('[data-preview-field="startDate"] button')
-          ?.focus();
+        document.querySelector<HTMLElement>('[data-preview-field="startDate"] button')?.focus();
       });
       return;
     }
@@ -1277,6 +1287,7 @@ export function CreateClassPage() {
   function restart() {
     clearClassDraft();
     sessionStorage.removeItem(CLASS_CREATION_META_KEY);
+    sessionStorage.removeItem(metaStorageKey);
     setDraft(initialClassDraft);
     setMeta(initialCreationMeta);
     setStep(1);
@@ -1759,11 +1770,7 @@ export function CreateClassPage() {
                       <p>모든 내용은 지금 수정할 수 있고 자동으로 저장됩니다.</p>
                     </span>
                   </div>
-                  <button
-                    className="information-source-reset"
-                    type="button"
-                    onClick={resetSource}
-                  >
+                  <button className="information-source-reset" type="button" onClick={resetSource}>
                     <RefreshCw />
                     자료 다시 선택
                   </button>
@@ -2046,11 +2053,7 @@ export function CreateClassPage() {
                   <b>수정하고 싶은 부분을 클릭해 보세요.</b>
                   제목, 소개, 가격과 내용을 이 화면에서 바로 바꿀 수 있어요.
                 </span>
-                <button
-                  type="button"
-                  aria-label="도움말 닫기"
-                  onClick={dismissPreviewHint}
-                >
+                <button type="button" aria-label="도움말 닫기" onClick={dismissPreviewHint}>
                   <X />
                 </button>
               </div>
@@ -2259,7 +2262,6 @@ export function CreateClassPage() {
                       )}
                     </div>
                   </div>
-
                 </section>
 
                 <div className="preview-content">

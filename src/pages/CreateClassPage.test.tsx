@@ -7,6 +7,8 @@ import { CLASS_DRAFT_KEY } from '../utils/classDraft';
 import { CreateClassPage } from './CreateClassPage';
 
 const creationMetaKey = 'oneclick-class-creation-meta';
+const originalShowModal = HTMLDialogElement.prototype.showModal;
+const originalClose = HTMLDialogElement.prototype.close;
 
 function renderCreator(path: string) {
   return render(
@@ -21,11 +23,27 @@ describe('CreateClassPage accessibility and ordering', () => {
     localStorage.clear();
     sessionStorage.clear();
     vi.stubGlobal('scrollTo', vi.fn());
+    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
+      configurable: true,
+      value(this: HTMLDialogElement) {
+        this.setAttribute('open', '');
+      },
+    });
+    Object.defineProperty(HTMLDialogElement.prototype, 'close', {
+      configurable: true,
+      value(this: HTMLDialogElement) {
+        this.removeAttribute('open');
+      },
+    });
   });
 
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+    if (originalShowModal) HTMLDialogElement.prototype.showModal = originalShowModal;
+    else delete (HTMLDialogElement.prototype as { showModal?: () => void }).showModal;
+    if (originalClose) HTMLDialogElement.prototype.close = originalClose;
+    else delete (HTMLDialogElement.prototype as { close?: () => void }).close;
   });
 
   it('별도 헤더 없이 진행 영역에 브랜드와 나가기 동작을 함께 배치한다', () => {
@@ -94,6 +112,93 @@ describe('CreateClassPage accessibility and ordering', () => {
     expect(
       Array.from(confirmDialog?.querySelectorAll('button') ?? []).map((button) => button.textContent),
     ).toContain('저장하고 계속');
+  });
+
+  it('저장을 마친 생성 초안은 다음 새 클래스에 남기지 않는다', async () => {
+    const user = userEvent.setup();
+    const completedTitle = '저장 완료 뒤 초기화할 클래스';
+    sessionStorage.setItem(
+      CLASS_DRAFT_KEY,
+      JSON.stringify({
+        ...initialClassDraft,
+        title: completedTitle,
+        summary: '저장 완료 후 새 클래스에서 복원되면 안 되는 소개입니다.',
+        description: '저장 상태와 신규 생성 상태를 분리하는 회귀 테스트입니다.',
+      }),
+    );
+    sessionStorage.setItem(
+      creationMetaKey,
+      JSON.stringify({ deliverySelected: true, informationMode: 'manual', step: 4, maxStep: 4 }),
+    );
+    renderCreator('/classes/new?step=4');
+
+    await user.click(screen.getByRole('button', { name: '기본 정보 저장' }));
+    await user.click(screen.getByRole('button', { name: '저장하고 계속' }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('heading', { name: '클래스 기본 정보가 준비됐어요' }),
+      ).toBeInTheDocument(),
+    );
+    expect(sessionStorage.getItem(CLASS_DRAFT_KEY)).toBeNull();
+    expect(sessionStorage.getItem(creationMetaKey)).toBeNull();
+
+    cleanup();
+    renderCreator('/classes/new?step=4');
+    expect(screen.queryByText(completedTitle)).toBeNull();
+    expect(
+      screen.getByRole('heading', { name: '클래스 제목을 입력해 주세요' }),
+    ).toBeInTheDocument();
+  });
+
+  it('이전 버전에서 남은 완료 상태도 새 클래스 진입 시 정리한다', () => {
+    const legacyTitle = '이전에 저장을 마친 클래스';
+    sessionStorage.setItem(
+      CLASS_DRAFT_KEY,
+      JSON.stringify({ ...initialClassDraft, title: legacyTitle }),
+    );
+    sessionStorage.setItem(
+      creationMetaKey,
+      JSON.stringify({
+        deliverySelected: true,
+        informationMode: 'manual',
+        createdId: 'completed-class',
+        shareToken: 'completed-share-token',
+        step: 4,
+        maxStep: 4,
+      }),
+    );
+
+    renderCreator('/classes/new?step=4');
+
+    expect(screen.queryByText(legacyTitle)).toBeNull();
+    expect(
+      screen.getByRole('heading', { name: '클래스 제목을 입력해 주세요' }),
+    ).toBeInTheDocument();
+    expect(sessionStorage.getItem(CLASS_DRAFT_KEY)).toBeNull();
+    expect(sessionStorage.getItem(creationMetaKey)).toBeNull();
+  });
+
+  it('기존 강의 수정 상태를 새 강의 생성 상태와 별도 키에 저장한다', async () => {
+    const newClassMeta = {
+      deliverySelected: true,
+      informationMode: 'manual',
+      createdId: 'new-class-draft',
+      step: 2,
+      maxStep: 2,
+    };
+    sessionStorage.setItem(creationMetaKey, JSON.stringify(newClassMeta));
+    localStorage.setItem(
+      'oneclick-class-preview:existing-class',
+      JSON.stringify({ ...initialClassDraft, title: '기존 강의' }),
+    );
+
+    renderCreator('/classes/new?edit=existing-class&step=4');
+
+    await waitFor(() =>
+      expect(sessionStorage.getItem(`${creationMetaKey}:edit:existing-class`)).not.toBeNull(),
+    );
+    expect(JSON.parse(sessionStorage.getItem(creationMetaKey) || '{}')).toEqual(newClassMeta);
   });
 
   it('미리보기 편집기에 명시적인 이름을 제공하고 편집 종료 후 포커스를 복원한다', async () => {
