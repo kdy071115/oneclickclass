@@ -123,7 +123,11 @@ describe('instructor mock services', () => {
     await expect(
       classService.analyzeSource({
         type: 'online',
-        source: { kind: 'youtube', youtubeUrl: 'https://youtu.be/M7lc1UVf-VE' },
+        source: {
+          kind: 'video-url',
+          videoUrl: 'https://vimeo.com/123456789',
+          videoProvider: 'VIMEO',
+        },
       }),
     ).resolves.toMatchObject({
       title: expect.any(String),

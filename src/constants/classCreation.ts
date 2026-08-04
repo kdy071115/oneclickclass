@@ -9,7 +9,7 @@ export const classCreationFlowSteps = [
   {
     label: '클래스 정보',
     title: '클래스 정보를 준비해 볼까요?',
-    description: '자료를 올리면 제목, 소개와 내용을 빠르게 준비해 드려요.',
+    description: '영상이나 자료를 연결하면 제목, 소개와 내용을 빠르게 준비해 드려요.',
   },
   {
     label: '세부 설정',
@@ -37,7 +37,7 @@ export const classTypeOptions = [
     value: 'online',
     label: '온라인',
     description: '녹화 영상을 원하는 시간에 시청하는 클래스',
-    detail: 'YouTube 영상 또는 강의 영상 활용',
+    detail: 'YouTube, Vimeo 또는 강의 영상 파일 활용',
   },
   {
     value: 'live',

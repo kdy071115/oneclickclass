@@ -6,11 +6,11 @@ import {
   ChevronDown,
   ChevronRight,
   CircleDollarSign,
+  Link2,
   Plus,
   Sparkles,
   TrendingUp,
   Wallet,
-  Youtube,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCallback, useState } from 'react';
@@ -70,15 +70,15 @@ function CreatorActivation({ compact = false }: { compact?: boolean }) {
         <Sparkles />
       </span>
       <div className="creator-activation-copy">
-        <h2>YouTube 링크 하나로 첫 강의를 시작해 보세요</h2>
+        <h2>영상 링크 하나로 첫 강의를 시작해 보세요</h2>
         <p>
           영상을 확인한 뒤 제목과 소개의 초안을 만들고, 공개할 페이지에서 바로 다듬을 수 있어요.
         </p>
       </div>
       <div className="creator-activation-actions">
-        <Link className="ui-button ui-button-primary" to="/classes/new?source=youtube&step=2">
-          <Youtube />
-          YouTube 링크로 시작
+        <Link className="ui-button ui-button-primary" to="/classes/new?source=video&step=2">
+          <Link2 />
+          영상 링크로 시작
           <ArrowRight />
         </Link>
         <Link className="ui-button ui-button-secondary" to="/classes/new">

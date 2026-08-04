@@ -14,15 +14,15 @@ import {
 } from './classCreation';
 
 describe('source curriculum builder', () => {
-  it('YouTube 소스를 공개 가능한 첫 차시로 변환한다', () => {
+  it('영상 URL 소스를 공개 가능한 첫 차시로 변환한다', () => {
     expect(
       buildSourceCurriculum({
-        kind: 'youtube',
+        kind: 'video-url',
         classTitle: '업무 자동화 입문',
         classSummary: '반복 업무를 자동화하는 방법을 배워요.',
-        youtubeUrl: 'https://youtu.be/M7lc1UVf-VE',
-        youtubeTitle: '첫 자동화 만들기',
-        youtubeDurationSeconds: 901,
+        videoUrl: 'https://vimeo.com/123456789',
+        videoTitle: '첫 자동화 만들기',
+        videoDurationSeconds: 901,
         materials: [],
       }),
     ).toEqual({
@@ -31,7 +31,7 @@ describe('source curriculum builder', () => {
         expect.objectContaining({
           title: '첫 자동화 만들기',
           contentType: 'video',
-          contentUrl: 'https://youtu.be/M7lc1UVf-VE',
+          contentUrl: 'https://vimeo.com/123456789',
           durationMinutes: 16,
           published: true,
         }),

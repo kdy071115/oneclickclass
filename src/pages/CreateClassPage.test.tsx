@@ -40,6 +40,15 @@ describe('CreateClassPage accessibility and ordering', () => {
     expect(container.querySelector('.creator-save-status')).toHaveAttribute('role', 'status');
   });
 
+  it('기존 진행 방식 분류인 온라인·라이브·오프라인을 유지한다', () => {
+    renderCreator('/classes/new');
+
+    expect(screen.getByText('온라인', { selector: 'b' })).toBeInTheDocument();
+    expect(screen.getByText('라이브', { selector: 'b' })).toBeInTheDocument();
+    expect(screen.getByText('오프라인', { selector: 'b' })).toBeInTheDocument();
+    expect(screen.queryByText('녹화형')).toBeNull();
+  });
+
   it('안내와 자료 다시 선택 동작을 클래스 정보 입력 폼 마지막에 함께 배치한다', () => {
     sessionStorage.setItem(
       creationMetaKey,
@@ -190,6 +199,39 @@ describe('CreateClassPage accessibility and ordering', () => {
     expect(stepThree.container.querySelector('.creator-step-heading')).toHaveClass('is-compact');
     expect(stepThree.container.querySelector('.creator-context')).toHaveClass('is-compact');
     expect(stepThree.container.querySelector('.creator-actions')).toHaveClass('is-compact');
+  });
+
+  it('온라인 클래스에서 영상 링크·파일·직접 작성 경로를 함께 안내한다', async () => {
+    const user = userEvent.setup();
+    renderCreator('/classes/new?source=video&step=2');
+
+    expect(screen.getByRole('heading', { name: '영상 링크 연결' })).toBeInTheDocument();
+    expect(screen.getByText(/YouTube, Vimeo 또는 직접 재생 가능한 영상 주소/)).toBeInTheDocument();
+    expect(screen.getByText(/영상 파일을 끌어놓거나 클릭해 업로드/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /자료 없이 시작하기/ })).toBeInTheDocument();
+
+    const input = screen.getByRole('textbox', { name: '영상 URL' });
+    await user.type(input, 'https://vimeo.com/123456789');
+    await user.click(screen.getByRole('button', { name: '영상 불러오기' }));
+
+    await waitFor(() => expect(screen.getByText(/Vimeo 영상 · 연결 완료/)).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: /이 자료로 클래스 정보 만들기/ })).toBeEnabled();
+  });
+
+  it('재생을 보장할 수 없는 외부 영상 페이지는 연결 전에 안내한다', async () => {
+    const user = userEvent.setup();
+    renderCreator('/classes/new?source=video&step=2');
+
+    await user.type(
+      screen.getByRole('textbox', { name: '영상 URL' }),
+      'https://video.example.com/watch/lesson',
+    );
+    await user.click(screen.getByRole('button', { name: '영상 불러오기' }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'YouTube, Vimeo 또는 MP4·MOV·WEBM 영상 파일 주소',
+    );
+    expect(screen.queryByRole('button', { name: /이 자료로 클래스 정보 만들기/ })).toBeNull();
   });
 
   it('라이브 미리보기 정보를 참가비, 인원, 일정 순서로 정렬한다', () => {

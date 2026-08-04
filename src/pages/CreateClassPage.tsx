@@ -65,15 +65,20 @@ import {
   buildSourceCurriculum,
   formatMediaDuration,
   formatClassSchedule,
-  getYouTubeVideoId,
   isSupportedClassSourceFile,
   isPastClassSchedule,
-  isValidYouTubeUrl,
   localDateInputValue,
   readVideoDuration,
   scheduleDateValue,
   scheduleTimeValue,
 } from '../utils/classCreation';
+import {
+  contentProviderLabel,
+  detectContentProvider,
+  isSupportedVideoProvider,
+  validateContentUrl,
+  type SupportedVideoProvider,
+} from '../utils/content';
 import {
   getClassThumbnail,
   optimizeClassThumbnail,
@@ -82,7 +87,7 @@ import {
 import type { ClassDetail, ClassDraft, ClassItem } from '../types/class';
 
 type SupportedClassType = Exclude<ClassDraft['type'], 'hybrid'>;
-type SourceKind = 'none' | 'youtube' | 'video' | 'documents';
+type SourceKind = 'none' | 'video-url' | 'video' | 'documents';
 type InformationMode = 'source' | 'manual' | 'analyzing' | 'generated' | 'analysis-error';
 type SaveStatus = 'saving' | 'saved' | 'error';
 type ThumbnailUploadStatus = 'idle' | 'uploading' | 'error';
@@ -119,10 +124,10 @@ interface UploadedMaterial {
 interface CreationMeta {
   deliverySelected: boolean;
   source: SourceKind;
-  youtubeUrl: string;
-  youtubeVideoId: string;
-  youtubeConnected: boolean;
-  youtubeMetadata?: ClassSourceMetadata;
+  videoUrl: string;
+  videoProvider: SupportedVideoProvider | '';
+  videoConnected: boolean;
+  videoMetadata?: ClassSourceMetadata;
   materials: UploadedMaterial[];
   informationMode: InformationMode;
   createdId: string;
@@ -152,10 +157,10 @@ const CLASS_CREATION_META_KEY = 'oneclick-class-creation-meta';
 const initialCreationMeta: CreationMeta = {
   deliverySelected: false,
   source: 'none',
-  youtubeUrl: '',
-  youtubeVideoId: '',
-  youtubeConnected: false,
-  youtubeMetadata: undefined,
+  videoUrl: '',
+  videoProvider: '',
+  videoConnected: false,
+  videoMetadata: undefined,
   materials: [],
   informationMode: 'source',
   createdId: '',
@@ -206,7 +211,7 @@ function loadCreationMeta(
   editing: boolean,
   requestedSource: string | null,
 ): CreationMeta {
-  if (!editing && requestedSource === 'youtube') {
+  if (!editing && (requestedSource === 'video' || requestedSource === 'youtube')) {
     return {
       ...initialCreationMeta,
       deliverySelected: true,
@@ -224,17 +229,29 @@ function loadCreationMeta(
         informationMode: hasDraft || editing ? 'generated' : 'source',
       };
     }
-    const parsed = JSON.parse(saved) as Partial<CreationMeta>;
+    const parsed = JSON.parse(saved) as Partial<Omit<CreationMeta, 'source'>> & {
+      source?: SourceKind | 'youtube';
+      youtubeUrl?: string;
+      youtubeConnected?: boolean;
+      youtubeMetadata?: ClassSourceMetadata;
+    };
     const restoredStep = Math.min(4, Math.max(1, Number(parsed.step) || 1));
     const restoredMaxStep = Math.min(
       4,
       Math.max(restoredStep, Number(parsed.maxStep) || restoredStep),
     );
+    const videoUrl = parsed.videoUrl || parsed.youtubeUrl || '';
+    const detectedProvider = detectContentProvider(videoUrl, 'video');
     return {
       ...initialCreationMeta,
       ...parsed,
-      youtubeVideoId: parsed.youtubeVideoId || getYouTubeVideoId(parsed.youtubeUrl || ''),
-      youtubeMetadata: parsed.youtubeMetadata,
+      source: parsed.source === 'youtube' ? 'video-url' : (parsed.source ?? 'none'),
+      videoUrl,
+      videoProvider:
+        parsed.videoProvider ||
+        (isSupportedVideoProvider(detectedProvider) ? detectedProvider : ''),
+      videoConnected: parsed.videoConnected ?? parsed.youtubeConnected ?? false,
+      videoMetadata: parsed.videoMetadata ?? parsed.youtubeMetadata,
       deliverySelected: parsed.deliverySelected ?? (hasDraft || editing),
       step: restoredStep,
       maxStep: editing ? 4 : restoredMaxStep,
@@ -268,7 +285,7 @@ function formatPrice(value: number) {
 
 function sourceIsReady(meta: CreationMeta) {
   return (
-    (meta.source === 'youtube' && meta.youtubeConnected) ||
+    (meta.source === 'video-url' && meta.videoConnected) ||
     (meta.materials.length > 0 &&
       meta.materials.every((file) => file.status === 'uploaded' && Boolean(file.url)))
   );
@@ -350,7 +367,7 @@ export function CreateClassPage() {
   const [saveRetryToken, setSaveRetryToken] = useState(0);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [youtubeError, setYoutubeError] = useState('');
+  const [videoUrlError, setVideoUrlError] = useState('');
   const [sourceDragActive, setSourceDragActive] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
@@ -375,7 +392,7 @@ export function CreateClassPage() {
     useState<ThumbnailUploadStatus>('idle');
   const [thumbnailUploadError, setThumbnailUploadError] = useState('');
   const analysisAbort = useRef<AbortController>();
-  const youtubeMetadataAbort = useRef<AbortController>();
+  const videoMetadataAbort = useRef<AbortController>();
   const saveTimer = useRef<number>();
   const inlineOriginal = useRef<Partial<ClassDraft>>({});
   const pendingThumbnailFile = useRef<File>();
@@ -443,13 +460,15 @@ export function CreateClassPage() {
         : meta.informationMode === 'generated'
           ? '초안이 준비됐어요. 공개 전에 필요한 부분만 확인해 주세요.'
           : type === 'online'
-            ? '영상 하나면 충분해요. 제목과 소개는 자동으로 초안을 만들어 드려요.'
+            ? '영상 링크나 파일 하나면 충분해요. 제목과 소개 초안을 만들어 드려요.'
             : '가지고 있는 자료를 바탕으로 제목, 소개와 내용을 준비해 드려요.';
   const informationSourceLabel =
     meta.informationMode === 'manual'
       ? '직접 작성'
-      : meta.source === 'youtube'
-        ? 'YouTube 영상'
+      : meta.source === 'video-url'
+        ? meta.videoProvider
+          ? contentProviderLabel[meta.videoProvider]
+          : '영상 링크'
         : meta.source === 'video'
           ? '영상 파일'
           : meta.source === 'documents'
@@ -459,9 +478,9 @@ export function CreateClassPage() {
     kind: meta.source,
     classTitle: draft.title,
     classSummary: draft.summary,
-    youtubeUrl: meta.youtubeConnected ? meta.youtubeUrl : undefined,
-    youtubeTitle: meta.youtubeMetadata?.title,
-    youtubeDurationSeconds: meta.youtubeMetadata?.durationSeconds,
+    videoUrl: meta.videoConnected ? meta.videoUrl : undefined,
+    videoTitle: meta.videoMetadata?.title,
+    videoDurationSeconds: meta.videoMetadata?.durationSeconds,
     materials: meta.materials.map(({ name, url, durationSeconds }) => ({
       name,
       url,
@@ -478,8 +497,8 @@ export function CreateClassPage() {
           ? LoaderCircle
           : meta.informationMode === 'analysis-error'
             ? CircleAlert
-            : meta.source === 'youtube'
-              ? Play
+            : meta.source === 'video-url'
+              ? Link2
               : meta.source === 'video'
                 ? Video
                 : meta.source === 'documents'
@@ -587,7 +606,7 @@ export function CreateClassPage() {
   useEffect(
     () => () => {
       analysisAbort.current?.abort();
-      youtubeMetadataAbort.current?.abort();
+      videoMetadataAbort.current?.abort();
     },
     [],
   );
@@ -602,7 +621,7 @@ export function CreateClassPage() {
   function selectType(nextType: SupportedClassType) {
     if (meta.deliverySelected && type === nextType) return;
     analysisAbort.current?.abort();
-    youtubeMetadataAbort.current?.abort();
+    videoMetadataAbort.current?.abort();
     sourceFiles.current.clear();
     const hasWrittenInformation = Boolean(
       draft.title.trim() || draft.summary.trim() || draft.description.trim(),
@@ -616,10 +635,10 @@ export function CreateClassPage() {
       ...current,
       deliverySelected: true,
       source: 'none',
-      youtubeUrl: '',
-      youtubeVideoId: '',
-      youtubeConnected: false,
-      youtubeMetadata: undefined,
+      videoUrl: '',
+      videoProvider: '',
+      videoConnected: false,
+      videoMetadata: undefined,
       materials: [],
       informationMode: hasWrittenInformation ? 'manual' : 'source',
     }));
@@ -641,8 +660,19 @@ export function CreateClassPage() {
         {
           type,
           source: {
-            kind: meta.source === 'none' ? 'documents' : meta.source,
-            youtubeUrl: meta.source === 'youtube' ? meta.youtubeUrl : undefined,
+            kind:
+              meta.source === 'none'
+                ? 'documents'
+                : meta.source === 'video-url' && meta.videoProvider === 'YOUTUBE'
+                  ? 'youtube'
+                  : meta.source,
+            videoUrl: meta.source === 'video-url' ? meta.videoUrl : undefined,
+            videoProvider:
+              meta.source === 'video-url' ? meta.videoProvider || undefined : undefined,
+            youtubeUrl:
+              meta.source === 'video-url' && meta.videoProvider === 'YOUTUBE'
+                ? meta.videoUrl
+                : undefined,
             materials: meta.materials.map((file) => ({
               url: file.url!,
               name: file.name,
@@ -666,9 +696,9 @@ export function CreateClassPage() {
       setMeta((current) => ({
         ...current,
         informationMode: 'generated',
-        youtubeMetadata: result.sourceMetadata
-          ? { ...current.youtubeMetadata, ...result.sourceMetadata }
-          : current.youtubeMetadata,
+        videoMetadata: result.sourceMetadata
+          ? { ...current.videoMetadata, ...result.sourceMetadata }
+          : current.videoMetadata,
       }));
     } catch {
       if (controller.signal.aborted) return;
@@ -684,56 +714,54 @@ export function CreateClassPage() {
 
   function resetSource() {
     analysisAbort.current?.abort();
-    youtubeMetadataAbort.current?.abort();
+    videoMetadataAbort.current?.abort();
     sourceFiles.current.clear();
     setMeta((current) => ({
       ...current,
       source: 'none',
-      youtubeUrl: '',
-      youtubeVideoId: '',
-      youtubeConnected: false,
-      youtubeMetadata: undefined,
+      videoUrl: '',
+      videoProvider: '',
+      videoConnected: false,
+      videoMetadata: undefined,
       materials: [],
       informationMode: 'source',
     }));
-    setYoutubeError('');
+    setVideoUrlError('');
     setError('');
   }
 
-  async function connectYouTube() {
-    const videoId = getYouTubeVideoId(meta.youtubeUrl);
-    if (!isValidYouTubeUrl(meta.youtubeUrl) || !videoId) {
-      setYoutubeError('올바른 YouTube 영상 주소를 입력해 주세요.');
+  async function connectVideoUrl() {
+    const videoUrl = meta.videoUrl.trim();
+    const validationError = validateContentUrl(videoUrl, 'video');
+    const provider = detectContentProvider(videoUrl, 'video');
+    if (validationError || !isSupportedVideoProvider(provider)) {
+      setVideoUrlError(
+        validationError || 'YouTube, Vimeo 또는 직접 재생 가능한 영상 주소를 입력해 주세요.',
+      );
       return;
     }
-    setYoutubeError('');
-    youtubeMetadataAbort.current?.abort();
+    setVideoUrlError('');
+    videoMetadataAbort.current?.abort();
     const controller = new AbortController();
-    youtubeMetadataAbort.current = controller;
+    videoMetadataAbort.current = controller;
     sourceFiles.current.clear();
     setMeta((current) => ({
       ...current,
-      source: 'youtube',
-      youtubeVideoId: videoId,
-      youtubeConnected: true,
-      youtubeMetadata: {
-        thumbnailUrl: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
-      },
+      source: 'video-url',
+      videoUrl,
+      videoProvider: provider,
+      videoConnected: true,
+      videoMetadata: undefined,
       materials: [],
       informationMode: 'source',
     }));
     try {
-      const metadata = await classService.inspectYouTube(meta.youtubeUrl, videoId, controller.signal);
+      const metadata = await classService.inspectVideo(videoUrl, provider, controller.signal);
       if (controller.signal.aborted) return;
-      setMeta((current) => ({ ...current, youtubeMetadata: metadata }));
+      setMeta((current) => ({ ...current, videoMetadata: metadata }));
     } catch {
       if (controller.signal.aborted) return;
-      setMeta((current) => ({
-        ...current,
-        youtubeMetadata: {
-          thumbnailUrl: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
-        },
-      }));
+      setMeta((current) => ({ ...current, videoMetadata: undefined }));
     }
   }
 
@@ -791,7 +819,7 @@ export function CreateClassPage() {
     }
 
     analysisAbort.current?.abort();
-    youtubeMetadataAbort.current?.abort();
+    videoMetadataAbort.current?.abort();
     sourceFiles.current.clear();
     const materials = files.map((file) => ({
       id: crypto.randomUUID(),
@@ -804,10 +832,10 @@ export function CreateClassPage() {
     setMeta((current) => ({
       ...current,
       source: type === 'online' ? 'video' : 'documents',
-      youtubeVideoId: '',
-      youtubeConnected: false,
-      youtubeMetadata: undefined,
-      youtubeUrl: '',
+      videoUrl: '',
+      videoProvider: '',
+      videoConnected: false,
+      videoMetadata: undefined,
       materials,
       informationMode: 'source',
     }));
@@ -1415,48 +1443,52 @@ export function CreateClassPage() {
                         <Play />
                       </i>
                       <span>
-                        <h2>YouTube 영상 연결</h2>
-                        <p>공개 또는 일부 공개 영상 주소를 붙여 넣어 주세요.</p>
+                        <h2>영상 링크 연결</h2>
+                        <p>YouTube, Vimeo 또는 직접 재생 가능한 영상 주소를 붙여 넣어 주세요.</p>
                       </span>
                     </div>
-                    <div className={`youtube-input ${youtubeError ? 'invalid' : ''}`}>
+                    <div className={`youtube-input ${videoUrlError ? 'invalid' : ''}`}>
                       <Link2 />
                       <label>
-                        <span className="sr-only">YouTube URL</span>
+                        <span className="sr-only">영상 URL</span>
                         <input
-                          value={meta.youtubeUrl}
+                          type="url"
+                          value={meta.videoUrl}
                           onChange={(event) => {
                             setMeta((current) => ({
                               ...current,
-                              youtubeUrl: event.target.value,
-                              youtubeVideoId: '',
-                              youtubeConnected: false,
-                              youtubeMetadata: undefined,
+                              videoUrl: event.target.value,
+                              videoProvider: '',
+                              videoConnected: false,
+                              videoMetadata: undefined,
                             }));
-                            setYoutubeError('');
+                            setVideoUrlError('');
                           }}
-                          placeholder="https://www.youtube.com/watch?v=..."
-                          aria-invalid={Boolean(youtubeError)}
+                          placeholder="https://youtu.be/... 또는 https://.../lesson.mp4"
+                          aria-invalid={Boolean(videoUrlError)}
                         />
                       </label>
-                      <button type="button" onClick={() => void connectYouTube()}>
+                      <button type="button" onClick={() => void connectVideoUrl()}>
                         영상 불러오기
                       </button>
                     </div>
-                    {youtubeError && (
-                      <p className="field-message error">
+                    {videoUrlError && (
+                      <p className="field-message error" role="alert">
                         <CircleAlert />
-                        {youtubeError}
+                        {videoUrlError}
                       </p>
                     )}
-                    {meta.youtubeConnected && (
+                    <p className="source-card-outcome">
+                      연결한 영상으로 클래스 소개 초안을 만들고 첫 차시도 추가해요.
+                    </p>
+                    {meta.videoConnected && (
                       <article className="connected-video">
                         <div>
                           <Play />
-                          {meta.youtubeMetadata?.thumbnailUrl && (
+                          {meta.videoMetadata?.thumbnailUrl && (
                             <img
-                              src={meta.youtubeMetadata.thumbnailUrl}
-                              alt="연결한 YouTube 영상 썸네일"
+                              src={meta.videoMetadata.thumbnailUrl}
+                              alt="연결한 영상 썸네일"
                               onError={(event) => {
                                 event.currentTarget.hidden = true;
                               }}
@@ -1464,13 +1496,25 @@ export function CreateClassPage() {
                           )}
                         </div>
                         <span>
-                          <small>YouTube · 연결 완료</small>
-                          <b>{meta.youtubeMetadata?.title || '연결한 YouTube 영상'}</b>
+                          <small>
+                            {meta.videoProvider
+                              ? contentProviderLabel[meta.videoProvider]
+                              : '영상 링크'}{' '}
+                            · 연결 완료
+                          </small>
+                          <b>
+                            {meta.videoMetadata?.title ||
+                              `연결한 ${
+                                meta.videoProvider
+                                  ? contentProviderLabel[meta.videoProvider]
+                                  : '영상'
+                              }`}
+                          </b>
                           <em>
                             {[
-                              meta.youtubeMetadata?.channel,
-                              meta.youtubeMetadata?.durationSeconds
-                                ? formatMediaDuration(meta.youtubeMetadata.durationSeconds)
+                              meta.videoMetadata?.channel,
+                              meta.videoMetadata?.durationSeconds
+                                ? formatMediaDuration(meta.videoMetadata.durationSeconds)
                                 : '',
                             ]
                               .filter(Boolean)
@@ -1498,7 +1542,7 @@ export function CreateClassPage() {
                 )}
 
                 <label
-                  className={`material-dropzone ${meta.youtubeConnected ? 'is-replace' : ''} ${
+                  className={`material-dropzone ${meta.videoConnected ? 'is-replace' : ''} ${
                     sourceDragActive ? 'is-dragging' : ''
                   }`}
                   onDragOver={(event: DragEvent<HTMLLabelElement>) => {
@@ -1536,10 +1580,10 @@ export function CreateClassPage() {
                   </b>
                   <span>
                     {type === 'online'
-                      ? `${classCreationFileTypes.video.label} · 최대 2GB`
+                      ? `${classCreationFileTypes.video.label} · 최대 2GB · 첫 차시로 자동 추가`
                       : '파일당 최대 50MB · 여러 파일 선택 가능'}
                   </span>
-                  {meta.youtubeConnected && <em>새 영상을 등록하면 YouTube 연결을 교체합니다</em>}
+                  {meta.videoConnected && <em>새 영상 파일을 등록하면 연결한 링크를 교체합니다</em>}
                 </label>
 
                 {meta.materials.length > 0 && (
@@ -1619,7 +1663,10 @@ export function CreateClassPage() {
                   </button>
                 )}
                 <button className="manual-entry-button" type="button" onClick={chooseManualMode}>
-                  자료 없이 직접 작성하기
+                  <span>
+                    <b>자료 없이 시작하기</b>
+                    <small>클래스 정보부터 작성하고 영상은 나중에 추가할 수 있어요.</small>
+                  </span>
                   <ChevronRight />
                 </button>
               </>
@@ -1628,7 +1675,9 @@ export function CreateClassPage() {
             {meta.informationMode === 'analyzing' && (
               <AnalysisProgress
                 sourceLabel={
-                  meta.source === 'youtube' ? 'YouTube 영상' : `${meta.materials.length}개 자료`
+                  meta.source === 'video-url' && meta.videoProvider
+                    ? contentProviderLabel[meta.videoProvider]
+                    : `${meta.materials.length}개 자료`
                 }
               />
             )}
@@ -2290,7 +2339,7 @@ export function CreateClassPage() {
                       <details className="preview-materials">
                         <summary>
                           <span>
-                            {meta.source === 'youtube' || meta.source === 'video' ? (
+                            {meta.source === 'video-url' || meta.source === 'video' ? (
                               <>
                                 <Video /> 강의 영상 · 등록됨
                               </>
@@ -2302,12 +2351,13 @@ export function CreateClassPage() {
                           </span>
                           <small>더보기</small>
                         </summary>
-                        {meta.source === 'youtube' && (
+                        {meta.source === 'video-url' && (
                           <p>
-                            {meta.youtubeMetadata?.title || 'YouTube 영상'}
-                            {meta.youtubeMetadata?.channel
-                              ? ` · ${meta.youtubeMetadata.channel}`
-                              : ''}
+                            {meta.videoMetadata?.title ||
+                              (meta.videoProvider
+                                ? contentProviderLabel[meta.videoProvider]
+                                : '영상 링크')}
+                            {meta.videoMetadata?.channel ? ` · ${meta.videoMetadata.channel}` : ''}
                           </p>
                         )}
                         {meta.materials.map((file) => (

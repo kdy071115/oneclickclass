@@ -3,14 +3,17 @@ import {
   classCreationFileTypes,
 } from '../constants/classCreation';
 import type { CurriculumLesson } from '../types/class';
+import { getYouTubeVideoId } from './content';
+
+export { getYouTubeVideoId } from './content';
 
 export type ClassSourceCurriculumInput = {
-  kind: 'none' | 'youtube' | 'video' | 'documents';
+  kind: 'none' | 'video-url' | 'video' | 'documents';
   classTitle: string;
   classSummary: string;
-  youtubeUrl?: string;
-  youtubeTitle?: string;
-  youtubeDurationSeconds?: number;
+  videoUrl?: string;
+  videoTitle?: string;
+  videoDurationSeconds?: number;
   materials: Array<{
     name: string;
     url?: string;
@@ -48,13 +51,13 @@ export function buildSourceCurriculum(
   } satisfies Partial<Omit<CurriculumLesson, 'id'>>;
 
   const lessons: Array<Omit<CurriculumLesson, 'id'>> = [];
-  if (input.kind === 'youtube' && input.youtubeUrl) {
+  if (input.kind === 'video-url' && input.videoUrl) {
     lessons.push({
       ...common,
-      title: input.youtubeTitle?.trim() || input.classTitle.trim(),
+      title: input.videoTitle?.trim() || input.classTitle.trim(),
       contentType: 'video',
-      contentUrl: input.youtubeUrl,
-      durationMinutes: sourceDurationMinutes(input.youtubeDurationSeconds),
+      contentUrl: input.videoUrl,
+      durationMinutes: sourceDurationMinutes(input.videoDurationSeconds),
     });
   } else if (input.kind === 'video' || input.kind === 'documents') {
     input.materials.forEach((material) => {
@@ -73,25 +76,6 @@ export function buildSourceCurriculum(
     sectionTitle: input.classTitle.trim(),
     lessons,
   };
-}
-
-export function getYouTubeVideoId(value: string) {
-  try {
-    const url = new URL(value);
-    const host = url.hostname.replace(/^www\./, '');
-    const id =
-      host === 'youtu.be'
-        ? url.pathname.split('/').filter(Boolean)[0]
-        : host === 'youtube.com' || host === 'm.youtube.com'
-          ? url.searchParams.get('v') ||
-            (/^\/(shorts|embed)\//.test(url.pathname)
-              ? url.pathname.split('/').filter(Boolean)[1]
-              : '')
-          : '';
-    return id && /^[A-Za-z0-9_-]{6,}$/.test(id) ? id : '';
-  } catch {
-    return '';
-  }
 }
 
 export function isValidYouTubeUrl(value: string) {

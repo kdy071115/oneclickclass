@@ -54,6 +54,7 @@ import {
 } from '../utils/classDraft';
 import { formatClassSchedule } from '../utils/classCreation';
 import { readImageFile } from '../utils/classThumbnail';
+import { getYouTubeVideoId, type SupportedVideoProvider } from '../utils/content';
 const mock = import.meta.env.VITE_USE_MOCK !== 'false';
 const delay = <T>(data: T) => new Promise<T>((resolve) => setTimeout(() => resolve(data), 350));
 const MOCK_CLASSES_KEY = 'oneclick.mock.classes';
@@ -77,7 +78,9 @@ export interface ClassSourceMaterialInput {
 export interface ClassSourceAnalysisInput {
   type: Exclude<ClassDraft['type'], 'hybrid'>;
   source: {
-    kind: 'youtube' | 'video' | 'documents';
+    kind: 'youtube' | 'video-url' | 'video' | 'documents';
+    videoUrl?: string;
+    videoProvider?: SupportedVideoProvider;
     youtubeUrl?: string;
     materials?: ClassSourceMaterialInput[];
   };
@@ -676,11 +679,14 @@ export const classService = {
       })
       .then((r) => r.data);
   },
-  inspectYouTube: (
+  inspectVideo: (
     url: string,
-    videoId: string,
+    provider: SupportedVideoProvider,
     signal?: AbortSignal,
   ): Promise<ClassSourceMetadata> => {
+    if (provider !== 'YOUTUBE') return delay({});
+    const videoId = getYouTubeVideoId(url);
+    if (!videoId) return delay({});
     const fallback = {
       thumbnailUrl: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
     };
