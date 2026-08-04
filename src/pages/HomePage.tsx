@@ -3,7 +3,6 @@ import {
   ArrowUpRight,
   Bell,
   CalendarDays,
-  CheckSquare,
   ChevronDown,
   ChevronRight,
   CircleDollarSign,
@@ -18,7 +17,6 @@ import { useCallback, useState } from 'react';
 import '@fontsource-variable/geist';
 import { classService } from '../api/services';
 import { AsyncState } from '../components/common/AsyncState';
-import { ApplicantRow } from '../components/feature/ApplicantRow';
 import { ClassCard } from '../components/feature/ClassCard';
 import { Badge, BarChart, Table, Tabs, type TableColumn } from '../components/ui';
 import { useAsync } from '../hooks/useAsync';
@@ -161,10 +159,26 @@ export function HomePage() {
   const dashboardIntro = `${userName}님, 오늘 운영 현황을 확인해 보세요`;
   const nextClass = todaySchedule[0] ?? null;
   const recentApplicants = data.applicants.slice(0, 3);
+  const recentPendingApplicant = data.applicants.find(
+    (applicant) => applicant.payment === '결제대기',
+  );
 
   return (
     <>
-      <div className="oc-web-page">
+      <div className={`oc-web-page${teacher ? ' teacher-dashboard-page' : ''}`}>
+        {teacher && (
+          <header className="dashboard-mobile-header app-only">
+            <Link to="/dashboard">원클릭 클래스</Link>
+            <button
+              type="button"
+              className="dashboard-mobile-notification"
+              aria-label="알림"
+              onClick={() => nav('/notifications')}
+            >
+              <Bell size={20} />
+            </button>
+          </header>
+        )}
         <div className="oc-web-head">
           <h1>홈</h1>
           <p>
@@ -268,22 +282,33 @@ export function HomePage() {
                       </div>
                       <p className="dashboard-attention-copy">
                         {data.pendingPayments > 0
-                          ? `${won(data.pendingAmount)}의 결제 상태 확인이 필요합니다.`
+                          ? `${won(data.pendingAmount)}의 결제 상태 확인이 필요합니다.${
+                              recentPendingApplicant
+                                ? ` 최근 대기 ${recentPendingApplicant.name} · ${recentPendingApplicant.appliedAt}`
+                                : ''
+                            }`
                           : '확인이 필요한 결제가 없습니다.'}
                       </p>
-                      <div className="dashboard-attention-links">
-                        <div>
-                          <span>신규 신청</span>
-                          <b>{data.newApplicants}건</b>
-                        </div>
-                        <div>
-                          <span>결제 대기</span>
-                          <b>{data.pendingPayments}건</b>
-                        </div>
+                      <div className="dashboard-attention-actions">
+                        <Link to="/applicants?payment=결제대기">
+                          <span>
+                            <small>결제 대기</small>
+                            <b>{data.pendingPayments}건</b>
+                          </span>
+                          <span>
+                            결제 확인 <ArrowRight size={15} />
+                          </span>
+                        </Link>
+                        <Link to="/applicants">
+                          <span>
+                            <small>신규 신청</small>
+                            <b>{data.newApplicants}건</b>
+                          </span>
+                          <span>
+                            신청 검토 <ArrowRight size={15} />
+                          </span>
+                        </Link>
                       </div>
-                      <Link className="dashboard-attention-action" to="/applicants">
-                        신청 검토 <ArrowRight size={15} />
-                      </Link>
                     </article>
                   </div>
                 </section>
@@ -323,16 +348,28 @@ export function HomePage() {
                         <h2>클래스 운영 현황</h2>
                         <p>모집과 수강 진행 상태를 확인하세요.</p>
                       </div>
-                      <Link to="/classes">
-                        자세히 보기 <ArrowRight size={15} />
-                      </Link>
+                      <div className="dashboard-panel-actions">
+                        <Link to="/classes/new">
+                          <Plus size={15} /> 클래스 만들기
+                        </Link>
+                        <Link to="/classes">
+                          전체 클래스 <ArrowRight size={15} />
+                        </Link>
+                      </div>
                     </div>
-                    <Table
-                      columns={classColumns}
-                      rows={classItems}
-                      rowKey={(item) => item.id}
-                      loading={classesLoading}
-                    />
+                    <div className="dashboard-class-table">
+                      <Table
+                        columns={classColumns}
+                        rows={classItems}
+                        rowKey={(item) => item.id}
+                        loading={classesLoading}
+                      />
+                    </div>
+                    <div className="dashboard-class-cards">
+                      {classItems.slice(0, 3).map((item) => (
+                        <ClassCard item={item} key={item.id} />
+                      ))}
+                    </div>
                   </section>
 
                   <section className="oc-panel dashboard-applicant-panel">
@@ -380,8 +417,10 @@ export function HomePage() {
                       <b>성장 추이</b>
                       <small>필요할 때 등록과 신규 회원 흐름을 확인하세요.</small>
                     </span>
-                    <span>
-                      분석 보기 <ChevronDown size={17} />
+                    <span className="dashboard-analysis-toggle">
+                      <span className="dashboard-analysis-open-label">분석 접기</span>
+                      <span className="dashboard-analysis-closed-label">분석 보기</span>
+                      <ChevronDown size={17} />
                     </span>
                   </summary>
                   <div className="dashboard-analysis-content">
@@ -391,8 +430,8 @@ export function HomePage() {
                         onChange={setStatsTab}
                         label="대시보드 통계"
                         tabs={[
-                          { value: 'enrollment', label: `과정등록 현황 (${enrollmentTotal})` },
-                          { value: 'members', label: `신규회원 수 (${memberTotal})` },
+                          { value: 'enrollment', label: `클래스 신청 (${enrollmentTotal})` },
+                          { value: 'members', label: `신규 신청자 (${memberTotal})` },
                         ]}
                       />
                       <div className="oc-filters">
@@ -409,9 +448,13 @@ export function HomePage() {
                         ))}
                       </div>
                     </div>
+                    <p className="dashboard-live-region" aria-live="polite">
+                      {trendPeriod}, {statsTab === 'enrollment' ? '클래스 신청' : '신규 신청자'} 총{' '}
+                      {statsTab === 'enrollment' ? enrollmentTotal : memberTotal}건
+                    </p>
                     <BarChart
                       data={visibleTrend}
-                      label={statsTab === 'enrollment' ? '과정등록 현황' : '신규회원 수'}
+                      label={statsTab === 'enrollment' ? '클래스 신청 추이' : '신규 신청자 추이'}
                     />
                   </div>
                 </details>
@@ -569,97 +612,18 @@ export function HomePage() {
         )}
       </div>
 
-      <div className="page home app-page">
-        <header>
-          <h1 className="logo">원클릭 클래스</h1>
-          <button
-            className="icon-btn has-unread"
-            aria-label="알림"
-            onClick={() => nav('/notifications')}
-          >
-            <Bell size={20} />
-          </button>
-        </header>
-        {/* <div className="segments role-segments">
-          <button className={teacher ? 'active' : ''} onClick={() => setRole('teacher')}>
-            강의자 홈
-          </button>
-          <button className={!teacher ? 'active' : ''} onClick={() => setRole('student')}>
-            수강생 홈
-          </button>
-        </div> */}
-        {teacher ? (
-          classesLoading ? (
-            <AsyncState loading />
-          ) : classesError ? (
-            <AsyncState loading={false} error={classesError} onRetry={retryClasses} />
-          ) : classItems.length === 0 ? (
-            <CreatorActivation compact />
-          ) : (
-            <>
-              <button className="hero" onClick={() => nav('/attendance/select')}>
-                <strong>
-                  {userName}님, 오늘
-                  <br />
-                  강의 {data.todayClasses}개가 있어요
-                </strong>
-                <span>
-                  출석 체크 시작 <ChevronRight size={15} />
-                </span>
-                <i />
-              </button>
-              <div className="stats">
-                <div>
-                  <b>{data.newApplicants}</b>
-                  <small>신규 신청</small>
-                </div>
-                <div>
-                  <b>{data.todayClasses}</b>
-                  <small>오늘 강의</small>
-                </div>
-                <div>
-                  <b>{data.pendingPayments}</b>
-                  <small>결제 대기</small>
-                </div>
-              </div>
-              <Link className="payment-callout" to="/applicants">
-                <span>
-                  <small>결제 대기</small>
-                  <b>
-                    {data.pendingPayments}건 · {won(data.pendingAmount)} 확인 필요
-                  </b>
-                </span>
-                <ChevronRight />
-              </Link>
-              <h3>내 클래스 관리하기</h3>
-              <div className="manage-grid">
-                <Link to="/attendance/select">
-                  <CheckSquare />
-                  <b>출석 QR</b>
-                  <small>강의 선택 · 오늘 {data.todayClasses}개</small>
-                </Link>
-                <Link to="/classes/new">
-                  <Plus />
-                  <b>클래스 만들기</b>
-                  <small>링크 입력부터 시작</small>
-                </Link>
-              </div>
-              <div className="section-title">
-                <h3>모집중인 클래스</h3>
-                <Link to="/classes">전체보기</Link>
-              </div>
-              {data.classes.map((c) => (
-                <ClassCard item={c} key={c.id} />
-              ))}
-              <h3>최근 신청자</h3>
-              <div className="list-box">
-                {data.applicants.map((a, i) => (
-                  <ApplicantRow item={a} index={i} key={a.id} />
-                ))}
-              </div>
-            </>
-          )
-        ) : (
+      {!teacher && (
+        <div className="page home app-page">
+          <header>
+            <h1 className="logo">원클릭 클래스</h1>
+            <button
+              className="icon-btn has-unread"
+              aria-label="알림"
+              onClick={() => nav('/notifications')}
+            >
+              <Bell size={20} />
+            </button>
+          </header>
           <>
             <button className="hero student-hero" onClick={() => nav('/classes')}>
               <strong>
@@ -707,8 +671,8 @@ export function HomePage() {
               ))}
             </div>
           </>
-        )}
-      </div>
+        </div>
+      )}
     </>
   );
 }

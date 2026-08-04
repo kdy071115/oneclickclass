@@ -3,8 +3,6 @@ import {
   LogOut,
   Plus,
   Settings,
-  UserRound,
-  Users,
 } from 'lucide-react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useCallback, useState } from 'react';
@@ -51,7 +49,7 @@ export function AppLayout() {
               수강생
             </button>
           </div> */}
-          <nav className="oc-side-nav">
+          <nav className="oc-side-nav" aria-label="강사 메뉴">
             {teacherNav.map(([to, Icon, label, badge]) => {
               const resolvedBadge = to === '/applicants' ? applicantItems.length : badge;
               return (
@@ -100,24 +98,13 @@ export function AppLayout() {
           </div>
         </div>
         {!hideMobileNav && (
-          <nav className="five-nav app-only" aria-label="주요 메뉴">
-            {mobileNav.slice(0, 2).map(([to, Icon, label]) => (
+          <nav className="mobile-primary-nav app-only" aria-label="주요 메뉴">
+            {mobileNav.map(([to, Icon, label]) => (
               <NavLink key={to} to={to} end={to === '/dashboard'}>
                 <Icon size={22} />
                 <small>{label}</small>
               </NavLink>
             ))}
-            <Link className="nav-create" to="/classes/new" aria-label="클래스 만들기">
-              <Plus size={27} />
-            </Link>
-            <NavLink to="/applicants">
-              <Users size={22} />
-              <small>신청자</small>
-            </NavLink>
-            <NavLink to="/my">
-              <UserRound size={22} />
-              <small>마이</small>
-            </NavLink>
           </nav>
         )}
       </section>

@@ -44,6 +44,7 @@ button:focus {
 }
 button:focus-visible,
 a:focus-visible,
+summary:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
@@ -1249,25 +1250,6 @@ a {
   }
 }
 
-/* Source-design screens */
-.phone nav.five-nav {
-  grid-template-columns: repeat(5, 1fr);
-}
-.phone nav.five-nav.student-nav {
-  grid-template-columns: repeat(4, 1fr);
-}
-.nav-create {
-  align-self: start;
-  margin-top: -16px !important;
-  width: 54px;
-  height: 54px;
-  margin-inline: auto;
-  border-radius: 18px !important;
-  background: var(--blue);
-  color: #fff !important;
-  box-shadow: 0 8px 20px #3182f655;
-}
-
 @media (min-width: 900px) {
   .stage {
     min-height: 100dvh;
@@ -1308,9 +1290,7 @@ a {
     border-left: 1px solid #edf0f3;
   }
 
-  .phone nav,
-  .phone nav.five-nav,
-  .phone nav.five-nav.student-nav {
+  .phone nav {
     position: sticky;
     top: 0;
     left: auto;
@@ -1356,21 +1336,6 @@ a {
 
   .phone nav small {
     font-size: 14px;
-  }
-
-  .nav-create {
-    order: -1;
-    width: auto;
-    height: 52px;
-    margin: 0 !important;
-    border-radius: 14px !important;
-    box-shadow: none;
-  }
-
-  .nav-create::after {
-    content: '강의 만들기';
-    font-size: 14px;
-    font-weight: 800;
   }
 
   .page {
