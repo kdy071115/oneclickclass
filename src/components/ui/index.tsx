@@ -207,6 +207,7 @@ export function FileDropzone({
   accept = 'image/png,image/jpeg,image/webp',
   maxSize = 5 * 1024 * 1024,
   multiple = false,
+  label = '파일을 선택하거나 여기에 놓으세요',
   description,
 }: {
   onFile?: (file: File) => void;
@@ -214,6 +215,7 @@ export function FileDropzone({
   accept?: string;
   maxSize?: number;
   multiple?: boolean;
+  label?: string;
   description?: string;
 }) {
   const [error, setError] = useState('');
@@ -242,7 +244,7 @@ export function FileDropzone({
     if (multiple) onFiles?.(files);
     else onFile?.(files[0]);
   };
-  return <div className={`ui-dropzone ${dragging ? 'is-dragging' : ''}`} onDragOver={(event) => { event.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); handleFiles(multiple ? event.dataTransfer.files : [event.dataTransfer.files[0]].filter(Boolean) as File[]); }}><label htmlFor={id}><UploadCloud size={24} /><strong>파일을 선택하거나 여기에 놓으세요</strong><small>{description ?? `JPG, PNG, WEBP · 최대 ${Math.round(maxSize / 1024 / 1024)}MB`}</small><input id={id} type="file" accept={accept} multiple={multiple} onChange={(event) => handleFiles(event.target.files ?? undefined)} /></label>{error && <p role="alert">{error}</p>}</div>;
+  return <div className={`ui-dropzone ${dragging ? 'is-dragging' : ''}`} onDragOver={(event) => { event.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); handleFiles(multiple ? event.dataTransfer.files : [event.dataTransfer.files[0]].filter(Boolean) as File[]); }}><label htmlFor={id}><UploadCloud size={24} /><strong>{label}</strong><small>{description ?? `JPG, PNG, WEBP · 최대 ${Math.round(maxSize / 1024 / 1024)}MB`}</small><input id={id} type="file" accept={accept} multiple={multiple} onChange={(event) => handleFiles(event.target.files ?? undefined)} /></label>{error && <p role="alert">{error}</p>}</div>;
 }
 
 export function Stepper({ current, steps }: { current: number; steps: readonly string[] }) {

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { Badge, BarChart, Toggle } from '.';
+import { Badge, BarChart, FileDropzone, Toggle } from '.';
 
 describe('공통 UI', () => {
   it('상태 톤에 맞는 배지를 표시한다', () => {
@@ -31,5 +31,12 @@ describe('공통 UI', () => {
     expect(
       screen.getByRole('img', { name: '클래스 신청 추이: 6월 14건, 7월 16건' }),
     ).toBeInTheDocument();
+  });
+
+  it('파일 선택 영역의 용도에 맞는 문구를 표시한다', () => {
+    render(<FileDropzone label="새 이미지 선택" description="JPG, PNG · 최대 5MB" />);
+
+    expect(screen.getByText('새 이미지 선택')).toBeInTheDocument();
+    expect(screen.getByLabelText(/새 이미지 선택/)).toHaveAttribute('type', 'file');
   });
 });

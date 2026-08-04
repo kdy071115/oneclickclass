@@ -23,6 +23,7 @@ import QRCode from 'qrcode';
 import { type CSSProperties, useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ApplicantRow } from '../components/feature/ApplicantRow';
+import { ClassThumbnail } from '../components/feature/ClassThumbnail';
 import { PageHeader } from '../components/common/PageHeader';
 import { applicants, classes } from '../constants/mockData';
 import {
@@ -1102,6 +1103,9 @@ function WebManage({
     if (detail?.capacity) setCapacity(detail.capacity);
   }, [detail?.capacity]);
   useEffect(() => {
+    if (!thumbnail && detail?.thumbnail) setThumbnail(detail.thumbnail);
+  }, [detail?.thumbnail, thumbnail]);
+  useEffect(() => {
     if (!detail) return;
     setPublicOn(
       detail.recruitmentStatus ? detail.recruitmentStatus !== 'PRIVATE' : (detail.publicOn ?? true),
@@ -1135,12 +1139,37 @@ function WebManage({
   return (
     <>
       <section className="oc-panel oc-thumbnail-editor">
-        <div>
+        <header className="oc-thumbnail-editor-head">
           <h2>클래스 썸네일</h2>
           <p>목록과 클래스 상세 상단에 표시되는 대표 이미지예요.</p>
+        </header>
+        <div className="oc-thumbnail-editor-body">
+          <figure className="oc-thumbnail-preview">
+            <div>
+              <ClassThumbnail
+                src={thumbnail}
+                position={detail?.thumbnailPosition}
+                title={detail?.title || '클래스 대표 이미지'}
+                alt="현재 클래스 썸네일"
+              />
+            </div>
+            <figcaption>
+              {thumbnail ? '현재 대표 이미지' : '아직 등록된 대표 이미지가 없어요'}
+              <span>권장 비율 16:9</span>
+            </figcaption>
+          </figure>
+          <div className="oc-thumbnail-upload">
+            <div>
+              <b>{thumbnail ? '새 이미지로 변경' : '대표 이미지 등록'}</b>
+              <p>텍스트가 적고 가로로 넓은 이미지를 사용하면 목록에서도 선명하게 보여요.</p>
+            </div>
+            <FileDropzone
+              label={thumbnail ? '새 이미지 선택' : '이미지 선택'}
+              description="JPG, PNG, WEBP · 최대 5MB"
+              onFile={(file) => void changeThumbnail(file)}
+            />
+          </div>
         </div>
-        {thumbnail && <img src={thumbnail} alt="현재 클래스 썸네일" />}
-        <FileDropzone onFile={(file) => void changeThumbnail(file)} />
       </section>
       <div className="oc-grid-2">
         <section className="oc-panel oc-settings-panel">
