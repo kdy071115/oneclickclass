@@ -100,7 +100,7 @@ export function AppLayout() {
           </div>
         </div>
         {!hideMobileNav && (
-          <nav className="five-nav app-only">
+          <nav className="five-nav app-only" aria-label="주요 메뉴">
             {mobileNav.slice(0, 2).map(([to, Icon, label]) => (
               <NavLink key={to} to={to} end={to === '/dashboard'}>
                 <Icon size={22} />
@@ -126,7 +126,7 @@ export function AppLayout() {
 }
 
 function getPageTitle(pathname: string, teacher: boolean) {
-  if (pathname === '/' || pathname === '/dashboard') return teacher ? ['홈', '오늘 강의 2개, 신규 신청 3건이 있어요'] : ['홈', '이어서 들을 강의를 확인하세요'];
+  if (pathname === '/' || pathname === '/dashboard') return teacher ? ['홈', '오늘의 클래스 운영 현황을 확인하세요'] : ['홈', '이어서 들을 강의를 확인하세요'];
   if (pathname.startsWith('/classes')) return ['클래스', teacher ? '내가 연 강의를 관리하세요' : '수강 중인 클래스를 확인하세요'];
   if (pathname.startsWith('/learn/classes')) return ['학습', '수강 중인 클래스를 이어서 학습하세요'];
   if (pathname.startsWith('/applicants')) return ['전체 신청자', '모든 클래스의 신청 현황과 결제 상태를 확인하세요'];

@@ -315,6 +315,7 @@ a {
   color: var(--blue);
   font-weight: 800;
 }
+.home header h1,
 .home header h2 {
   font-size: 22px;
   margin: 0;
@@ -1235,6 +1236,16 @@ a {
   .standalone > div {
     width: min(100vw, 520px);
     margin-inline: auto;
+  }
+
+  .oc-shell.phone {
+    width: 100vw;
+  }
+
+  .oc-shell .page.home {
+    width: min(100%, 720px);
+    margin-inline: auto;
+    padding-inline: 32px;
   }
 }
 
