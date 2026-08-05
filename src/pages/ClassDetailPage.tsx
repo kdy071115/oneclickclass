@@ -288,7 +288,7 @@ export function ClassDetailPage() {
         <div className="oc-crumb">
           <Link to="/classes">클래스</Link>
           <span>›</span>
-          <b>내 클래스</b>
+          <b>{detail.title}</b>
         </div>
         <div className="oc-detail-layout">
           <div className="oc-detail-primary">

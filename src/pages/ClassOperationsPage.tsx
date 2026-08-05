@@ -80,7 +80,7 @@ const configs: Record<string, Config> = {
     subtitle: '정답을 표시하면 자동 채점돼요',
     kind: 'builder',
   },
-  manage: { title: '강의 관리', subtitle: '노션으로 시작하는 업무 자동화', kind: 'settings' },
+  manage: { title: '클래스 설정', subtitle: '노션으로 시작하는 업무 자동화', kind: 'settings' },
   certificates: {
     title: '수료증 관리',
     subtitle: '조건과 수료증 내용을 직접 설정할 수 있어요',
@@ -386,14 +386,20 @@ function WebClassChrome({
             <Link2 size={17} /> 링크 복사
           </button>
           <Link to={`/classes/new?edit=${id}`}>강의 수정</Link>
-          <Link className="primary-link" to={`/classes/${id}/applicants`}>
-            신청자 관리 <span>→</span>
-          </Link>
         </div>
       </section>
-      <div className="oc-detail-tabs reference operation-tabs">
+      <div
+        className="oc-detail-tabs reference operation-tabs"
+        role="navigation"
+        aria-label="클래스 관리 메뉴"
+      >
         {tabs.map(([label, to, kind]) => (
-          <Link className={active === kind ? 'active' : ''} to={to} key={label}>
+          <Link
+            className={active === kind ? 'active' : ''}
+            aria-current={active === kind ? 'page' : undefined}
+            to={to}
+            key={label}
+          >
             {label}
           </Link>
         ))}
@@ -2289,6 +2295,10 @@ function Manage({
             <small>신청 페이지 노출</small>
           </span>
           <button
+            type="button"
+            role="switch"
+            aria-checked={publicOn}
+            aria-label={publicOn ? '신청 페이지 비공개로 전환' : '신청 페이지 공개로 전환'}
             className={`switch ${publicOn ? 'on' : ''}`}
             onClick={() => {
               const next = !publicOn;
@@ -2316,6 +2326,7 @@ function Manage({
             </small>
           </span>
           <button
+            type="button"
             className="badge blue"
             disabled={!publicOn || lifecycleStatus === 'ENDED' || full}
             onClick={() => {
@@ -2336,6 +2347,8 @@ function Manage({
           </span>
           <em>
             <button
+              type="button"
+              aria-label="정원 줄이기"
               onClick={() => {
                 const next = Math.max(1, capacity - 5);
                 setCapacity(next);
@@ -2346,6 +2359,8 @@ function Manage({
             </button>
             {capacity}명
             <button
+              type="button"
+              aria-label="정원 늘리기"
               onClick={() => {
                 const next = capacity + 5;
                 setCapacity(next);

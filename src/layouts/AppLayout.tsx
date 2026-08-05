@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useCallback, useState } from 'react';
-import { applicantService, classService } from '../api/services';
+import { applicantService } from '../api/services';
 import { getSession } from '../auth/session';
 import { StatusBar } from '../components/common/StatusBar';
 import { NotificationPopover } from '../components/feature/NotificationPopover';
@@ -25,11 +25,8 @@ export function AppLayout() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const logout = useLogout();
   const profileImage = useProfileImage();
-  const loadClasses = useCallback(() => classService.list(), []);
-  const { data: classItems = [] } = useAsync(loadClasses);
   const loadApplicants = useCallback(() => applicantService.list(), []);
   const { data: applicantItems = [] } = useAsync(loadApplicants);
-  const hasClasses = classItems.length > 0;
   const hideMobileNav = pathname === '/classes/published' || /^\/classes\/[^/]+\/preview$/.test(pathname);
 
   return (
@@ -86,7 +83,7 @@ export function AppLayout() {
               </button>
               {notificationsOpen && <NotificationPopover onClose={() => setNotificationsOpen(false)} />}
             </div>
-            {teacher && hasClasses && (
+            {teacher && (
               <Link className="oc-create" to="/classes/new">
                 <Plus size={18} />
                 클래스 만들기

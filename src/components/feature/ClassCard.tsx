@@ -22,7 +22,7 @@ export function ClassCard({
     <article className={`class-card-wrap ${variant}`}>
       <Link className="class-card" to={to ?? `/classes/${item.id}`}>
         <span
-          className="class-thumb"
+          className={`class-thumb${thumbnail ? '' : ' is-placeholder'}`}
           style={
             thumbnail
               ? { backgroundImage: `url(${thumbnail})` }
@@ -30,7 +30,14 @@ export function ClassCard({
                   background: `linear-gradient(135deg,${item.color},color-mix(in srgb, ${item.color}, white 35%))`,
                 }
           }
-        />
+        >
+          {!thumbnail && variant === 'grid' && (
+            <span className="class-thumb-copy" aria-hidden="true">
+              <small>ONECLICK CLASS</small>
+              <b>{item.title}</b>
+            </span>
+          )}
+        </span>
         <span className="class-info">
           <StatusBadge>{item.status}</StatusBadge>
           <strong>{item.title}</strong>

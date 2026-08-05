@@ -37,6 +37,13 @@ describe('getClassOperationFocus', () => {
     expect(focus.primary.label).toBe('신청자 확인');
   });
 
+  it('prioritizes applicants when a ready class is already public', () => {
+    const focus = getClassOperationFocus({ ...base, lifecycleStatus: 'READY' });
+
+    expect(focus.kind).toBe('recruit');
+    expect(focus.primary.label).toBe('신청자 확인');
+  });
+
   it('uses attendance as the primary action for an offline class in progress', () => {
     const focus = getClassOperationFocus({
       ...base,

@@ -276,6 +276,24 @@
 .original-operations .chips button span {
   opacity: 0.65;
 }
+
+.original-operations .settings-card .oc-setting-select,
+.original-operations .settings-card > div > button:not(.switch),
+.original-operations .settings-card em button {
+  min-height: 44px;
+}
+
+.original-operations .settings-card em button {
+  width: 44px;
+  height: 44px;
+}
+
+.original-operations .switch {
+  width: 52px;
+  height: 44px;
+  padding: 8px 3px;
+  background-clip: content-box;
+}
 .list-heading {
   display: flex;
   justify-content: space-between;

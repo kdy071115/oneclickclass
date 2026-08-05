@@ -9,6 +9,7 @@ import {
   surveyService,
 } from './services';
 import { initialClassDraft } from '../constants/classDraft';
+import { saveClassPreview } from '../utils/classDraft';
 
 describe('instructor mock services', () => {
   beforeEach(() => {
@@ -80,6 +81,17 @@ describe('instructor mock services', () => {
       location: '서울 마포구 새 주소 1',
       rating: 0,
     });
+  });
+
+  it('restores the preview thumbnail in the course list', async () => {
+    const thumbnail = 'https://cdn.example.com/list-thumbnail.webp';
+    const draft = { ...initialClassDraft, title: '목록 썸네일 테스트', thumbnail };
+    const created = await classService.create(draft);
+    saveClassPreview(created.id, draft);
+
+    await expect(classService.list()).resolves.toContainEqual(
+      expect.objectContaining({ id: created.id, thumbnail }),
+    );
   });
 
   it('persists capacity and visibility settings in the course detail', async () => {
@@ -292,7 +304,10 @@ describe('instructor mock services', () => {
       expect.objectContaining({ applicantId: '1', eligibility: 'ISSUED' }),
     );
     expect(result.skipped).toContainEqual(
-      expect.objectContaining({ applicantId: '3', reason: expect.stringContaining('진도 80% 미달') }),
+      expect.objectContaining({
+        applicantId: '3',
+        reason: expect.stringContaining('진도 80% 미달'),
+      }),
     );
     await expect(certificateService.candidates('notion')).resolves.toContainEqual(
       expect.objectContaining({ applicantId: '1', eligibility: 'ISSUED' }),

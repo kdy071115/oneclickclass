@@ -95,8 +95,10 @@ export interface ClassSourceMetadata {
   thumbnailUrl?: string;
 }
 
-export interface ClassSourceAnalysisResult
-  extends Pick<ClassDraft, 'title' | 'summary' | 'description'> {
+export interface ClassSourceAnalysisResult extends Pick<
+  ClassDraft,
+  'title' | 'summary' | 'description'
+> {
   sourceMetadata?: ClassSourceMetadata;
 }
 
@@ -216,6 +218,8 @@ const mockClasses = () => {
       status: classStatus(lifecycleStatus, recruitmentStatus),
       capacity: settings.capacity,
       date: formatClassSchedule(item.date),
+      thumbnail:
+        getClassThumbnail(item.id) || loadClassPreviewPatch(item.id)?.thumbnail || item.thumbnail,
     };
   });
 };

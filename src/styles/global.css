@@ -525,9 +525,10 @@ a {
   min-width: 0;
 }
 .class-thumb {
-  width: 56px;
-  height: 64px;
-  border-radius: 14px;
+  width: 88px;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  border-radius: 12px;
   flex: none;
   background-size: cover;
   background-position: center;
@@ -666,11 +667,11 @@ a {
   background: #eff6ff;
 }
 .badge.green {
-  color: #12b886;
+  color: var(--color-success);
   background: #e6f9f1;
 }
 .badge.orange {
-  color: #e8590c;
+  color: var(--color-warning);
   background: #fff4ec;
 }
 .badge.gray {
@@ -853,16 +854,23 @@ a {
   color: var(--muted);
   margin-top: 4px;
 }
-.menu-box button {
+.menu-box > a,
+.menu-box > button {
   display: flex;
   align-items: center;
+  min-height: 54px;
   width: 100%;
   padding: 17px 16px;
   gap: 13px;
   border-bottom: 1px solid #f2f4f6;
   text-align: left;
 }
-.menu-box button span {
+.menu-box > a:last-child,
+.menu-box > button:last-child {
+  border-bottom: 0;
+}
+.menu-box > a span,
+.menu-box > button span {
   flex: 1;
   font-weight: 600;
 }
@@ -1271,6 +1279,12 @@ a {
     margin-inline: auto;
     padding-inline: 32px;
   }
+
+  .oc-shell .page.subpage {
+    width: min(100%, 720px);
+    margin-inline: auto;
+    padding-inline: 32px;
+  }
 }
 
 @media (min-width: 900px) {
@@ -1396,7 +1410,8 @@ a {
   .student-class-card,
   .applicant-row,
   .menu-row,
-  .menu-box button {
+  .menu-box > a,
+  .menu-box > button {
     transition:
       background 0.15s,
       border-color 0.15s,
@@ -1406,7 +1421,8 @@ a {
   .class-card:hover,
   .student-class-card:hover,
   .menu-row:hover,
-  .menu-box button:hover {
+  .menu-box > a:hover,
+  .menu-box > button:hover {
     background: #f8f9fb;
     border-color: #dfe4ea;
   }

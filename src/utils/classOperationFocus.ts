@@ -66,7 +66,7 @@ export function getClassOperationFocus({
     };
   }
 
-  if (publicOn !== true || lifecycleStatus === 'READY') {
+  if (publicOn !== true) {
     return {
       kind: 'publish',
       title: '신청 페이지를 공개할 준비가 됐어요',
