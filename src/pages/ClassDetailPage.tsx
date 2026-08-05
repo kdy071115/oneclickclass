@@ -56,24 +56,29 @@ const formatSectionSummary = (count: number, minutes: number) => {
 
 const groupCurriculumItems = <
   T extends { sectionId?: string; sectionTitle?: string; durationText: string },
->(items: T[]) =>
-  items.reduce<Array<{ key: string; title: string; items: T[]; totalMinutes: number }>>((groups, item, index) => {
-    const title = item.sectionTitle || '커리큘럼';
-    const key = item.sectionId || item.sectionTitle || `default-${index}`;
-    const previous = groups[groups.length - 1];
-    if (previous && previous.key === key) {
-      previous.items.push(item);
-      previous.totalMinutes += parseDurationMinutes(item.durationText);
+>(
+  items: T[],
+) =>
+  items.reduce<Array<{ key: string; title: string; items: T[]; totalMinutes: number }>>(
+    (groups, item, index) => {
+      const title = item.sectionTitle || '커리큘럼';
+      const key = item.sectionId || item.sectionTitle || `default-${index}`;
+      const previous = groups[groups.length - 1];
+      if (previous && previous.key === key) {
+        previous.items.push(item);
+        previous.totalMinutes += parseDurationMinutes(item.durationText);
+        return groups;
+      }
+      groups.push({
+        key,
+        title,
+        items: [item],
+        totalMinutes: parseDurationMinutes(item.durationText),
+      });
       return groups;
-    }
-    groups.push({
-      key,
-      title,
-      items: [item],
-      totalMinutes: parseDurationMinutes(item.durationText),
-    });
-    return groups;
-  }, []);
+    },
+    [],
+  );
 
 export function ClassDetailPage() {
   const { id = 'notion' } = useParams();
@@ -115,30 +120,18 @@ export function ClassDetailPage() {
   ]);
   const applicantTrend = detail?.applicantTrend || [];
   const stats = [
-    ['모집 현황', String(enrolled), `/ ${capacity}명`, `${recruitRate}%`, Users, '#3182f6'],
-    [
-      '누적 신청자',
-      String(enrolled),
-      '명',
-      enrolled ? '신청자 관리에서 확인' : '아직 신청 전',
-      BarChart3,
-      '#0ca678',
-    ],
+    ['누적 신청자', `${enrolled}명`, enrolled ? '신청자 관리에서 확인' : '아직 신청 전', BarChart3],
     [
       '평균 만족도',
-      reviewCount ? String(detail?.rating || 0) : '-',
-      '/ 5.0',
+      reviewCount ? `${detail?.rating || 0} / 5.0` : '-',
       reviewCount ? `후기 ${reviewCount}개` : '후기 없음',
       Star,
-      '#f59f00',
     ],
     [
       '수강 완료율',
-      String(completionRate),
-      '%',
+      `${completionRate}%`,
       completionRate ? '진도에서 확인' : '수강 시작 전',
       CheckCircle2,
-      '#7048e8',
     ],
   ] as const;
   useEffect(() => {
@@ -192,7 +185,7 @@ export function ClassDetailPage() {
 
   return (
     <>
-      <div className="oc-web-page">
+      <div className="oc-web-page class-overview-page">
         <div className="oc-crumb">
           <Link to="/classes">클래스</Link>
           <span>›</span>
@@ -203,17 +196,33 @@ export function ClassDetailPage() {
             {detail && !detail.publicOn && (
               <section className="oc-panel class-readiness">
                 <div className="oc-panel-title">
-                  <h2>강의 준비 <small>{readySteps} / 3 완료</small></h2>
+                  <h2>
+                    강의 준비 <small>{readySteps} / 3 완료</small>
+                  </h2>
                   <Link to={`/classes/${id}/curriculum?setup=1`}>계속 준비하기</Link>
                 </div>
                 <div className="class-readiness-steps">
-                  <span className="complete"><CheckCircle2 /><b>기본 정보</b><small>저장 완료</small></span>
-                  <span className={publishedLessons ? 'complete' : 'active'}><ClipboardList /><b>커리큘럼</b><small>{publishedLessons ? `공개 차시 ${publishedLessons}개` : '첫 차시 필요'}</small></span>
-                  <span className={publishedLessons ? 'active' : ''}><Share2 /><b>신청 페이지</b><small>미리보기·공개 필요</small></span>
+                  <span className="complete">
+                    <CheckCircle2 />
+                    <b>기본 정보</b>
+                    <small>저장 완료</small>
+                  </span>
+                  <span className={publishedLessons ? 'complete' : 'active'}>
+                    <ClipboardList />
+                    <b>커리큘럼</b>
+                    <small>
+                      {publishedLessons ? `공개 차시 ${publishedLessons}개` : '첫 차시 필요'}
+                    </small>
+                  </span>
+                  <span className={publishedLessons ? 'active' : ''}>
+                    <Share2 />
+                    <b>신청 페이지</b>
+                    <small>미리보기·공개 필요</small>
+                  </span>
                 </div>
               </section>
             )}
-            <section className="oc-detail-hero reference">
+            <section className="oc-detail-hero reference class-overview-hero">
               <div className="oc-detail-main">
                 <div className="oc-detail-copy">
                   <div className="oc-status-line">
@@ -258,26 +267,27 @@ export function ClassDetailPage() {
                   신청자 관리 <span>→</span>
                 </Link>
               </div>
-              <div className="oc-detail-stats reference">
-                {stats.map(([label, value, unit, sub, Icon, color]) => (
+              <div className="oc-detail-stats reference" aria-label="클래스 운영 지표">
+                {stats.map(([label, value, sub, Icon]) => (
                   <div key={label}>
-                    <i style={{ background: `${color}18`, color }}>
-                      <Icon size={23} />
+                    <i>
+                      <Icon size={19} aria-hidden="true" />
                     </i>
                     <span>
                       <small>{label}</small>
-                      <b>
-                        {value}
-                        <em>{unit}</em>
-                      </b>
-                      <strong style={{ color }}>{sub}</strong>
+                      <b>{value}</b>
+                      <strong>{sub}</strong>
                     </span>
                   </div>
                 ))}
               </div>
             </section>
 
-            <div className="oc-detail-tabs reference">
+            <div
+              className="oc-detail-tabs reference"
+              role="navigation"
+              aria-label="클래스 관리 메뉴"
+            >
               {[
                 ['개요', `/classes/${id}`],
                 ['신청자', `/classes/${id}/applicants`],
@@ -295,10 +305,7 @@ export function ClassDetailPage() {
             <section className="oc-panel oc-curriculum-panel">
               <div className="oc-panel-title">
                 <h2>
-                  커리큘럼{' '}
-                  <small>
-                    총 {curriculum.length}개 차시
-                  </small>
+                  커리큘럼 <small>총 {curriculum.length}개 차시</small>
                 </h2>
                 <Link to={`/classes/${id}/curriculum`}>강의 구성 수정</Link>
               </div>
@@ -309,20 +316,33 @@ export function ClassDetailPage() {
                       <span>{String(sectionIndex + 1).padStart(2, '0')}</span>
                       <b>섹션 {sectionIndex + 1}</b>
                       <strong>{section.title}</strong>
-                      <small>{formatSectionSummary(section.items.length, section.totalMinutes)}</small>
+                      <small>
+                        {formatSectionSummary(section.items.length, section.totalMinutes)}
+                      </small>
                     </header>
                     {section.items.map((item, lessonIndex) => {
                       const content = lessonContentPresentation[item.contentType ?? 'video'];
                       const LessonIcon = content.Icon;
                       return (
                         <div className="oc-curriculum-row reference" key={item.id}>
-                          <span>{sectionIndex + 1}-{lessonIndex + 1}</span>
+                          <span>
+                            {sectionIndex + 1}-{lessonIndex + 1}
+                          </span>
                           <i role="img" aria-label={content.label}>
                             <LessonIcon size={18} aria-hidden="true" />
                           </i>
-                          <b>{item.title}<small>{item.description}</small></b>
-                          <em><CalendarDays size={16} /> {item.durationText}</em>
-                          {item.published ? <CheckCircle2 className="done" size={20} /> : <CheckCircle2 size={20} />}
+                          <b>
+                            {item.title}
+                            <small>{item.description}</small>
+                          </b>
+                          <em>
+                            <CalendarDays size={16} /> {item.durationText}
+                          </em>
+                          {item.published ? (
+                            <CheckCircle2 className="done" size={20} />
+                          ) : (
+                            <CheckCircle2 size={20} />
+                          )}
                         </div>
                       );
                     })}
@@ -346,26 +366,26 @@ export function ClassDetailPage() {
                 <Link to={`/classes/${id}/applicants`}>자세히 보기 ›</Link>
               </div>
               <div className="oc-recruit-content">
-                <div
-                  className="oc-donut"
-                  style={{
-                    background: `conic-gradient(#3182f6 0 ${recruitRate}%, #eef2f7 ${recruitRate}% 100%)`,
-                  }}
-                >
+                <div className="oc-recruit-summary">
                   <div>
-                    <b>{recruitRate}%</b>
-                    <small>모집 완료</small>
+                    <span>신청 인원</span>
+                    <strong>
+                      {enrolled}명 <small>/ {capacity}명</small>
+                    </strong>
+                  </div>
+                  <b>{recruitRate}%</b>
+                  <div
+                    className="oc-recruit-progress"
+                    role="progressbar"
+                    aria-label="모집률"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={recruitRate}
+                  >
+                    <i style={{ width: `${recruitRate}%` }} />
                   </div>
                 </div>
                 <dl>
-                  <div>
-                    <dt>모집 인원</dt>
-                    <dd>{capacity}명</dd>
-                  </div>
-                  <div>
-                    <dt>현재 신청자</dt>
-                    <dd>{enrolled}명</dd>
-                  </div>
                   <div>
                     <dt>남은 자리</dt>
                     <dd>{Math.max(0, capacity - enrolled)}명</dd>
@@ -479,9 +499,7 @@ export function ClassDetailPage() {
           신청 {enrolled} / {capacity}명 · {detail?.recruitEndDate || '마감일 미정'}
         </p>
         <Link
-          className={`mobile-curriculum-overview ${
-            detail && !curriculum.length ? 'empty' : ''
-          }`}
+          className={`mobile-curriculum-overview ${detail && !curriculum.length ? 'empty' : ''}`}
           to={`/classes/${id}/curriculum`}
         >
           <i>
