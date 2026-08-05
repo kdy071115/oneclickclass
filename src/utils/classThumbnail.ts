@@ -1,9 +1,26 @@
 const key = (classId: string) => `oneclick.class-thumbnail.${classId}`;
 
-export const getClassThumbnail = (classId: string) => sessionStorage.getItem(key(classId)) ?? '';
+export const getClassThumbnail = (classId: string) => {
+  const storageKey = key(classId);
+  const persistent = localStorage.getItem(storageKey);
+  if (persistent) return persistent;
+
+  const legacy = sessionStorage.getItem(storageKey) ?? '';
+  if (legacy) {
+    try {
+      localStorage.setItem(storageKey, legacy);
+      sessionStorage.removeItem(storageKey);
+    } catch {
+      // Keep the legacy value available in the current tab when storage is full.
+    }
+  }
+  return legacy;
+};
 
 export const saveClassThumbnail = (classId: string, thumbnail: string) => {
-  sessionStorage.setItem(key(classId), thumbnail);
+  const storageKey = key(classId);
+  localStorage.setItem(storageKey, thumbnail);
+  sessionStorage.removeItem(storageKey);
 };
 
 export const readImageFile = (file: File) => new Promise<string>((resolve, reject) => {

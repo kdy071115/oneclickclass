@@ -52,7 +52,12 @@ import type {
   SurveyOverviewItem,
 } from '../types/api';
 import type { ClassDetail, ClassLifecycleStatus } from '../types/class';
-import { getClassThumbnail, readImageFile, saveClassThumbnail } from '../utils/classThumbnail';
+import {
+  getClassThumbnail,
+  optimizeClassThumbnail,
+  readImageFile,
+  saveClassThumbnail,
+} from '../utils/classThumbnail';
 
 type Config = {
   title: string;
@@ -1119,11 +1124,15 @@ function WebManage({
   }, [detail]);
   const full = !closed && (detail?.enrolled || 0) >= capacity;
   const changeThumbnail = async (file: File) => {
-    const value = await readImageFile(file);
-    setThumbnail(value);
-    saveClassThumbnail(id, value);
-    await classService.update(id, { thumbnail: value });
-    notify('클래스 썸네일을 변경했어요');
+    try {
+      const { url } = await classService.uploadImage(await optimizeClassThumbnail(file));
+      await classService.update(id, { thumbnail: url });
+      saveClassThumbnail(id, url);
+      setThumbnail(url);
+      notify('클래스 썸네일을 변경했어요');
+    } catch {
+      notify('클래스 썸네일을 변경하지 못했어요. 다시 시도해 주세요.');
+    }
   };
   const deleteClass = async () => {
     setDeleting(true);

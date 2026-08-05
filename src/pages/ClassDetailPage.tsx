@@ -322,6 +322,7 @@ export function ClassDetailPage() {
                     className="oc-detail-thumbnail"
                     src={thumbnail}
                     alt={`${detail.title} 대표 이미지`}
+                    style={{ objectPosition: detail.thumbnailPosition || 'center' }}
                   />
                 ) : (
                   <Link className="oc-operation-thumbnail" to={`/classes/new?edit=${id}`}>

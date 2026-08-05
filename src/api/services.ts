@@ -54,7 +54,7 @@ import {
   loadClassPreviewPatch,
 } from '../utils/classDraft';
 import { formatClassSchedule } from '../utils/classCreation';
-import { readImageFile } from '../utils/classThumbnail';
+import { getClassThumbnail, readImageFile } from '../utils/classThumbnail';
 import { getYouTubeVideoId, type SupportedVideoProvider } from '../utils/content';
 const mock = import.meta.env.VITE_USE_MOCK !== 'false';
 const delay = <T>(data: T) => new Promise<T>((resolve) => setTimeout(() => resolve(data), 350));
@@ -843,6 +843,8 @@ export const detailService = {
       settings.capacity <= enrolled && settings.recruitmentStatus === 'OPEN'
         ? 'FULL'
         : settings.recruitmentStatus;
+    const thumbnail =
+      getClassThumbnail(id) || draftPatch?.thumbnail || item?.thumbnail || baseDetail.thumbnail;
     return delay({
       ...baseDetail,
       ...item,
@@ -861,6 +863,12 @@ export const detailService = {
       description: draftPatch?.description?.trim()
         ? draftPatch.description
         : baseDetail.description,
+      thumbnail: thumbnail || undefined,
+      thumbnailPosition:
+        draftPatch?.thumbnailPosition ||
+        item?.thumbnailPosition ||
+        baseDetail.thumbnailPosition ||
+        'center',
       price: draftPatch?.payment
         ? draftPatch.payment === 'paid'
           ? draftPatch.price || 0
