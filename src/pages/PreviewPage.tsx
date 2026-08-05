@@ -13,7 +13,6 @@ import {
   CreditCard,
   ExternalLink,
   FileText,
-  Heart,
   LockKeyhole,
   MapPin,
   Megaphone,
@@ -175,9 +174,6 @@ export function PublicEnrollmentPage() {
   const [applicationFocus, setApplicationFocus] = useState(false);
   const [applicationStarted, setApplicationStarted] = useState(false);
   const [applicationInView, setApplicationInView] = useState(false);
-  const [bookmarked, setBookmarked] = useState(false);
-  const [bookmarkLoading, setBookmarkLoading] = useState(false);
-  const [bookmarkError, setBookmarkError] = useState('');
   const applicationRef = useRef<HTMLElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const phoneInputRef = useRef<HTMLInputElement>(null);
@@ -198,10 +194,6 @@ export function PublicEnrollmentPage() {
       .then((nextShare) => {
         if (!alive) return;
         setShare(nextShare);
-        void oneclickService
-          .courseBookmark(nextShare.courseActiveSeq)
-          .then((bookmark) => alive && setBookmarked(bookmark.bookmarked))
-          .catch(() => undefined);
         void oneclickService.reviews(shareToken).then((items) => alive && setReviews(items));
         void oneclickService
           .enrollment(nextShare.courseActiveSeq)
@@ -245,21 +237,6 @@ export function PublicEnrollmentPage() {
       alive = false;
     };
   }, [shareToken]);
-  const toggleBookmark = async () => {
-    if (!share || bookmarkLoading) return;
-    setBookmarkLoading(true);
-    setBookmarkError('');
-    try {
-      const next = bookmarked
-        ? await oneclickService.removeCourseBookmark(share.courseActiveSeq)
-        : await oneclickService.saveCourseBookmark(share.courseActiveSeq);
-      setBookmarked(next.bookmarked);
-    } catch {
-      setBookmarkError('관심 클래스를 저장하지 못했어요. 다시 시도해 주세요.');
-    } finally {
-      setBookmarkLoading(false);
-    }
-  };
   useEffect(() => {
     const sections = ['learn', 'curriculum', 'reviews']
       .map((id) => document.getElementById(id))
@@ -496,19 +473,7 @@ export function PublicEnrollmentPage() {
               />
             </div>
             <div className="learner-hero-body">
-              <div className="learner-hero-actions">
-                <span className="learner-badge">{disabled ? '모집 마감' : '모집중'}</span>
-                <button
-                  type="button"
-                  aria-label={bookmarked ? '관심 클래스 해제' : '관심 클래스 등록'}
-                  aria-pressed={bookmarked}
-                  disabled={!share || bookmarkLoading}
-                  onClick={() => void toggleBookmark()}
-                >
-                  <Heart fill={bookmarked ? 'currentColor' : 'none'} />
-                  <span>{bookmarked ? '저장됨' : '관심'}</span>
-                </button>
-              </div>
+              <span className="learner-badge">{disabled ? '모집 마감' : '모집중'}</span>
               <h1>{title}</h1>
               <p>{summary}</p>
               <div className="learner-quick-stats">
@@ -554,11 +519,6 @@ export function PublicEnrollmentPage() {
               </dl>
             </div>
           </div>
-          {bookmarkError && (
-            <p className="learner-bookmark-error" role="status">
-              {bookmarkError}
-            </p>
-          )}
           {!applicationInView && (
             <div className="learner-mobile-apply-bar">
               <span>
@@ -696,7 +656,7 @@ export function PublicEnrollmentPage() {
               <button className="primary" onClick={() => void resumeLearning()}>
                 {canEnterLearnerRoom(existing)
                   ? hasPlayableResumeLesson
-                    ? `${existing.lastPosition || '마지막 위치'}부터 이어보기`
+                    ? '이어서 학습하기'
                     : '강의 준비 현황 보기'
                   : '신청 상태 확인하기'}
               </button>
@@ -717,7 +677,7 @@ export function PublicEnrollmentPage() {
                   window.setTimeout(() => setApplicationFocus(false), 1400);
                 }}
               >
-                다른 계정으로 신청
+                다른 수강생으로 신청하기
               </button>
               <small className="learner-account-switch-note">
                 새 이름과 휴대전화 번호로 신청서를 작성합니다.

@@ -2083,7 +2083,7 @@ export function CreateClassPage() {
                           <ImageIcon />
                         )}
                         {thumbnailUploadStatus === 'uploading' ? '업로드 중' : '이미지 변경'}
-                        <small>권장 16:9 · 최대 5MB</small>
+                        <small>권장 16:9 · 1280×720 이상 · 최대 5MB</small>
                       </label>
                       {thumbnailUploadError && (
                         <div className="cover-upload-error" role="alert">
