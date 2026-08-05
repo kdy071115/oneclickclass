@@ -2,6 +2,432 @@
   display: none;
 }
 
+/* Class overview: keep the operation surface quiet and consistent with the dashboard. */
+@media (min-width: 900px) {
+  .oc-web-page.class-overview-page {
+    width: min(1360px, 100%);
+    padding: 24px 32px 64px;
+  }
+
+  .class-overview-page .oc-crumb {
+    gap: 8px;
+    margin-bottom: 16px;
+    color: var(--color-text-tertiary);
+    font-size: 13px;
+    font-weight: 650;
+  }
+
+  .class-overview-page .oc-detail-layout {
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 20px;
+    align-items: start;
+  }
+
+  .class-overview-page .oc-detail-aside {
+    gap: 16px;
+  }
+
+  .class-overview-page .oc-panel,
+  .class-overview-page .oc-detail-hero.reference,
+  .class-overview-page .oc-detail-tabs.reference {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    box-shadow: none;
+  }
+
+  .class-overview-page .class-readiness {
+    padding: 20px;
+  }
+
+  .class-overview-page .class-overview-hero {
+    margin-bottom: 0;
+    overflow: hidden;
+  }
+
+  .class-overview-page .class-overview-hero .oc-detail-main {
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 32px;
+    padding: 28px 30px 24px;
+  }
+
+  .class-overview-page .oc-detail-thumbnail,
+  .class-overview-page .class-overview-hero .oc-operation-thumbnail {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    object-fit: cover;
+    box-shadow: none;
+  }
+
+  .class-overview-page .oc-status-line {
+    gap: 6px;
+  }
+
+  .class-overview-page .oc-status-line span {
+    padding: 5px 9px;
+    border-radius: 6px;
+    background: var(--color-tint-gray);
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    font-weight: 750;
+  }
+
+  .class-overview-page .oc-status-line .live {
+    background: var(--color-tint-green);
+    color: var(--color-success);
+  }
+
+  .class-overview-page .oc-detail-copy h1 {
+    gap: 6px;
+    margin: 14px 0 8px;
+    font-size: 30px;
+    font-weight: 750;
+    letter-spacing: -0.03em;
+  }
+
+  .class-overview-page .oc-detail-copy h1 a {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    color: var(--color-text-tertiary);
+  }
+
+  .class-overview-page .oc-detail-copy h1 a:hover {
+    background: var(--color-tint-gray);
+    color: var(--color-text);
+  }
+
+  .class-overview-page .oc-detail-copy p {
+    max-width: 68ch;
+    color: var(--color-text-secondary);
+    font-size: 14px;
+    font-weight: 550;
+    line-height: 1.6;
+  }
+
+  .class-overview-page .oc-hero-meta {
+    gap: 18px;
+    margin-top: 18px;
+  }
+
+  .class-overview-page .oc-hero-meta span,
+  .class-overview-page .oc-hero-meta span:first-child {
+    gap: 6px;
+    color: var(--color-text-secondary);
+    font-size: 13px;
+    font-weight: 650;
+  }
+
+  .class-overview-page .oc-hero-meta svg {
+    width: 16px;
+    height: 16px;
+    color: var(--color-text-tertiary);
+  }
+
+  .class-overview-page .oc-detail-actions {
+    gap: 8px;
+    padding: 14px 20px;
+    border-top-color: var(--color-border);
+    background: var(--color-surface);
+  }
+
+  .class-overview-page .oc-detail-actions a,
+  .class-overview-page .oc-detail-actions button {
+    min-height: 40px;
+    padding: 0 15px;
+    border-color: var(--color-border);
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .class-overview-page .oc-detail-actions a:hover,
+  .class-overview-page .oc-detail-actions button:hover {
+    background: var(--color-tint-gray);
+  }
+
+  .class-overview-page .oc-detail-actions .primary-link {
+    min-width: 0;
+    border-color: var(--color-primary);
+    background: var(--color-primary);
+  }
+
+  .class-overview-page .oc-detail-actions .primary-link:hover {
+    background: var(--color-primary-hover);
+  }
+
+  .class-overview-page .oc-detail-stats.reference {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 0;
+    padding: 0 28px;
+    border: 0;
+    border-top: 1px solid var(--color-border);
+    border-radius: 0;
+    background: color-mix(in srgb, var(--color-background) 45%, var(--color-surface));
+  }
+
+  .class-overview-page .oc-detail-stats.reference > div {
+    gap: 10px;
+    padding: 18px 20px;
+    border-right-color: var(--color-border);
+  }
+
+  .class-overview-page .oc-detail-stats.reference i {
+    width: 24px;
+    height: 24px;
+    border-radius: 0;
+    background: transparent;
+    color: var(--color-text-tertiary);
+  }
+
+  .class-overview-page .oc-detail-stats.reference b {
+    margin-top: 2px;
+    font-size: 20px;
+    font-weight: 750;
+    letter-spacing: -0.02em;
+  }
+
+  .class-overview-page .oc-detail-stats.reference strong {
+    margin-top: 3px;
+    color: var(--color-text-tertiary);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .class-overview-page .oc-detail-tabs.reference {
+    margin: 16px 0;
+    padding: 0 10px;
+  }
+
+  .class-overview-page .oc-detail-tabs.reference a {
+    min-height: 50px;
+    color: var(--color-text-secondary);
+    font-size: 13px;
+    font-weight: 650;
+  }
+
+  .class-overview-page .oc-detail-tabs.reference a:hover {
+    color: var(--color-text);
+  }
+
+  .class-overview-page .oc-detail-tabs.reference a.active {
+    background: transparent;
+    color: var(--color-primary);
+  }
+
+  .class-overview-page .oc-detail-tabs.reference a.active::after {
+    left: 22px;
+    right: 22px;
+    height: 2px;
+    background: var(--color-primary);
+  }
+
+  .class-overview-page .oc-curriculum-panel {
+    padding: 24px;
+  }
+
+  .class-overview-page .oc-curriculum-panel .oc-panel-title a {
+    padding: 10px 14px;
+    border-color: var(--color-border);
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .class-overview-page .oc-curriculum-section-group {
+    border-color: var(--color-border);
+    box-shadow: none;
+  }
+
+  .class-overview-page .curriculum-section-heading {
+    background: color-mix(in srgb, var(--color-background) 70%, var(--color-surface));
+  }
+
+  .class-overview-page .oc-curriculum-row.reference i {
+    background: var(--color-tint-blue);
+    color: var(--color-primary);
+  }
+
+  .class-overview-page .oc-detail-aside .oc-panel {
+    padding: 22px;
+  }
+
+  .class-overview-page .oc-panel-title {
+    margin-bottom: 16px;
+  }
+
+  .class-overview-page .oc-panel-title h2 {
+    color: var(--color-text);
+    font-size: 17px;
+    font-weight: 700;
+  }
+
+  .class-overview-page .oc-recruit-content {
+    display: block;
+  }
+
+  .class-overview-page .oc-recruit-summary {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 12px;
+  }
+
+  .class-overview-page .oc-recruit-summary span,
+  .class-overview-page .oc-recruit-summary strong,
+  .class-overview-page .oc-recruit-summary small {
+    display: block;
+  }
+
+  .class-overview-page .oc-recruit-summary span {
+    color: var(--color-text-tertiary);
+    font-size: 12px;
+    font-weight: 650;
+  }
+
+  .class-overview-page .oc-recruit-summary strong {
+    margin-top: 4px;
+    color: var(--color-text);
+    font-size: 24px;
+    font-weight: 750;
+    letter-spacing: -0.02em;
+  }
+
+  .class-overview-page .oc-recruit-summary strong small {
+    display: inline;
+    color: var(--color-text-tertiary);
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .class-overview-page .oc-recruit-summary > b {
+    color: var(--color-primary);
+    font-size: 14px;
+    font-weight: 750;
+  }
+
+  .class-overview-page .oc-recruit-progress {
+    grid-column: 1 / -1;
+    height: 7px;
+    overflow: hidden;
+    border-radius: var(--radius-pill);
+    background: var(--color-tint-gray);
+  }
+
+  .class-overview-page .oc-recruit-progress i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--color-primary);
+  }
+
+  .class-overview-page .oc-recruit-content dl {
+    margin-top: 18px;
+  }
+
+  .class-overview-page .oc-recruit-content dl div {
+    padding: 10px 0;
+  }
+
+  .class-overview-page .oc-trend-empty {
+    min-height: 56px;
+    margin-top: 12px;
+    padding: 16px 0 0;
+    border-top: 1px solid var(--color-border);
+    border-radius: 0;
+    background: transparent;
+    font-weight: 600;
+  }
+
+  .class-overview-page .oc-share.reference p {
+    margin-bottom: 12px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .class-overview-page .oc-share-link-row span {
+    white-space: nowrap;
+  }
+
+  .class-overview-page .oc-share-buttons {
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .class-overview-page .oc-share-buttons button,
+  .class-overview-page .oc-share-buttons a {
+    min-height: 40px;
+    border: 1px solid var(--color-border);
+    border-radius: 9px;
+    background: var(--color-surface);
+    font-size: 12px;
+    font-weight: 650;
+  }
+
+  .class-overview-page .oc-activity-list {
+    gap: 0;
+  }
+
+  .class-overview-page .oc-activity-list a {
+    min-height: 52px;
+    padding: 0;
+    border: 0;
+    border-top: 1px solid var(--color-border);
+    border-radius: 0;
+    font-weight: 650;
+  }
+
+  .class-overview-page .oc-activity-empty {
+    min-height: 56px;
+    padding: 16px 0 0;
+    border-top: 1px solid var(--color-border);
+    font-weight: 600;
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1500px) {
+  .class-overview-page .oc-detail-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .class-overview-page .oc-detail-aside {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .class-overview-page .oc-detail-aside > .oc-panel:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1100px) {
+  .oc-web-page.class-overview-page {
+    padding-inline: 24px;
+  }
+
+  .class-overview-page .class-overview-hero .oc-detail-main {
+    grid-template-columns: 1fr;
+  }
+
+  .class-overview-page .oc-detail-thumbnail,
+  .class-overview-page .class-overview-hero .oc-operation-thumbnail {
+    max-width: 360px;
+  }
+
+  .class-overview-page .oc-detail-aside {
+    grid-template-columns: 1fr;
+  }
+
+  .class-overview-page .oc-detail-aside > .oc-panel:last-child {
+    grid-column: auto;
+  }
+}
+
 .creator-activation {
   display: grid;
   grid-template-columns: 52px minmax(0, 1fr) auto;
