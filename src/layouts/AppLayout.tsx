@@ -65,7 +65,7 @@ export function AppLayout() {
             <span>{profileImage ? <img src={profileImage} alt="프로필" /> : (user?.name.slice(0, 1) ?? '지')}</span>
             <b>{user?.name ?? '김지훈'}<small>{teacher ? '스탠다드 플랜' : '수강생'}</small></b>
             <Link to="/settings" aria-label="설정" title="설정"><Settings size={17} /></Link>
-            <button aria-label="로그아웃" onClick={() => void logout()}>
+            <button aria-label="로그아웃" title="로그아웃" onClick={() => void logout()}>
               <LogOut size={17} />
             </button>
           </div>
@@ -81,7 +81,7 @@ export function AppLayout() {
               <input placeholder="클래스·신청자 검색" />
             </label> */}
             <div className="oc-notification-menu">
-              <button className="oc-icon-link unread" aria-label="알림" aria-haspopup="dialog" aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen((open) => !open)}>
+              <button className="oc-icon-link unread" aria-label="알림, 읽지 않은 알림 있음" aria-haspopup="dialog" aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen((open) => !open)}>
                 <Bell size={20} />
               </button>
               {notificationsOpen && <NotificationPopover onClose={() => setNotificationsOpen(false)} />}
@@ -113,7 +113,7 @@ export function AppLayout() {
 }
 
 function getPageTitle(pathname: string, teacher: boolean) {
-  if (pathname === '/' || pathname === '/dashboard') return teacher ? ['홈', '오늘의 클래스 운영 현황을 확인하세요'] : ['홈', '이어서 들을 강의를 확인하세요'];
+  if (pathname === '/' || pathname === '/dashboard') return teacher ? ['홈', '오늘 처리할 업무와 수업 일정을 확인하세요'] : ['홈', '이어서 들을 강의를 확인하세요'];
   if (pathname.startsWith('/classes')) return ['클래스', teacher ? '내가 연 강의를 관리하세요' : '수강 중인 클래스를 확인하세요'];
   if (pathname.startsWith('/learn/classes')) return ['학습', '수강 중인 클래스를 이어서 학습하세요'];
   if (pathname.startsWith('/applicants')) return ['전체 신청자', '모든 클래스의 신청 현황과 결제 상태를 확인하세요'];

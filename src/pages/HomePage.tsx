@@ -5,8 +5,8 @@ import {
   CalendarDays,
   ChevronDown,
   ChevronRight,
-  CircleDollarSign,
   Link2,
+  ListChecks,
   Plus,
   Sparkles,
   TrendingUp,
@@ -23,6 +23,7 @@ import { useAsync } from '../hooks/useAsync';
 import { useRole } from '../hooks/useRole';
 import { getSession } from '../auth/session';
 import type { ClassItem } from '../types/class';
+import { getClassTiming } from '../utils/dashboard';
 import { won } from '../utils/format';
 import { getStatusTone } from '../utils/status';
 
@@ -123,6 +124,10 @@ export function HomePage() {
     ['이수 완료', '누적 12개', '3개', '#e7f0ff', '/classes'],
     ['학습 완료', '누적 학습 현황', '3개', '#eceafe', '/classes'],
   ];
+  const todaySchedule = data.todaySchedule ?? [];
+  const remainingClassCount = todaySchedule.length;
+  const completedClassCount = Math.max(data.todayClasses - remainingClassCount, 0);
+  const pendingTaskCount = data.pendingPayments + data.newApplicants;
   const kpiCards = [
     {
       label: '이번 달 매출',
@@ -132,21 +137,20 @@ export function HomePage() {
       to: '/settlements',
     },
     {
-      label: '신규 신청',
-      value: `${data.newApplicants}건`,
-      detail: '오늘 접수',
-      to: '/applicants',
+      label: '활성 수강생',
+      value: data.activeStudents == null ? '-' : `${data.activeStudents}명`,
+      detail: '현재 수강 중',
+      to: '/classes',
     },
     {
-      label: '오늘 강의',
+      label: '오늘 수업',
       value: `${data.todayClasses}개`,
-      detail: data.activeStudents == null ? '수강생 집계 전' : `수강생 ${data.activeStudents}명`,
+      detail: `완료 ${completedClassCount}개 · 남음 ${remainingClassCount}개`,
       to: '/classes',
     },
   ];
   const enrollmentTrend = data.enrollmentTrend ?? [];
   const memberTrend = data.memberTrend ?? [];
-  const todaySchedule = data.todaySchedule ?? [];
   const trendRange = trendPeriod === '최근 3개월' ? 3 : 6;
   const visibleEnrollmentTrend = enrollmentTrend.slice(-trendRange);
   const visibleMemberTrend = memberTrend.slice(-trendRange);
@@ -156,8 +160,9 @@ export function HomePage() {
   const studentStats = data.studentStats ?? [];
   const studentInProgress = data.studentInProgress ?? [];
   const userName = getSession()?.user.name || '강사';
-  const dashboardIntro = `${userName}님, 오늘 운영 현황을 확인해 보세요`;
+  const dashboardIntro = `${userName}님, 오늘 확인할 내용을 정리했어요`;
   const nextClass = todaySchedule[0] ?? null;
+  const nextClassTiming = nextClass ? getClassTiming(nextClass.time) : null;
   const recentApplicants = data.applicants.slice(0, 3);
   const recentPendingApplicant = data.applicants.find(
     (applicant) => applicant.payment === '결제대기',
@@ -196,7 +201,7 @@ export function HomePage() {
                 <p>
                   {!classesLoading && classItems.length === 0
                     ? '첫 클래스를 만들고 운영을 시작해 보세요.'
-                    : '다음 수업과 확인이 필요한 업무부터 정리했습니다.'}
+                    : `남은 수업 ${remainingClassCount}개 · 결제 대기 ${data.pendingPayments}건 · 신규 신청 ${data.newApplicants}건`}
                 </p>
               </div>
             </header>
@@ -213,21 +218,16 @@ export function HomePage() {
               <CreatorActivation />
             ) : (
               <>
-                <section className="dashboard-priority" aria-labelledby="dashboard-priority-title">
-                  <div className="dashboard-section-heading">
-                    <div>
-                      <h2 id="dashboard-priority-title">오늘 먼저 확인할 일</h2>
-                      <p>수업 시작과 미처리 업무를 우선순위대로 보여드립니다.</p>
-                    </div>
-                  </div>
-
+                <section className="dashboard-priority" aria-label="오늘 먼저 확인할 일">
                   <div className="dashboard-priority-grid">
                     <article className="oc-panel dashboard-next-class">
                       <div className="dashboard-task-head">
                         <div>
                           <h3>다음 수업</h3>
                           <p>
-                            {nextClass ? `오늘 예정 ${todaySchedule.length}개` : '예정된 수업 없음'}
+                            {nextClass
+                              ? `오늘 전체 ${data.todayClasses}개 · 남은 수업 ${remainingClassCount}개`
+                              : '남은 수업 없음'}
                           </p>
                         </div>
                         <span aria-hidden="true">
@@ -245,12 +245,22 @@ export function HomePage() {
                             <div>
                               <Badge tone="primary">{nextClass.badge}</Badge>
                               <h4>{nextClass.title}</h4>
-                              <p>{nextClass.meta}</p>
+                              <p>
+                                {nextClass.meta} · {nextClassTiming?.label}
+                              </p>
                             </div>
                           </div>
                           <div className="dashboard-task-actions">
-                            <Link className="dashboard-task-primary" to="/attendance/select">
-                              출석 시작 <ArrowRight size={16} />
+                            <Link
+                              className="dashboard-task-primary"
+                              to={
+                                nextClassTiming?.canStartAttendance
+                                  ? '/attendance/select'
+                                  : '/classes'
+                              }
+                            >
+                              {nextClassTiming?.canStartAttendance ? '출석 시작' : '수업 준비'}{' '}
+                              <ArrowRight size={16} />
                             </Link>
                             <Link className="dashboard-task-secondary" to="/classes">
                               전체 일정
@@ -268,26 +278,26 @@ export function HomePage() {
                     <article className="oc-panel dashboard-attention-panel">
                       <div className="dashboard-task-head">
                         <div>
-                          <h3>확인이 필요한 일</h3>
-                          <p>미처리 항목을 먼저 확인하세요.</p>
+                          <h3>확인이 필요한 업무</h3>
+                          <p>결제와 신청을 처리 순서대로 확인하세요.</p>
                         </div>
                         <span aria-hidden="true">
-                          <CircleDollarSign size={21} />
+                          <ListChecks size={21} />
                         </span>
                       </div>
 
                       <div className="dashboard-attention-value">
-                        <strong>{data.pendingPayments}건</strong>
-                        <span>결제 확인</span>
+                        <strong>{pendingTaskCount}건</strong>
+                        <span>처리 대기</span>
                       </div>
                       <p className="dashboard-attention-copy">
-                        {data.pendingPayments > 0
-                          ? `${won(data.pendingAmount)}의 결제 상태 확인이 필요합니다.${
+                        {pendingTaskCount > 0
+                          ? `결제 대기 ${data.pendingPayments}건 (${won(data.pendingAmount)}) · 신규 신청 ${data.newApplicants}건.${
                               recentPendingApplicant
-                                ? ` 최근 대기 ${recentPendingApplicant.name} · ${recentPendingApplicant.appliedAt}`
+                                ? ` 최근 요청: ${recentPendingApplicant.name} · ${recentPendingApplicant.appliedAt}`
                                 : ''
                             }`
-                          : '확인이 필요한 결제가 없습니다.'}
+                          : '처리할 결제나 신규 신청이 없습니다.'}
                       </p>
                       <div className="dashboard-attention-actions">
                         <Link to="/applicants?payment=결제대기">
@@ -317,7 +327,7 @@ export function HomePage() {
                   <div className="dashboard-section-heading">
                     <div>
                       <h2 id="dashboard-summary-title">핵심 지표</h2>
-                      <p>오늘의 운영 판단에 필요한 수치만 모았습니다.</p>
+                      <p>미처리 업무를 제외한 운영 현황을 확인하세요.</p>
                     </div>
                   </div>
                   <div className="oc-kpi-grid dashboard-kpi-grid">

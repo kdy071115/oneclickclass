@@ -1593,8 +1593,8 @@
     grid-template-columns: 40px minmax(0, 1fr) 44px 44px;
     margin-top: auto;
     align-items: center;
-    gap: 6px;
-    padding: 12px;
+    gap: 2px;
+    padding: 8px;
     border-radius: 14px;
     background: #f8f9fb;
   }
@@ -1614,6 +1614,9 @@
     flex: 1;
     min-width: 0;
     font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .oc-user small {
@@ -1621,6 +1624,9 @@
     color: #8b95a1;
     font-size: 12px;
     margin-top: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .oc-user a,
@@ -5933,7 +5939,7 @@
   max-width: 64rem;
   margin: 0;
   color: #171b21;
-  font-size: clamp(30px, 2.65vw, 42px);
+  font-size: clamp(30px, 2.35vw, 38px);
   font-weight: 620;
   line-height: 1.13;
   letter-spacing: -0.035em;
@@ -6076,7 +6082,7 @@
   padding-top: 13px;
   border-top: 1px solid #edf0f3;
   color: #667085;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 450;
 }
 
@@ -6108,7 +6114,7 @@
 .dashboard-task-head p {
   margin-top: 5px;
   color: #667085;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .dashboard-task-head > span {
@@ -6172,7 +6178,7 @@
 .dashboard-next-class-main p {
   margin-top: 5px;
   color: #667085;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .dashboard-task-actions {
@@ -6191,20 +6197,21 @@
   gap: 6px;
   padding: 0 14px;
   border-radius: 10px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 650;
 }
 
 .dashboard-task-primary {
-  background: #171b21;
+  background: var(--color-primary);
   color: #fff;
 }
 
 .dashboard-task-primary:hover {
-  background: #2a3039;
+  background: #1b64da;
 }
 
 .dashboard-task-secondary {
+  border: 1px solid #dfe3e8;
   color: #596474;
 }
 
@@ -6253,7 +6260,7 @@
 .dashboard-attention-copy {
   margin: 8px 0 0;
   color: #667085;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .dashboard-priority-grid,
@@ -6536,7 +6543,7 @@
 
 .dashboard-attention-actions small {
   color: #7a8492;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .dashboard-attention-actions b {
@@ -6550,7 +6557,7 @@
   align-items: center;
   gap: 4px;
   color: #1b64da;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 650;
   white-space: nowrap;
 }
