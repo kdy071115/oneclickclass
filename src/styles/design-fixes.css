@@ -2442,6 +2442,8 @@
   color: var(--color-text-secondary);
   font-size: 15px;
   line-height: 1.6;
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 .learner-badge {
   display: inline-flex;
@@ -2462,7 +2464,7 @@
 }
 .learner-quick-stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 0.9fr 0.8fr 1.3fr;
   gap: 0;
   margin-top: 28px;
   padding-top: 20px;
@@ -2470,7 +2472,7 @@
 }
 .learner-quick-stats span {
   min-height: 54px;
-  padding: 0 22px;
+  padding: 0 14px;
   border-left: 1px solid var(--color-border);
 }
 .learner-quick-stats span:first-child {
@@ -2484,6 +2486,7 @@
 .learner-quick-stats b {
   margin-top: 6px;
   font-size: 16px;
+  word-break: keep-all;
 }
 .learner-quick-stats small {
   color: var(--color-text-tertiary);
@@ -4999,7 +5002,8 @@
 
 @media (min-width: 1280px) {
   .learner-hero {
-    grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr);
+    grid-template-columns: minmax(0, 9fr) minmax(360px, 7fr);
+    align-items: start;
   }
 }
 
