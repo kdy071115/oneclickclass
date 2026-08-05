@@ -1,15 +1,19 @@
 import {
   ArrowRight,
-  ArrowUpRight,
   Bell,
+  Calendar,
   CalendarDays,
   ChevronDown,
   ChevronRight,
+  Clock,
+  CreditCard,
   Link2,
-  ListChecks,
+  MoreHorizontal,
+  Play,
   Plus,
   Sparkles,
   TrendingUp,
+  UserPlus,
   Wallet,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -17,52 +21,15 @@ import { useCallback, useState } from 'react';
 import '@fontsource-variable/geist';
 import { classService } from '../api/services';
 import { AsyncState } from '../components/common/AsyncState';
-import { ClassCard } from '../components/feature/ClassCard';
-import { Badge, BarChart, Table, Tabs, type TableColumn } from '../components/ui';
+import { Badge, BarChart, Tabs } from '../components/ui';
 import { useAsync } from '../hooks/useAsync';
 import { useRole } from '../hooks/useRole';
 import { getSession } from '../auth/session';
-import type { ClassItem } from '../types/class';
 import { getClassTiming } from '../utils/dashboard';
 import { won } from '../utils/format';
 import { getStatusTone } from '../utils/status';
 
-const trendPeriods = ['최근 3개월', '최근 6개월'] as const;
-
-const classColumns: TableColumn<ClassItem>[] = [
-  {
-    key: 'title',
-    header: '클래스명',
-    render: (item) => (
-      <Link to={`/classes/${item.id}`}>
-        <b>{item.title}</b>
-      </Link>
-    ),
-  },
-  {
-    key: 'status',
-    header: '상태',
-    render: (item) => <Badge tone={getStatusTone(item.status)}>{item.status}</Badge>,
-  },
-  {
-    key: 'enrolled',
-    header: '신청/정원',
-    render: (item) => (
-      <>
-        {item.enrolled} / {item.capacity}명
-      </>
-    ),
-  },
-  {
-    key: 'schedule',
-    header: '일정',
-    render: (item) => (
-      <>
-        {item.type} · {item.date}
-      </>
-    ),
-  },
-];
+const trendPeriods = ['금년', '최근 1년', '최근 6개월', '최근 3개월'] as const;
 
 function CreatorActivation({ compact = false }: { compact?: boolean }) {
   return (
@@ -104,6 +71,8 @@ export function HomePage() {
   } = useAsync(loadClasses);
   const [statsTab, setStatsTab] = useState<'enrollment' | 'members'>('enrollment');
   const [trendPeriod, setTrendPeriod] = useState<(typeof trendPeriods)[number]>('최근 6개월');
+  const [customRange, setCustomRange] = useState({ from: '', to: '' });
+  const [useCustomRange, setUseCustomRange] = useState(false);
 
   if (loading || error || !data) {
     return (
@@ -128,45 +97,57 @@ export function HomePage() {
   const remainingClassCount = todaySchedule.length;
   const completedClassCount = Math.max(data.todayClasses - remainingClassCount, 0);
   const pendingTaskCount = data.pendingPayments + data.newApplicants;
-  const kpiCards = [
-    {
-      label: '이번 달 매출',
-      value: data.monthlyRevenue == null ? '-' : won(data.monthlyRevenue),
-      tag: data.monthlyRevenueChange,
-      detail: '이번 달 누적',
-      to: '/settlements',
-    },
-    {
-      label: '활성 수강생',
-      value: data.activeStudents == null ? '-' : `${data.activeStudents}명`,
-      detail: '현재 수강 중',
-      to: '/classes',
-    },
-    {
-      label: '오늘 수업',
-      value: `${data.todayClasses}개`,
-      detail: `완료 ${completedClassCount}개 · 남음 ${remainingClassCount}개`,
-      to: '/classes',
-    },
-  ];
+  const classProgressRate = data.todayClasses > 0
+    ? Math.round((completedClassCount / data.todayClasses) * 100)
+    : 0;
   const enrollmentTrend = data.enrollmentTrend ?? [];
   const memberTrend = data.memberTrend ?? [];
-  const trendRange = trendPeriod === '최근 3개월' ? 3 : 6;
-  const visibleEnrollmentTrend = enrollmentTrend.slice(-trendRange);
-  const visibleMemberTrend = memberTrend.slice(-trendRange);
+  const isRecent3Months = !useCustomRange && trendPeriod === '최근 3개월';
+  const visibleEnrollmentTrend = isRecent3Months ? enrollmentTrend.slice(-3) : enrollmentTrend;
+  const visibleMemberTrend = isRecent3Months ? memberTrend.slice(-3) : memberTrend;
   const enrollmentTotal = visibleEnrollmentTrend.reduce((sum, item) => sum + item.value, 0);
   const memberTotal = visibleMemberTrend.reduce((sum, item) => sum + item.value, 0);
+  const selectTrendPeriod = (period: (typeof trendPeriods)[number]) => {
+    setTrendPeriod(period);
+    setUseCustomRange(false);
+  };
+  const applyCustomRange = () => {
+    if (!customRange.from || !customRange.to) return;
+    setUseCustomRange(true);
+  };
   const visibleTrend = statsTab === 'enrollment' ? visibleEnrollmentTrend : visibleMemberTrend;
   const studentStats = data.studentStats ?? [];
   const studentInProgress = data.studentInProgress ?? [];
   const userName = getSession()?.user.name || '강사';
-  const dashboardIntro = `${userName}님, 오늘 확인할 내용을 정리했어요`;
   const nextClass = todaySchedule[0] ?? null;
   const nextClassTiming = nextClass ? getClassTiming(nextClass.time) : null;
-  const recentApplicants = data.applicants.slice(0, 3);
-  const recentPendingApplicant = data.applicants.find(
-    (applicant) => applicant.payment === '결제대기',
+  const heroCountdown = nextClassTiming
+    ? nextClassTiming.canStartAttendance
+      ? '지금 바로 시작할 수 있어요'
+      : `다음 수업까지 ${nextClassTiming.label.replace(/^수업까지\s*/, '')}`
+    : null;
+  const nextClassInfo = classItems.find(
+    (item) => nextClass?.title.includes(item.title) || item.title.includes(nextClass?.title ?? ''),
   );
+  const heroAvatarPool = data.applicants.slice(0, 3);
+  const heroEnrolledCount = nextClassInfo?.enrolled ?? heroAvatarPool.length;
+  const heroAvatarExtra = Math.max(heroEnrolledCount - heroAvatarPool.length, 0);
+  const recentApplicants = data.applicants.slice(0, 3);
+  const activityCopy: Record<string, { label: (name: string) => string; tag: string }> = {
+    결제완료: { label: (name) => `${name}님이 결제를 완료했습니다.`, tag: '승인 완료' },
+    환불: { label: (name) => `${name}님이 환불을 요청했습니다.`, tag: '환불 처리' },
+    결제대기: { label: (name) => `${name}님이 수강을 신청했습니다.`, tag: '결제 대기' },
+  };
+  const recentActivity = recentApplicants.map((applicant) => {
+    const copy = activityCopy[applicant.payment] ?? activityCopy['결제대기'];
+    return {
+      id: applicant.id,
+      label: copy.label(applicant.name),
+      meta: `${applicant.classTitle} · ${applicant.appliedAt}`,
+      tag: copy.tag,
+      tone: getStatusTone(applicant.payment),
+    };
+  });
 
   return (
     <>
@@ -197,12 +178,7 @@ export function HomePage() {
           <div className="oc-stack dashboard-refresh">
             <header className="dashboard-intro">
               <div className="dashboard-intro-copy">
-                <h2 className="dashboard-intro-title">{dashboardIntro}</h2>
-                <p>
-                  {!classesLoading && classItems.length === 0
-                    ? '첫 클래스를 만들고 운영을 시작해 보세요.'
-                    : `남은 수업 ${remainingClassCount}개 · 결제 대기 ${data.pendingPayments}건 · 신규 신청 ${data.newApplicants}건`}
-                </p>
+                <h2 className="dashboard-intro-title">{userName}님, 오늘 확인할 내용을 정리했어요</h2>
               </div>
             </header>
 
@@ -220,134 +196,138 @@ export function HomePage() {
               <>
                 <section className="dashboard-priority" aria-label="오늘 먼저 확인할 일">
                   <div className="dashboard-priority-grid">
-                    <article className="oc-panel dashboard-next-class">
-                      <div className="dashboard-task-head">
-                        <div>
-                          <h3>다음 수업</h3>
-                          <p>
-                            {nextClass
-                              ? `오늘 전체 ${data.todayClasses}개 · 남은 수업 ${remainingClassCount}개`
-                              : '남은 수업 없음'}
-                          </p>
-                        </div>
-                        <span aria-hidden="true">
-                          <CalendarDays size={21} />
-                        </span>
-                      </div>
-
+                    <article className="dashboard-hero-class">
                       {nextClass ? (
                         <>
-                          <div className="dashboard-next-class-main">
-                            <time>
-                              <small>{nextClass.meridiem}</small>
-                              <strong>{nextClass.time}</strong>
-                            </time>
-                            <div>
-                              <Badge tone="primary">{nextClass.badge}</Badge>
-                              <h4>{nextClass.title}</h4>
+                          <div className="dashboard-hero-top">
+                            <span className="dashboard-hero-badge">
+                              <Clock size={14} aria-hidden="true" />
+                              {heroCountdown}
+                            </span>
+                            <button type="button" className="dashboard-hero-more" aria-label="더 보기">
+                              <MoreHorizontal size={18} />
+                            </button>
+                          </div>
+                          <div className="dashboard-hero-main">
+                            <div className="dashboard-hero-copy">
+                              <h3>{nextClass.title}</h3>
                               <p>
-                                {nextClass.meta} · {nextClassTiming?.label}
+                                {nextClass.meta} · {nextClass.badge}
                               </p>
                             </div>
+                            <span className="dashboard-hero-play" aria-hidden="true">
+                              <Play size={22} fill="currentColor" />
+                            </span>
                           </div>
-                          <div className="dashboard-task-actions">
+                          <div className="dashboard-hero-actions">
                             <Link
-                              className="dashboard-task-primary"
+                              className="dashboard-hero-cta"
                               to={
                                 nextClassTiming?.canStartAttendance
                                   ? '/attendance/select'
                                   : '/classes'
                               }
                             >
-                              {nextClassTiming?.canStartAttendance ? '출석 시작' : '수업 준비'}{' '}
-                              <ArrowRight size={16} />
+                              <Play size={14} fill="currentColor" />
+                              {nextClassTiming?.canStartAttendance ? '수업방 입장하기' : '수업 준비하기'}
                             </Link>
-                            <Link className="dashboard-task-secondary" to="/classes">
-                              전체 일정
-                            </Link>
+                            <span className="dashboard-hero-avatars">
+                              <span className="dashboard-hero-avatar-stack">
+                                {heroAvatarPool.map((applicant, index) => (
+                                  <i key={applicant.id} style={{ zIndex: heroAvatarPool.length - index }}>
+                                    {applicant.name[0]}
+                                  </i>
+                                ))}
+                                {heroAvatarExtra > 0 && <i>+{heroAvatarExtra}</i>}
+                              </span>
+                              수강생 {heroEnrolledCount}명 대기중
+                            </span>
                           </div>
                         </>
                       ) : (
-                        <div className="dashboard-task-empty">
+                        <div className="dashboard-hero-empty">
                           <b>오늘 예정된 수업이 없습니다</b>
                           <span>다음 클래스 일정을 준비해 보세요.</span>
+                          <Link className="dashboard-task-secondary" to="/classes">
+                            전체 일정
+                          </Link>
                         </div>
                       )}
                     </article>
 
-                    <article className="oc-panel dashboard-attention-panel">
-                      <div className="dashboard-task-head">
-                        <div>
-                          <h3>확인이 필요한 업무</h3>
-                          <p>결제와 신청을 처리 순서대로 확인하세요.</p>
+                    <article className="oc-panel dashboard-task-list-card">
+                      <div className="dashboard-task-list-head">
+                        <h3>처리할 업무</h3>
+                        {pendingTaskCount > 0 && (
+                          <span className="dashboard-task-list-badge">{pendingTaskCount}건</span>
+                        )}
+                      </div>
+                      {pendingTaskCount > 0 ? (
+                        <div className="dashboard-task-list">
+                          {data.pendingPayments > 0 && (
+                            <Link className="dashboard-task-list-row" to="/applicants?payment=결제대기">
+                              <span className="dashboard-task-list-icon" data-tone="blue">
+                                <CreditCard size={16} aria-hidden="true" />
+                              </span>
+                              <span className="dashboard-task-list-copy">
+                                <b>결제 확인 대기</b>
+                                <small>무통장 입금 확인이 필요합니다.</small>
+                              </span>
+                              <strong>{data.pendingPayments}건</strong>
+                            </Link>
+                          )}
+                          {data.newApplicants > 0 && (
+                            <Link className="dashboard-task-list-row" to="/applicants">
+                              <span className="dashboard-task-list-icon" data-tone="purple">
+                                <UserPlus size={16} aria-hidden="true" />
+                              </span>
+                              <span className="dashboard-task-list-copy">
+                                <b>신규 수강 신청</b>
+                                <small>신청 내역을 검토해 주세요.</small>
+                              </span>
+                              <strong>{data.newApplicants}건</strong>
+                            </Link>
+                          )}
                         </div>
-                        <span aria-hidden="true">
-                          <ListChecks size={21} />
-                        </span>
-                      </div>
-
-                      <div className="dashboard-attention-value">
-                        <strong>{pendingTaskCount}건</strong>
-                        <span>처리 대기</span>
-                      </div>
-                      <p className="dashboard-attention-copy">
-                        {pendingTaskCount > 0
-                          ? `결제 대기 ${data.pendingPayments}건 (${won(data.pendingAmount)}) · 신규 신청 ${data.newApplicants}건.${
-                              recentPendingApplicant
-                                ? ` 최근 요청: ${recentPendingApplicant.name} · ${recentPendingApplicant.appliedAt}`
-                                : ''
-                            }`
-                          : '처리할 결제나 신규 신청이 없습니다.'}
-                      </p>
-                      <div className="dashboard-attention-actions">
-                        <Link to="/applicants?payment=결제대기">
-                          <span>
-                            <small>결제 대기</small>
-                            <b>{data.pendingPayments}건</b>
-                          </span>
-                          <span>
-                            결제 확인 <ArrowRight size={15} />
-                          </span>
-                        </Link>
-                        <Link to="/applicants">
-                          <span>
-                            <small>신규 신청</small>
-                            <b>{data.newApplicants}건</b>
-                          </span>
-                          <span>
-                            신청 검토 <ArrowRight size={15} />
-                          </span>
-                        </Link>
-                      </div>
+                      ) : (
+                        <div className="dashboard-empty-state">
+                          <b>처리할 업무가 없습니다</b>
+                          <span>결제나 신규 신청이 들어오면 이곳에 표시됩니다.</span>
+                        </div>
+                      )}
                     </article>
                   </div>
                 </section>
 
-                <section className="dashboard-summary" aria-labelledby="dashboard-summary-title">
-                  <div className="dashboard-section-heading">
-                    <div>
-                      <h2 id="dashboard-summary-title">핵심 지표</h2>
-                      <p>미처리 업무를 제외한 운영 현황을 확인하세요.</p>
-                    </div>
+                <section className="dashboard-performance-card oc-panel">
+                  <div className="oc-panel-title">
+                    <h2>이번 달 운영 성과</h2>
+                    <Link to="/settlements">
+                      상세 리포트 <ArrowRight size={15} />
+                    </Link>
                   </div>
-                  <div className="oc-kpi-grid dashboard-kpi-grid">
-                    {kpiCards.map((card) => (
-                      <Link
-                        className="oc-kpi-card dashboard-kpi-card"
-                        to={card.to}
-                        key={card.label}
-                      >
-                        <div className="oc-kpi-head">
-                          <span>{card.label}</span>
-                          <ArrowUpRight size={17} aria-hidden="true" />
-                        </div>
-                        <div className="dashboard-kpi-value">
-                          <strong>{card.value}</strong>
-                          {card.tag && <em className="oc-kpi-tag">{card.tag}</em>}
-                        </div>
-                        <small className="oc-kpi-meta">{card.detail}</small>
-                      </Link>
-                    ))}
+                  <div className="dashboard-performance-grid">
+                    <div className="dashboard-performance-item">
+                      <small>총 매출액</small>
+                      <strong>{data.monthlyRevenue == null ? '-' : won(data.monthlyRevenue)}</strong>
+                      {data.monthlyRevenueChange && (
+                        <em className="oc-kpi-tag">{data.monthlyRevenueChange}</em>
+                      )}
+                    </div>
+                    <div className="dashboard-performance-item">
+                      <small>활성 수강생</small>
+                      <strong>{data.activeStudents == null ? '-' : `${data.activeStudents}명`}</strong>
+                      <span className="dashboard-performance-meta">
+                        신규 유입 {data.newMembers ?? 0}명
+                      </span>
+                    </div>
+                    <div className="dashboard-performance-item">
+                      <small>수업 진행률</small>
+                      <strong>{classProgressRate}%</strong>
+                      <span className="dashboard-performance-bar">
+                        <i style={{ width: `${classProgressRate}%` }} />
+                      </span>
+                    </div>
                   </div>
                 </section>
 
@@ -355,7 +335,7 @@ export function HomePage() {
                   <section className="oc-panel dashboard-operations-panel">
                     <div className="oc-panel-title">
                       <div>
-                        <h2>클래스 운영 현황</h2>
+                        <h2>운영중인 클래스</h2>
                         <p>모집과 수강 진행 상태를 확인하세요.</p>
                       </div>
                       <div className="dashboard-panel-actions">
@@ -367,57 +347,69 @@ export function HomePage() {
                         </Link>
                       </div>
                     </div>
-                    <div className="dashboard-class-table">
-                      <Table
-                        columns={classColumns}
-                        rows={classItems}
-                        rowKey={(item) => item.id}
-                        loading={classesLoading}
-                      />
-                    </div>
-                    <div className="dashboard-class-cards">
-                      {classItems.slice(0, 3).map((item) => (
-                        <ClassCard item={item} key={item.id} />
-                      ))}
-                    </div>
-                  </section>
-
-                  <section className="oc-panel dashboard-applicant-panel">
-                    <div className="oc-panel-title">
-                      <div>
-                        <h2>최근 신청</h2>
-                        <p>미처리 상태를 빠르게 확인하세요.</p>
-                      </div>
-                      <Link to="/applicants">
-                        전체보기 <ArrowRight size={15} />
-                      </Link>
-                    </div>
-                    {recentApplicants.length > 0 ? (
-                      <div className="dashboard-applicant-list">
-                        {recentApplicants.map((applicant) => (
-                          <Link to={`/applicants/${applicant.id}`} key={applicant.id}>
-                            <span className="dashboard-applicant-avatar" aria-hidden="true">
-                              {applicant.name[0]}
+                    {classItems.length > 0 ? (
+                      <div className="dashboard-class-list">
+                        {classItems.slice(0, 4).map((item) => (
+                          <Link className="dashboard-class-row" to={`/classes/${item.id}`} key={item.id}>
+                            <span className="dashboard-class-row-icon" aria-hidden="true">
+                              <CalendarDays size={16} />
                             </span>
-                            <span className="dashboard-applicant-copy">
-                              <b>{applicant.name}</b>
+                            <span className="dashboard-class-row-copy">
+                              <b>{item.title}</b>
                               <small>
-                                {applicant.classTitle} · {applicant.appliedAt}
+                                {item.date} 시작 · {item.type}
                               </small>
                             </span>
-                            <Badge tone={getStatusTone(applicant.payment)}>
-                              {applicant.payment}
-                            </Badge>
-                            <ChevronRight size={17} aria-hidden="true" />
+                            <span className="dashboard-class-row-progress">
+                              <strong>
+                                {item.enrolled} / {item.capacity}명
+                              </strong>
+                              <span className="dashboard-performance-bar">
+                                <i
+                                  style={{
+                                    width: `${Math.min(100, (item.enrolled / item.capacity) * 100)}%`,
+                                    background: item.color,
+                                  }}
+                                />
+                              </span>
+                            </span>
                           </Link>
                         ))}
                       </div>
                     ) : (
                       <div className="dashboard-empty-state">
-                        <b>새 신청이 없습니다</b>
-                        <span>신청이 들어오면 이곳에서 바로 확인할 수 있습니다.</span>
+                        <b>운영중인 클래스가 없습니다</b>
+                        <span>클래스를 만들면 이곳에서 모집 현황을 볼 수 있습니다.</span>
                       </div>
                     )}
+                  </section>
+
+                  <section className="oc-panel dashboard-activity-panel">
+                    <div className="oc-panel-title">
+                      <h2>최근 활동</h2>
+                    </div>
+                    {recentActivity.length > 0 ? (
+                      <div className="dashboard-activity-timeline">
+                        {recentActivity.map((activity) => (
+                          <div className="dashboard-activity-row" key={activity.id}>
+                            <span className="dashboard-activity-dot" aria-hidden="true" />
+                            <div className="dashboard-activity-copy">
+                              <b>{activity.label}</b>
+                              <small>{activity.meta}</small>
+                              <Badge tone={activity.tone}>{activity.tag}</Badge>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="dashboard-empty-state">
+                        <b>새 활동이 없습니다</b>
+                        <span>신청이나 결제가 들어오면 이곳에서 바로 확인할 수 있습니다.</span>
+                      </div>
+                    )}
+                    <Link className="dashboard-activity-more" to="/applicants">
+                      모든 활동 보기 <ChevronRight size={15} />
+                    </Link>
                   </section>
                 </div>
 
@@ -444,22 +436,56 @@ export function HomePage() {
                           { value: 'members', label: `신규 신청자 (${memberTotal})` },
                         ]}
                       />
-                      <div className="oc-filters">
-                        {trendPeriods.map((period) => (
+                      <div className="oc-trend-filter">
+                        <div className="oc-trend-filter-presets" role="group" aria-label="조회 기간">
+                          {trendPeriods.map((period) => (
+                            <button
+                              type="button"
+                              key={period}
+                              className={!useCustomRange && trendPeriod === period ? 'active' : ''}
+                              aria-pressed={!useCustomRange && trendPeriod === period}
+                              onClick={() => selectTrendPeriod(period)}
+                            >
+                              {period}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="oc-trend-filter-range">
+                          <label className="oc-date-input">
+                            <input
+                              type="date"
+                              aria-label="시작일"
+                              value={customRange.from}
+                              max={customRange.to || undefined}
+                              onChange={(e) => setCustomRange((prev) => ({ ...prev, from: e.target.value }))}
+                            />
+                            <Calendar size={16} aria-hidden="true" />
+                          </label>
+                          <span className="oc-trend-filter-sep">~</span>
+                          <label className="oc-date-input">
+                            <input
+                              type="date"
+                              aria-label="종료일"
+                              value={customRange.to}
+                              min={customRange.from || undefined}
+                              onChange={(e) => setCustomRange((prev) => ({ ...prev, to: e.target.value }))}
+                            />
+                            <Calendar size={16} aria-hidden="true" />
+                          </label>
                           <button
                             type="button"
-                            key={period}
-                            className={trendPeriod === period ? 'active' : ''}
-                            aria-pressed={trendPeriod === period}
-                            onClick={() => setTrendPeriod(period)}
+                            className="oc-trend-filter-submit"
+                            onClick={applyCustomRange}
+                            disabled={!customRange.from || !customRange.to}
                           >
-                            {period}
+                            조회
                           </button>
-                        ))}
+                        </div>
                       </div>
                     </div>
                     <p className="dashboard-live-region" aria-live="polite">
-                      {trendPeriod}, {statsTab === 'enrollment' ? '클래스 신청' : '신규 신청자'} 총{' '}
+                      {useCustomRange ? `${customRange.from} ~ ${customRange.to}` : trendPeriod},{' '}
+                      {statsTab === 'enrollment' ? '클래스 신청' : '신규 신청자'} 총{' '}
                       {statsTab === 'enrollment' ? enrollmentTotal : memberTotal}건
                     </p>
                     <BarChart
