@@ -1,22 +1,26 @@
-import {
-  classCreationDefaults,
-  classCreationFileTypes,
-} from '../constants/classCreation';
+import { classCreationDefaults, classCreationFileTypes } from '../constants/classCreation';
 import type { CurriculumLesson } from '../types/class';
-import { getYouTubeVideoId } from './content';
+import { getYouTubeVideoId, isSupportedVideoProvider, type ContentProvider } from './content';
 
 export { getYouTubeVideoId } from './content';
 
 export type ClassSourceCurriculumInput = {
-  kind: 'none' | 'video-url' | 'video' | 'documents';
+  kind: 'none' | 'video-url' | 'links' | 'video' | 'documents' | 'mixed';
   classTitle: string;
   classSummary: string;
   videoUrl?: string;
   videoTitle?: string;
   videoDurationSeconds?: number;
+  links?: Array<{
+    url: string;
+    title?: string;
+    provider: ContentProvider;
+    durationSeconds?: number;
+  }>;
   materials: Array<{
     name: string;
     url?: string;
+    contentType?: 'video' | 'document';
     durationSeconds?: number;
   }>;
 };
@@ -50,7 +54,18 @@ export function buildSourceCurriculum(
     resources: [],
   } satisfies Partial<Omit<CurriculumLesson, 'id'>>;
 
-  const lessons: Array<Omit<CurriculumLesson, 'id'>> = [];
+  const lessons: Array<Omit<CurriculumLesson, 'id'>> = (input.links ?? [])
+    .filter((link) => link.provider !== 'SOCIAL')
+    .map((link, index) => {
+      const providerIsVideo = isSupportedVideoProvider(link.provider);
+      return {
+        ...common,
+        title: link.title?.trim() || `${input.classTitle.trim()} ${index + 1}`,
+        contentType: providerIsVideo ? 'video' : 'document',
+        contentUrl: link.url,
+        durationMinutes: sourceDurationMinutes(link.durationSeconds),
+      };
+    });
   if (input.kind === 'video-url' && input.videoUrl) {
     lessons.push({
       ...common,
@@ -59,13 +74,14 @@ export function buildSourceCurriculum(
       contentUrl: input.videoUrl,
       durationMinutes: sourceDurationMinutes(input.videoDurationSeconds),
     });
-  } else if (input.kind === 'video' || input.kind === 'documents') {
+  }
+  if (input.kind === 'video' || input.kind === 'documents' || input.kind === 'mixed') {
     input.materials.forEach((material) => {
       if (!material.url) return;
       lessons.push({
         ...common,
         title: sourceTitle(material.name) || input.classTitle.trim(),
-        contentType: input.kind === 'video' ? 'video' : 'document',
+        contentType: material.contentType ?? (input.kind === 'video' ? 'video' : 'document'),
         contentUrl: material.url,
         durationMinutes: sourceDurationMinutes(material.durationSeconds),
       });

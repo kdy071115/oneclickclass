@@ -77,6 +77,10 @@ export interface ClassDraft {
   url: string;
   address: string;
   detailedAddress: string;
+  instructorName: string;
+  instructorBio: string;
+  instructorImage: string;
+  instructorLinks: string[];
 }
 export interface ClassDetail extends ClassItem {
   summary: string;

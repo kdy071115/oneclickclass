@@ -9,6 +9,8 @@ import { CreateClassPage } from './CreateClassPage';
 const creationMetaKey = 'oneclick-class-creation-meta';
 const originalShowModal = HTMLDialogElement.prototype.showModal;
 const originalClose = HTMLDialogElement.prototype.close;
+const originalCreateObjectURL = Object.getOwnPropertyDescriptor(URL, 'createObjectURL');
+const originalRevokeObjectURL = Object.getOwnPropertyDescriptor(URL, 'revokeObjectURL');
 
 function renderCreator(path: string) {
   return render(
@@ -35,6 +37,14 @@ describe('CreateClassPage accessibility and ordering', () => {
         this.removeAttribute('open');
       },
     });
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: vi.fn(() => 'blob:class-source'),
+    });
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      configurable: true,
+      value: vi.fn(),
+    });
   });
 
   afterEach(() => {
@@ -44,50 +54,137 @@ describe('CreateClassPage accessibility and ordering', () => {
     else delete (HTMLDialogElement.prototype as { showModal?: () => void }).showModal;
     if (originalClose) HTMLDialogElement.prototype.close = originalClose;
     else delete (HTMLDialogElement.prototype as { close?: () => void }).close;
+    if (originalCreateObjectURL)
+      Object.defineProperty(URL, 'createObjectURL', originalCreateObjectURL);
+    else delete (URL as { createObjectURL?: typeof URL.createObjectURL }).createObjectURL;
+    if (originalRevokeObjectURL)
+      Object.defineProperty(URL, 'revokeObjectURL', originalRevokeObjectURL);
+    else delete (URL as { revokeObjectURL?: typeof URL.revokeObjectURL }).revokeObjectURL;
   });
 
-  it('별도 헤더 없이 진행 영역에 브랜드와 나가기 동작을 함께 배치한다', () => {
+  it('고정 헤더에 브랜드, 현재 단계와 나가기 동작을 배치한다', () => {
     const { container } = renderCreator('/classes/new');
 
     const progressShell = container.querySelector('.creator-progress');
     expect(container.querySelector('.creator-header')).toBeNull();
     expect(progressShell?.querySelector('.creator-brand')).not.toBeNull();
-    expect(progressShell?.querySelector('nav[aria-label="클래스 만들기 진행률"]')).not.toBeNull();
+    expect(progressShell?.querySelector('.creator-progress-copy')).toHaveTextContent('진행 방식');
+    expect(progressShell?.querySelector('[role="progressbar"]')).not.toBeNull();
     expect(progressShell?.querySelector('.creator-exit')).not.toBeNull();
     expect(progressShell?.querySelector('.creator-save-status')).toBeNull();
     expect(container.querySelector('.creator-save-status')).toHaveAttribute('role', 'status');
   });
 
-  it('기존 진행 방식 분류인 온라인·라이브·오프라인을 유지한다', () => {
+  it('진행 방식을 별도 첫 페이지에서 선택한 뒤 자료 추가로 이동한다', async () => {
+    const user = userEvent.setup();
     renderCreator('/classes/new');
 
-    expect(screen.getByText('온라인', { selector: 'b' })).toBeInTheDocument();
-    expect(screen.getByText('라이브', { selector: 'b' })).toBeInTheDocument();
-    expect(screen.getByText('오프라인', { selector: 'b' })).toBeInTheDocument();
-    expect(screen.queryByText('녹화형')).toBeNull();
+    expect(
+      screen.getByRole('heading', { name: '어떤 방식으로 클래스를 진행하시나요?' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /온라인/ })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: /라이브/ })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: /오프라인/ })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+    expect(screen.getByRole('button', { name: '다음' })).toBeDisabled();
+    expect(screen.queryByRole('heading', { name: '링크 추가' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /온라인/ }));
+    await user.click(screen.getByRole('button', { name: '다음' }));
+
+    expect(screen.getByRole('heading', { name: '링크 추가' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '이전' })).toBeInTheDocument();
   });
 
-  it('안내와 자료 다시 선택 동작을 클래스 정보 입력 폼 마지막에 함께 배치한다', () => {
+  it('자료가 없으면 AI 생성을 시작할 수 없고 직접 작성 경로를 제공하지 않는다', () => {
     sessionStorage.setItem(
       creationMetaKey,
-      JSON.stringify({ deliverySelected: true, informationMode: 'manual', step: 2, maxStep: 2 }),
+      JSON.stringify({ deliverySelected: true, informationMode: 'source', step: 2, maxStep: 2 }),
     );
+    renderCreator('/classes/new?step=2');
+
+    expect(screen.queryByText('자료 없이 시작하기')).not.toBeInTheDocument();
+    expect(screen.queryByText('직접 작성')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /AI가 클래스 만들기/ })).toBeDisabled();
+    expect(screen.getByText('링크나 파일을 하나 이상 추가해 주세요')).toBeInTheDocument();
+  });
+  it('링크 입력을 기본으로 두고 컴퓨터 파일을 보조 자료로 여러 개 추가한다', async () => {
     const { container } = renderCreator('/classes/new?step=2');
 
-    const editor = container.querySelector('.information-editor');
-    const basics = container.querySelector('.information-basics');
-    const footer = container.querySelector('.information-footer');
-    const ready = container.querySelector('.information-ready');
-    const reset = container.querySelector('.information-source-reset');
-    expect(reset).toHaveTextContent('자료 다시 선택');
-    expect(basics?.querySelector('[data-creator-field="title"]')).not.toBeNull();
-    expect(basics?.querySelector('[data-creator-field="summary"]')).not.toBeNull();
-    expect(editor?.lastElementChild).toBe(footer);
-    expect(footer?.firstElementChild).toBe(ready);
-    expect(footer?.lastElementChild).toBe(reset);
-  });
+    expect(screen.getByRole('textbox', { name: '자료 링크' })).toBeInTheDocument();
+    expect(container.querySelector('.source-file-option')).toHaveAttribute('open');
+    const input = screen.getByLabelText(/파일을 끌어놓거나 클릭해 추가하세요/);
+    fireEvent.change(input, {
+      target: {
+        files: [
+          new File(['guide'], 'guide.pdf', { type: 'application/pdf' }),
+          new File(['slides'], 'slides.pptx', {
+            type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+          }),
+        ],
+      },
+    });
 
-  it('자료가 없는 클래스는 공개 대신 기본 정보 저장으로 안내한다', () => {
+    expect(await screen.findByText('guide.pdf')).toBeInTheDocument();
+    expect(screen.getByText('slides.pptx')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getAllByText(/업로드 완료/)).toHaveLength(2));
+    expect(screen.getByRole('button', { name: /AI가 클래스 만들기/ })).toBeEnabled();
+    expect(screen.getByText('2개 자료를 함께 분석해 정보와 썸네일을 만들어요')).toBeInTheDocument();
+  });
+  it.each(['manual', 'generated'] as const)(
+    '저장된 %s 상태로 자료 단계에 복귀해도 입력 화면을 표시한다',
+    (informationMode) => {
+      sessionStorage.setItem(
+        creationMetaKey,
+        JSON.stringify({ deliverySelected: true, informationMode, step: 2, maxStep: 3 }),
+      );
+
+      renderCreator('/classes/new?step=2');
+
+      expect(screen.getByRole('heading', { name: '링크 추가' })).toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: '자료 링크' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { name: '어떤 자료로 클래스를 만들까요?' }),
+      ).toBeInTheDocument();
+    },
+  );
+  it('자료 단계에서 이전을 누르면 진행 방식을 다시 선택할 수 있다', async () => {
+    const user = userEvent.setup();
+    sessionStorage.setItem(
+      creationMetaKey,
+      JSON.stringify({
+        deliverySelected: true,
+        informationMode: 'generated',
+        source: 'links',
+        links: [
+          {
+            id: 'source-1',
+            url: 'https://blog.example.com/class',
+            provider: 'EXTERNAL',
+          },
+        ],
+        step: 2,
+        maxStep: 2,
+      }),
+    );
+    renderCreator('/classes/new?step=2');
+
+    expect(screen.getByRole('heading', { name: '링크 추가' })).toBeInTheDocument();
+    expect(screen.getAllByText('blog.example.com')).not.toHaveLength(0);
+    await user.click(screen.getByRole('button', { name: '이전' }));
+    expect(
+      screen.getByRole('heading', { name: '어떤 방식으로 클래스를 진행하시나요?' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /온라인/ })).toHaveAttribute('aria-pressed', 'true');
+    await user.click(screen.getByRole('button', { name: /라이브/ }));
+    expect(screen.getByRole('button', { name: /라이브/ })).toHaveAttribute('aria-pressed', 'true');
+    await user.click(screen.getByRole('button', { name: '다음' }));
+    expect(screen.getAllByText('blog.example.com')).not.toHaveLength(0);
+  });
+  it('자료가 없는 이전 초안은 같은 화면에서 게시를 막고 링크 입력을 안내한다', async () => {
+    const user = userEvent.setup();
     sessionStorage.setItem(
       CLASS_DRAFT_KEY,
       JSON.stringify({
@@ -101,56 +198,65 @@ describe('CreateClassPage accessibility and ordering', () => {
       creationMetaKey,
       JSON.stringify({ deliverySelected: true, informationMode: 'manual', step: 4, maxStep: 4 }),
     );
-    const { container } = renderCreator('/classes/new?step=4');
+    renderCreator('/classes/new?step=4');
 
-    const back = container.querySelector('.creator-back');
-    const publish = container.querySelector('.creator-next');
-    const confirmDialog = container.querySelector('.ui-confirm-dialog');
-    expect(back?.querySelector('.lucide-arrow-left')).not.toBeNull();
-    expect(publish).toHaveTextContent('기본 정보 저장');
-    expect(publish?.querySelector('.lucide-arrow-right')).not.toBeNull();
-    expect(
-      Array.from(confirmDialog?.querySelectorAll('button') ?? []).map((button) => button.textContent),
-    ).toContain('저장하고 계속');
+    await user.click(screen.getByRole('button', { name: '자료 추가하기' }));
+
+    expect(screen.getByRole('heading', { name: '링크 추가' })).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('링크나 파일이 하나 이상 필요해요');
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
-
-  it('저장을 마친 생성 초안은 다음 새 클래스에 남기지 않는다', async () => {
+  it('게시를 마친 생성 초안은 다음 새 클래스에 남기지 않는다', async () => {
     const user = userEvent.setup();
-    const completedTitle = '저장 완료 뒤 초기화할 클래스';
+    const completedTitle = '게시 완료 뒤 초기화할 클래스';
     sessionStorage.setItem(
       CLASS_DRAFT_KEY,
       JSON.stringify({
         ...initialClassDraft,
         title: completedTitle,
-        summary: '저장 완료 후 새 클래스에서 복원되면 안 되는 소개입니다.',
-        description: '저장 상태와 신규 생성 상태를 분리하는 회귀 테스트입니다.',
+        summary: '게시 완료 후 새 클래스에서 복원되면 안 되는 소개입니다.',
+        description: '게시 상태와 신규 생성 상태를 분리하는 회귀 테스트입니다.',
       }),
     );
     sessionStorage.setItem(
       creationMetaKey,
-      JSON.stringify({ deliverySelected: true, informationMode: 'manual', step: 4, maxStep: 4 }),
+      JSON.stringify({
+        deliverySelected: true,
+        informationMode: 'generated',
+        source: 'links',
+        links: [
+          {
+            id: 'source-1',
+            url: 'https://blog.example.com/class',
+            provider: 'EXTERNAL',
+          },
+        ],
+        step: 3,
+        maxStep: 3,
+      }),
     );
-    renderCreator('/classes/new?step=4');
+    renderCreator('/classes/new?step=3');
 
-    await user.click(screen.getByRole('button', { name: '기본 정보 저장' }));
-    await user.click(screen.getByRole('button', { name: '저장하고 계속' }));
+    await user.click(screen.getAllByRole('button', { name: '클래스 게시' })[0]);
+    await user.click(screen.getAllByRole('button', { name: '클래스 게시' })[1]);
 
-    await waitFor(() =>
-      expect(
-        screen.getByRole('heading', { name: '클래스 기본 정보가 준비됐어요' }),
-      ).toBeInTheDocument(),
+    await waitFor(
+      () =>
+        expect(
+          screen.getByRole('heading', { name: '클래스와 첫 차시가 완성됐어요!' }),
+        ).toBeInTheDocument(),
+      { timeout: 3_000 },
     );
     expect(sessionStorage.getItem(CLASS_DRAFT_KEY)).toBeNull();
     expect(sessionStorage.getItem(creationMetaKey)).toBeNull();
 
     cleanup();
-    renderCreator('/classes/new?step=4');
+    renderCreator('/classes/new');
     expect(screen.queryByText(completedTitle)).toBeNull();
     expect(
-      screen.getByRole('heading', { name: '클래스 제목을 입력해 주세요' }),
+      screen.getByRole('heading', { name: '어떤 방식으로 클래스를 진행하시나요?' }),
     ).toBeInTheDocument();
   });
-
   it('이전 버전에서 남은 완료 상태도 새 클래스 진입 시 정리한다', () => {
     const legacyTitle = '이전에 저장을 마친 클래스';
     sessionStorage.setItem(
@@ -172,9 +278,7 @@ describe('CreateClassPage accessibility and ordering', () => {
     renderCreator('/classes/new?step=4');
 
     expect(screen.queryByText(legacyTitle)).toBeNull();
-    expect(
-      screen.getByRole('heading', { name: '클래스 제목을 입력해 주세요' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '제목을 입력해 주세요' })).toBeInTheDocument();
     expect(sessionStorage.getItem(CLASS_DRAFT_KEY)).toBeNull();
     expect(sessionStorage.getItem(creationMetaKey)).toBeNull();
   });
@@ -219,14 +323,12 @@ describe('CreateClassPage accessibility and ordering', () => {
     renderCreator('/classes/new?step=4');
 
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
-    const trigger = screen.getByRole('button', { name: '클래스 제목 수정' });
+    const trigger = screen.getByRole('button', { name: '제목 수정' });
     await user.click(trigger);
-    const input = screen.getByRole('textbox', { name: '클래스 제목 편집' });
+    const input = screen.getByRole('textbox', { name: '제목 편집' });
     expect(input).toHaveFocus();
     await user.keyboard('{Escape}');
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: '클래스 제목 수정' })).toHaveFocus(),
-    );
+    await waitFor(() => expect(screen.getByRole('button', { name: '제목 수정' })).toHaveFocus());
 
     const help = screen.getByRole('button', { name: '편집 방법' });
     expect(screen.queryByRole('button', { name: '도움말 닫기' })).not.toBeInTheDocument();
@@ -236,7 +338,7 @@ describe('CreateClassPage accessibility and ordering', () => {
     await waitFor(() => expect(help).toHaveFocus());
   });
 
-  it('미리보기 핵심 정보와 상세 내용을 분리하고 현재 진행 맥락을 표시한다', () => {
+  it('미리보기 핵심 정보와 상세 내용을 분리하고 단일 작업 공간 맥락을 표시한다', () => {
     sessionStorage.setItem(
       CLASS_DRAFT_KEY,
       JSON.stringify({
@@ -255,7 +357,7 @@ describe('CreateClassPage accessibility and ordering', () => {
     const { container } = renderCreator('/classes/new?step=4');
 
     expect(container.querySelector('.creator-progress-copy')).toHaveTextContent('미리보기');
-    expect(screen.getByText('공개 페이지 미리보기를 편집하고 있어요')).toBeInTheDocument();
+    expect(screen.getByText('AI가 만든 공개 페이지를 확인하고 있어요')).toBeInTheDocument();
 
     const hero = container.querySelector('.preview-public-hero');
     const detail = container.querySelector('.preview-content');
@@ -277,68 +379,142 @@ describe('CreateClassPage accessibility and ordering', () => {
     expect(screen.queryByRole('group', { name: '커버 초점 위치' })).not.toBeInTheDocument();
   });
 
-  it('단계별 제목과 하단 액션을 해당 콘텐츠 폭에 맞춰 정렬한다', () => {
-    const stepOne = renderCreator('/classes/new');
-    expect(stepOne.container.querySelector('.creator-step-heading')).toHaveClass('is-wide');
-    expect(stepOne.container.querySelector('.creator-actions')).toHaveClass('single');
+  it('진행 방식, 자료 입력과 AI 미리보기를 단계별 페이지로 배치한다', () => {
+    const delivery = renderCreator('/classes/new');
+    expect(delivery.container.querySelector('.class-type-grid')).not.toBeNull();
+    expect(delivery.container.querySelector('.creator-information')).toBeNull();
+    expect(delivery.container.querySelector('.preview-workspace')).toBeNull();
     cleanup();
 
     sessionStorage.setItem(
       creationMetaKey,
-      JSON.stringify({ deliverySelected: true, informationMode: 'manual', step: 2, maxStep: 2 }),
+      JSON.stringify({ deliverySelected: true, informationMode: 'source', step: 2, maxStep: 2 }),
     );
-    const stepTwo = renderCreator('/classes/new?step=2');
-    expect(stepTwo.container.querySelector('.creator-step-heading')).not.toHaveClass('is-wide');
-    expect(stepTwo.container.querySelector('.creator-context')).not.toHaveClass('is-compact');
-    expect(stepTwo.container.querySelectorAll('.creator-context-item')).toHaveLength(2);
-    expect(stepTwo.container.querySelectorAll('.creator-context-item svg')).toHaveLength(2);
-    expect(stepTwo.container.querySelector('.creator-actions')).toHaveClass('is-information');
-    expect(stepTwo.container.querySelector('.creator-actions > .creator-action-group')).not.toBeNull();
+    const sourceOnly = renderCreator('/classes/new?step=2');
+    expect(sourceOnly.container.querySelector('.creator-information')).not.toBeNull();
+    expect(sourceOnly.container.querySelector('.preview-workspace')).toBeNull();
+    expect(sourceOnly.container.querySelector('.creator-actions')).toBeNull();
+    expect(sourceOnly.container.querySelector('.analyze-source-button')).not.toBeNull();
+    expect(screen.getByRole('button', { name: '이전' })).toBeInTheDocument();
+    const sourceActions = sourceOnly.container.querySelector('.source-primary-actions');
+    expect(sourceActions?.firstElementChild).toBe(screen.getByRole('button', { name: '이전' }));
+    expect(sourceActions?.lastElementChild).toBe(
+      screen.getByRole('button', { name: /AI가 클래스 만들기/ }),
+    );
     cleanup();
 
     sessionStorage.setItem(
       creationMetaKey,
       JSON.stringify({ deliverySelected: true, informationMode: 'manual', step: 3, maxStep: 3 }),
     );
-    const stepThree = renderCreator('/classes/new?step=3');
-    expect(stepThree.container.querySelector('.creator-step-heading')).toHaveClass('is-compact');
-    expect(stepThree.container.querySelector('.creator-context')).toHaveClass('is-compact');
-    expect(stepThree.container.querySelector('.creator-actions')).toHaveClass('is-compact');
+    const generated = renderCreator('/classes/new?step=3');
+    expect(generated.container.querySelector('.creator-information')).toBeNull();
+    expect(generated.container.querySelector('.preview-workspace')).not.toBeNull();
+    expect(generated.container.querySelector('.creator-actions')).not.toHaveClass('single');
+    expect(screen.getByRole('button', { name: '이전' })).toBeInTheDocument();
   });
 
-  it('온라인 클래스에서 영상 링크·파일·직접 작성 경로를 함께 안내한다', async () => {
+  it('영상과 블로그 링크를 여러 개 추가하고 AI 미리보기로 바로 이동한다', async () => {
     const user = userEvent.setup();
     renderCreator('/classes/new?source=video&step=2');
 
-    expect(screen.getByRole('heading', { name: '영상 링크 연결' })).toBeInTheDocument();
-    expect(screen.getByText(/YouTube, Vimeo 또는 직접 재생 가능한 영상 주소/)).toBeInTheDocument();
-    expect(screen.getByText(/영상 파일을 끌어놓거나 클릭해 업로드/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /자료 없이 시작하기/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '링크 추가' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: '어떤 자료로 클래스를 만들까요?' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('자료 없이 시작하기')).not.toBeInTheDocument();
 
-    const input = screen.getByRole('textbox', { name: '영상 URL' });
+    const input = screen.getByRole('textbox', { name: '자료 링크' });
     await user.type(input, 'https://vimeo.com/123456789');
-    await user.click(screen.getByRole('button', { name: '영상 불러오기' }));
+    await user.click(screen.getByRole('button', { name: '링크 추가' }));
+    await waitFor(() => expect(screen.getByText('vimeo.com')).toBeInTheDocument());
 
-    await waitFor(() => expect(screen.getByText(/Vimeo 영상 · 연결 완료/)).toBeInTheDocument());
-    expect(screen.getByRole('button', { name: /이 자료로 클래스 정보 만들기/ })).toBeEnabled();
+    await user.type(input, 'https://blog.example.com/react-course');
+    await user.click(screen.getByRole('button', { name: '링크 추가' }));
+    await waitFor(() => expect(screen.getByText('blog.example.com')).toBeInTheDocument());
+
+    expect(document.querySelector('.source-link-item > .success')).toBeNull();
+    expect(screen.getByText('2개 자료를 함께 분석해 정보와 썸네일을 만들어요')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /AI가 클래스 만들기/ }));
+
+    await waitFor(() =>
+      expect(screen.getByText('AI가 만든 공개 페이지를 확인하고 있어요')).toBeInTheDocument(),
+    );
+    expect(screen.getByRole('heading', { name: 'AI가 클래스를 준비했어요' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: '링크 추가' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '이전' })).toBeInTheDocument();
+    expect(screen.getByText('AI가 만든 썸네일')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '참가비 수정' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '이런 분께 추천해요' })).toBeInTheDocument();
   });
+  it('붙여넣은 여러 링크를 즉시 추가하고 프로필 링크로 강사 소개를 만든다', async () => {
+    const user = userEvent.setup();
+    renderCreator('/classes/new?source=video&step=2');
 
-  it('재생을 보장할 수 없는 외부 영상 페이지는 연결 전에 안내한다', async () => {
+    expect(screen.getByRole('button', { name: '클립보드 링크 붙여넣기' })).toBeInTheDocument();
+    fireEvent.paste(screen.getByRole('textbox', { name: '자료 링크' }), {
+      clipboardData: {
+        getData: () =>
+          [
+            'https://blog.example.com/react-guide',
+            'https://files.example.com/guide.pdf',
+            'https://www.instagram.com/mentor.studio',
+          ].join('\n'),
+      },
+    });
+
+    expect(await screen.findByText('blog.example.com')).toBeInTheDocument();
+    expect(screen.getByText('학습 자료')).toBeInTheDocument();
+    expect(screen.getByText('강사 프로필')).toBeInTheDocument();
+    expect(screen.getByText('3개 자료를 함께 분석해 정보와 썸네일을 만들어요')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /AI가 클래스 만들기/ }));
+
+    expect(await screen.findByRole('heading', { name: '강사 소개' })).toBeInTheDocument();
+    expect(screen.getByText('Mentor Studio')).toBeInTheDocument();
+    expect(screen.getByText(/프로필 링크 1개로 AI 자동 작성/)).toBeInTheDocument();
+  });
+  it('AI 미리보기에서 이전을 누르면 추가한 자료를 다시 편집할 수 있다', async () => {
+    const user = userEvent.setup();
+    sessionStorage.setItem(
+      creationMetaKey,
+      JSON.stringify({
+        deliverySelected: true,
+        informationMode: 'generated',
+        source: 'links',
+        links: [
+          {
+            id: 'source-1',
+            url: 'https://blog.example.com/class',
+            provider: 'EXTERNAL',
+          },
+        ],
+        step: 3,
+        maxStep: 3,
+      }),
+    );
+    renderCreator('/classes/new?step=3');
+
+    expect(screen.getByText('AI가 만든 공개 페이지를 확인하고 있어요')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '이전' }));
+
+    expect(screen.getByRole('heading', { name: '링크 추가' })).toBeInTheDocument();
+    expect(screen.getByText('blog.example.com')).toBeInTheDocument();
+  });
+  it('일반 웹페이지 링크도 AI 참고자료로 추가한다', async () => {
     const user = userEvent.setup();
     renderCreator('/classes/new?source=video&step=2');
 
     await user.type(
-      screen.getByRole('textbox', { name: '영상 URL' }),
+      screen.getByRole('textbox', { name: '자료 링크' }),
       'https://video.example.com/watch/lesson',
     );
-    await user.click(screen.getByRole('button', { name: '영상 불러오기' }));
+    await user.click(screen.getByRole('button', { name: '링크 추가' }));
 
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      'YouTube, Vimeo 또는 MP4·MOV·WEBM 영상 파일 주소',
-    );
-    expect(screen.queryByRole('button', { name: /이 자료로 클래스 정보 만들기/ })).toBeNull();
+    expect(await screen.findByText('video.example.com')).toBeInTheDocument();
+    expect(screen.getByText('외부 링크')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /AI가 클래스 만들기/ })).toBeEnabled();
   });
-
   it('라이브 미리보기 정보를 참가비, 인원, 일정 순서로 정렬한다', () => {
     sessionStorage.setItem(
       CLASS_DRAFT_KEY,
@@ -481,33 +657,40 @@ describe('CreateClassPage accessibility and ordering', () => {
     );
   });
 
-  it('설정 카드의 DOM 순서와 화면 순서를 동일하게 유지하고 주소 검색 후 포커스를 복원한다', async () => {
+  it('별도 설정 페이지 없이 미리보기에서 운영 정보를 수정하고 주소 검색 포커스를 복원한다', async () => {
     const user = userEvent.setup();
     sessionStorage.setItem(
       CLASS_DRAFT_KEY,
-      JSON.stringify({ ...initialClassDraft, type: 'offline', capacity: 20 }),
+      JSON.stringify({
+        ...initialClassDraft,
+        type: 'offline',
+        title: '오프라인 미리보기 클래스',
+        summary: '운영 정보를 미리보기에서 바로 확인하는 클래스입니다.',
+        description: '별도 설정 단계 없이 가격, 인원, 일정과 장소를 수정할 수 있습니다.',
+        capacity: 20,
+        address: '서울 마포구 양화로 45',
+      }),
     );
     sessionStorage.setItem(
       creationMetaKey,
-      JSON.stringify({ deliverySelected: true, informationMode: 'manual', step: 3, maxStep: 3 }),
+      JSON.stringify({ deliverySelected: true, informationMode: 'generated', step: 3, maxStep: 3 }),
     );
     const { container } = renderCreator('/classes/new?step=3');
 
-    const panel = container.querySelector('.settings-panel');
-    expect(panel).toHaveClass('offline');
-    expect(Array.from(panel?.children ?? []).map((child) => child.textContent)).toEqual([
-      expect.stringContaining('참가비'),
-      expect.stringContaining('참가인원'),
-      expect.stringContaining('클래스 장소'),
-      expect.stringContaining('일정도 지금 설정할까요?'),
-    ]);
+    expect(container.querySelector('.settings-panel')).toBeNull();
+    const facts = container.querySelector('.preview-facts.offline');
+    expect(
+      Array.from(facts?.children ?? []).map(
+        (fact) => fact.querySelector('.preview-fact-copy small')?.textContent,
+      ),
+    ).toEqual(['참가비', '참가인원', '일정', '장소']);
 
-    const addressTrigger = container.querySelector<HTMLButtonElement>('.address-search-button');
-    expect(addressTrigger).not.toBeNull();
-    await user.click(addressTrigger!);
+    const addressTrigger = screen.getByRole('button', { name: '클래스 장소 수정' });
+    await user.click(addressTrigger);
+    await user.click(screen.getByRole('button', { name: '주소 검색' }));
     const searchInput = screen.getByPlaceholderText('도로명, 건물명 또는 지번 검색');
     expect(searchInput).toHaveFocus();
     fireEvent.keyDown(document, { key: 'Escape' });
-    await waitFor(() => expect(addressTrigger).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole('button', { name: '주소 검색' })).toHaveFocus());
   });
 });

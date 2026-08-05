@@ -42,6 +42,9 @@ export type OneClickShare = {
   applyStatus: 'OPEN' | 'CLOSED';
   paymentType: 'FREE' | 'PAID';
   instructorName: string;
+  instructorBio?: string;
+  instructorImage?: string;
+  instructorLinks?: string[];
   deliveryTypeText: string;
   scheduleText: string;
   locationText: string;
@@ -549,7 +552,10 @@ const mockShare = (shareToken: string): OneClickShare => {
     recruitmentStatus,
     applyStatus: recruitmentStatus === 'OPEN' ? 'OPEN' : 'CLOSED',
     paymentType: price > 0 ? 'PAID' : 'FREE',
-    instructorName: baseDetail?.instructor || '이지훈',
+    instructorName: draftPatch?.instructorName?.trim() || baseDetail?.instructor || '이지훈',
+    instructorBio: draftPatch?.instructorBio?.trim() || undefined,
+    instructorImage: draftPatch?.instructorImage || undefined,
+    instructorLinks: draftPatch?.instructorLinks || undefined,
     deliveryTypeText,
     scheduleText,
     locationText: location,
