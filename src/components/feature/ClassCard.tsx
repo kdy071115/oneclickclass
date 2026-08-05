@@ -18,6 +18,8 @@ export function ClassCard({
   onFavorite?: () => void;
 }) {
   const thumbnail = item.thumbnail || getClassThumbnail(item.id);
+  const remainingSeats = Math.max(0, item.capacity - item.enrolled);
+  const isRecruiting = item.status === '모집중' || item.status === '모집 마감';
   return (
     <article className={`class-card-wrap ${variant}`}>
       <Link className="class-card" to={to ?? `/classes/${item.id}`}>
@@ -44,7 +46,7 @@ export function ClassCard({
           <small>
             {item.type} · {item.date}
           </small>
-          {(item.status === '모집중' || item.status === '모집 마감') && (
+          {isRecruiting && (
             <>
               <span className="progress">
                 <i
@@ -54,10 +56,17 @@ export function ClassCard({
                   }}
                 />
               </span>
-              <small>
-                신청 {item.enrolled} / {item.capacity}명
+              <small className="class-card-capacity">
+                신청 {item.enrolled} / {item.capacity}명 ·{' '}
+                {remainingSeats ? `잔여 ${remainingSeats}자리` : '정원 마감'}
               </small>
             </>
+          )}
+          {!isRecruiting && (
+            <small className="class-card-capacity">
+              {item.status === '진행중' || item.status === '종료' ? '수강' : '신청'}{' '}
+              {item.enrolled} / {item.capacity}명
+            </small>
           )}
         </span>
         {variant === 'list' && <ChevronRight size={18} color="#c4cbd3" />}

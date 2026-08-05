@@ -17,6 +17,8 @@ interface ClassOperationContext {
   publicOn?: boolean;
   publishedLessons: number;
   enrolled: number;
+  capacity: number;
+  recruitEndDate?: string;
   supportsAttendance: boolean;
   sharePath: string;
 }
@@ -28,9 +30,14 @@ export function getClassOperationFocus({
   publicOn,
   publishedLessons,
   enrolled,
+  capacity,
+  recruitEndDate,
   supportsAttendance,
   sharePath,
 }: ClassOperationContext): ClassOperationFocus {
+  const remainingSeats = Math.max(0, capacity - enrolled);
+  const deadline = recruitEndDate ? ` 모집 마감은 ${recruitEndDate}입니다.` : '';
+
   if (lifecycleStatus === 'ENDED' || status === '종료') {
     return {
       kind: 'complete',
@@ -59,8 +66,8 @@ export function getClassOperationFocus({
   if (publishedLessons === 0 || lifecycleStatus === 'DRAFT' || lifecycleStatus === 'CURRICULUM') {
     return {
       kind: 'prepare',
-      title: '첫 차시를 등록해 강의를 준비하세요',
-      description: '차시를 공개하면 신청 페이지를 열고 수강생을 모집할 수 있어요.',
+      title: '공개된 차시가 아직 없어요',
+      description: '첫 차시를 등록하고 공개하면 신청 페이지를 열 수 있습니다.',
       primary: { label: '첫 차시 등록', to: `/classes/${id}/curriculum?setup=1` },
       secondary: { label: '강의 정보 수정', to: `/classes/new?edit=${id}` },
     };
@@ -69,21 +76,32 @@ export function getClassOperationFocus({
   if (publicOn !== true) {
     return {
       kind: 'publish',
-      title: '신청 페이지를 공개할 준비가 됐어요',
-      description: '수강생 화면을 확인한 뒤 공개 상태와 모집 조건을 설정하세요.',
+      title: '신청 페이지가 비공개 상태예요',
+      description: '페이지를 공개하면 신청을 받을 수 있습니다. 공개 전 모집 조건을 확인하세요.',
       primary: { label: '공개 설정 확인', to: `/classes/${id}/manage` },
       secondary: { label: '수강생 화면 미리보기', to: `/classes/${id}/preview` },
+    };
+  }
+
+  if (status === '모집 마감') {
+    const full = enrolled >= capacity;
+    return {
+      kind: 'recruit',
+      title: full ? `정원 ${capacity}명이 모두 찼어요` : '모집이 마감되었어요',
+      description: `신청자 ${enrolled}명을 확인하고 필요한 안내를 진행하세요.`,
+      primary: { label: '신청자 확인', to: `/classes/${id}/applicants` },
+      secondary: { label: '모집 설정', to: `/classes/${id}/manage` },
     };
   }
 
   return {
     kind: 'recruit',
     title: enrolled
-      ? '신청자를 확인하고 모집을 이어가세요'
-      : '신청 페이지를 확인하고 첫 수강생을 모집하세요',
+      ? `신청자 ${enrolled}명을 확인하세요`
+      : '신청 링크를 공유해 첫 신청자를 모집하세요',
     description: enrolled
-      ? `${enrolled}명이 신청했어요. 남은 자리와 모집 마감일을 함께 확인하세요.`
-      : '신청 페이지를 확인한 뒤 필요한 채널로 링크를 공유하세요.',
+      ? `정원 ${capacity}명 중 ${remainingSeats}자리가 남았어요.${deadline}`
+      : `정원은 ${capacity}명입니다.${deadline}`,
     primary: enrolled
       ? { label: '신청자 확인', to: `/classes/${id}/applicants` }
       : { label: '신청 페이지 확인', to: sharePath },

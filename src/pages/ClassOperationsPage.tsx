@@ -9,7 +9,6 @@ import {
   Download,
   Edit3,
   Eye,
-  Image,
   Link2,
   Minus,
   Plus,
@@ -25,6 +24,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ApplicantRow } from '../components/feature/ApplicantRow';
 import { ClassThumbnail } from '../components/feature/ClassThumbnail';
 import { PageHeader } from '../components/common/PageHeader';
+import { StatusBadge } from '../components/common/StatusBadge';
 import { applicants, classes } from '../constants/mockData';
 import {
   Button,
@@ -117,7 +117,7 @@ export function ClassOperationsPage() {
   const active: OperationTab = cfg.kind === 'builder' || cfg.kind === 'exams' ? 'survey' : cfg.kind;
   return (
     <>
-      <div className="oc-web-page">
+      <div className="oc-web-page class-operations-page">
         <WebClassChrome id={id} active={active} item={item} detail={detail} notify={notify} />
         {cfg.kind === 'people' && <WebPeople id={id} notify={notify} />}{' '}
         {cfg.kind === 'attendance' && (
@@ -313,7 +313,6 @@ function WebClassChrome({
   detail?: ClassDetail;
   notify: (message: string) => void;
 }) {
-  const thumbnail = getClassThumbnail(id);
   const tabs: [string, string, OperationTab][] = [
     ['개요', `/classes/${id}`, 'overview'],
     ['신청자', `/classes/${id}/applicants`, 'people'],
@@ -335,57 +334,51 @@ function WebClassChrome({
         <span>›</span>
         <b>{item.title}</b>
       </div>
-      <section className="oc-detail-hero reference operation-hero">
-        <div className="oc-detail-main">
-          <div className="oc-detail-copy">
-            <div className="oc-status-line">
-              <span className="live">{item.status}</span>
-              <span>{item.type}</span>
-            </div>
-            <h1>
-              {item.title}
-              <Link to={`/classes/new?edit=${id}`} aria-label="강의 수정">
-                <Edit3 size={20} />
-              </Link>
-            </h1>
-            <p>{item.title}의 신청·출석·학습 현황을 한곳에서 관리하세요</p>
-            <div className="oc-hero-meta">
-              <span>
-                <Star size={18} fill="currentColor" />
-                <b>{detail?.reviewCount ? detail.rating : '-'}</b> ({detail?.reviewCount || 0})
-              </span>
-              <span>
-                <Users size={18} />
-                <b>{detail?.enrolled ?? item.enrolled}명</b> 신청
-              </span>
-              <span>
-                <CalendarDays size={18} />
-                <b>{detail?.sessions || 0}회차</b> 구성
-              </span>
-            </div>
+      <section className="operation-context-bar" aria-label="현재 클래스 운영 정보">
+        <div className="operation-context-copy">
+          <div className="operation-context-status">
+            <StatusBadge>{item.status}</StatusBadge>
+            <span>{item.type}</span>
           </div>
-          {thumbnail ? (
-            <img className="oc-detail-thumbnail" src={thumbnail} alt="클래스 썸네일" />
-          ) : (
-            <div className="oc-operation-thumbnail">
-              <Image size={28} />
-              <span>대표 썸네일</span>
-            </div>
-          )}
+          <div className="operation-context-title">
+            <h1>{item.title}</h1>
+            <Link to={`/classes/new?edit=${id}`} aria-label="강의 정보 수정">
+              <Edit3 size={18} aria-hidden="true" />
+            </Link>
+          </div>
+          <div className="operation-context-metrics">
+            <span>
+              <Users aria-hidden="true" /> 신청{' '}
+              <b>{detail?.enrolled ?? item.enrolled} / {detail?.capacity ?? item.capacity}명</b>
+            </span>
+            <span>
+              <CalendarDays aria-hidden="true" /> {item.date || '일정 미정'}
+            </span>
+            <span>
+              <ClipboardList aria-hidden="true" /> {detail?.sessions || 0}회차
+            </span>
+          </div>
         </div>
-        <div className="oc-detail-actions">
-          <button
-            type="button"
-            onClick={() => {
-              void navigator.clipboard?.writeText(
-                `${location.origin}/s/${detail?.shareToken || id}`,
-              );
-              notify('신청 링크를 복사했어요');
-            }}
-          >
-            <Link2 size={17} /> 링크 복사
-          </button>
-          <Link to={`/classes/new?edit=${id}`}>강의 수정</Link>
+        <div className="operation-context-actions">
+          {detail?.publicOn === false ? (
+            <Link className="primary" to={`/classes/${id}/manage`}>
+              <Eye size={17} aria-hidden="true" /> 공개 설정
+            </Link>
+          ) : (
+            <button
+              className="primary"
+              type="button"
+              onClick={() => {
+                void navigator.clipboard?.writeText(
+                  `${location.origin}/s/${detail?.shareToken || id}`,
+                );
+                notify('신청 링크를 복사했어요');
+              }}
+            >
+              <Link2 size={17} aria-hidden="true" /> 링크 복사
+            </button>
+          )}
+          <Link to={`/classes/new?edit=${id}`}>강의 정보 수정</Link>
         </div>
       </section>
       <div

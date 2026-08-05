@@ -94,11 +94,15 @@ export function ClassesPage() {
     {
       key: 'enrolled',
       header: '신청 현황',
-      render: (item) => (
-        <>
-          {item.enrolled} / {item.capacity}명
-        </>
-      ),
+      render: (item) => {
+        const remainingSeats = Math.max(0, item.capacity - item.enrolled);
+        return (
+          <span className="class-table-capacity">
+            <b>{item.enrolled} / {item.capacity}명</b>
+            <small>{remainingSeats ? `잔여 ${remainingSeats}자리` : '정원 마감'}</small>
+          </span>
+        );
+      },
     },
     {
       key: 'status',
@@ -117,7 +121,7 @@ export function ClassesPage() {
   };
   return (
     <>
-      <div className="oc-web-page">
+      <div className="oc-web-page class-list-page">
         <div className="oc-web-head">
           <h1>클래스</h1>
           <p>내가 연 강의를 관리하세요</p>
@@ -179,7 +183,7 @@ export function ClassesPage() {
           </div>
         )}
       </div>
-      <div className="page">
+      <div className="page class-list-mobile">
         <div className="title-row">
           <h1>클래스</h1>
           <Link className="round-add" to="/classes/new" aria-label="클래스 만들기">
@@ -221,9 +225,11 @@ export function ClassesPage() {
         {!loading && !error && sorted.length > 0 && (
           <>
             <div className="mobile-result-count">{sorted.length}개 클래스</div>
-            {sorted.map((item) => (
-              <ClassCard item={item} key={item.id} />
-            ))}
+            <div className="mobile-class-list">
+              {sorted.map((item) => (
+                <ClassCard item={item} key={item.id} />
+              ))}
+            </div>
           </>
         )}
       </div>

@@ -29,6 +29,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { AsyncState } from '../components/common/AsyncState';
 import { PageHeader } from '../components/common/PageHeader';
+import { StatusBadge } from '../components/common/StatusBadge';
 import { getClassThumbnail } from '../utils/classThumbnail';
 import { getClassOperationFocus, type ClassOperationFocus } from '../utils/classOperationFocus';
 import { detailService } from '../api/services';
@@ -180,9 +181,9 @@ export function ClassDetailPage() {
   const shareReady = detail.publicOn === true;
   const capacity = detail.capacity || 30;
   const enrolled = detail.enrolled || 0;
+  const remainingSeats = Math.max(0, capacity - enrolled);
   const recruitRate = Math.min(100, Math.round((enrolled / capacity) * 100));
   const reviewCount = detail.reviewCount || 0;
-  const completionRate = detail.completionRate || 0;
   const curriculum = detail.curriculum || [];
   const publishedLessons = curriculum.filter((item) => item.published).length;
   const supportsAttendance = detail.type !== '온라인';
@@ -194,6 +195,8 @@ export function ClassDetailPage() {
     publicOn: detail.publicOn,
     publishedLessons,
     enrolled,
+    capacity,
+    recruitEndDate: detail.recruitEndDate,
     supportsAttendance,
     sharePath,
   });
@@ -219,22 +222,22 @@ export function ClassDetailPage() {
   const applicantTrend = detail.applicantTrend || [];
   const stats = [
     [
-      '공개 차시',
-      `${publishedLessons} / ${curriculum.length}`,
-      curriculum.length ? '전체 차시 중 공개' : '첫 차시를 등록하세요',
-      ClipboardList,
+      '신청 현황',
+      `${enrolled} / ${capacity}명`,
+      remainingSeats ? `${remainingSeats}자리 남음` : '잔여 좌석 없음',
+      Users,
     ],
     [
-      '평균 만족도',
-      reviewCount ? `${detail.rating || 0} / 5.0` : '후기 없음',
-      reviewCount ? `후기 ${reviewCount}개` : '후기가 등록되면 표시돼요',
-      Star,
+      '운영 일정',
+      detail.date || '일정 미정',
+      `모집 마감 ${detail.recruitEndDate || '미정'}`,
+      CalendarDays,
     ],
     [
-      '수강 완료율',
-      completionRate ? `${completionRate}%` : '수강 전',
-      completionRate ? '진도에서 확인' : '수강 시작 후 표시돼요',
-      CheckCircle2,
+      '신청 페이지',
+      shareReady ? '공개' : '비공개',
+      `${detail.status} · 차시 ${publishedLessons}/${curriculum.length}개 공개`,
+      shareReady ? Eye : LockKeyhole,
     ],
   ] as const;
 
@@ -297,7 +300,7 @@ export function ClassDetailPage() {
               <div className="oc-detail-main">
                 <div className="oc-detail-copy">
                   <div className="oc-status-line">
-                    <span className="live">{detail.status}</span>
+                    <StatusBadge>{detail.status}</StatusBadge>
                     <span>{detail.type}</span>
                   </div>
                   <h2 className="oc-detail-course-title">{detail.title}</h2>
@@ -463,7 +466,7 @@ export function ClassDetailPage() {
                 <dl>
                   <div>
                     <dt>남은 자리</dt>
-                    <dd>{Math.max(0, capacity - enrolled)}명</dd>
+                    <dd>{remainingSeats}명</dd>
                   </div>
                   <div>
                     <dt>마감 예정일</dt>
