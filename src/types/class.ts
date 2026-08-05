@@ -1,4 +1,5 @@
 export type ClassStatus = '준비중' | '모집중' | '모집 마감' | '진행중' | '종료';
+export type ClassThumbnailPosition = 'top' | 'center' | 'bottom';
 export type RecruitmentStatus = 'PRIVATE' | 'OPEN' | 'CLOSED' | 'FULL';
 export type ClassLifecycleStatus =
   'DRAFT' | 'CURRICULUM' | 'READY' | 'RECRUITING' | 'IN_PROGRESS' | 'ENDED';
@@ -11,10 +12,12 @@ export interface ClassItem {
   status: ClassStatus;
   type: string;
   date: string;
+  startDate?: string;
   enrolled: number;
   capacity: number;
   color: string;
   thumbnail?: string;
+  thumbnailPosition?: ClassThumbnailPosition;
 }
 export interface Applicant {
   id: string;
@@ -64,6 +67,7 @@ export interface ClassDraft {
   summary: string;
   description: string;
   thumbnail: string;
+  thumbnailPosition: ClassThumbnailPosition;
   startDate: string;
   recruitEndDate: string;
   capacity: number;
@@ -98,6 +102,7 @@ export interface ClassDetail extends ClassItem {
     description: string;
     durationText: string;
     published: boolean;
+    contentType?: LessonContentType;
   }[];
   recentActivities: {
     id: string;

@@ -5,7 +5,8 @@ import { useRole, type UserRole } from '../hooks/useRole';
 
 export function ProtectedRoute({ children }: { children: ReactNode }) {
   const location = useLocation();
-  return getSession() ? children : <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  const returnPath = `${location.pathname}${location.search}${location.hash}`;
+  return getSession() ? children : <Navigate to="/login" replace state={{ from: returnPath }} />;
 }
 
 export function RoleGuard({ allowed, children }: { allowed: readonly UserRole[]; children: ReactNode }) {

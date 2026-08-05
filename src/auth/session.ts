@@ -26,12 +26,3 @@ export function clearSession() {
   localStorage.removeItem(sessionKey);
   sessionStorage.removeItem(sessionKey);
 }
-
-export function getAccessToken() {
-  return getSession()?.accessToken;
-}
-
-export function updateAccessToken(accessToken: string) {
-  const session = getSession();
-  if (session) setSession({ ...session, accessToken });
-}

@@ -110,8 +110,9 @@ export function Table<T>({ columns, rows, rowKey, loading = false, emptyText = '
 
 export function Modal({ open, title, onClose, children, footer, className = '', showClose = true }: { open: boolean; title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; className?: string; showClose?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
   useEffect(() => { const dialog = ref.current; if (!dialog) return; if (open && !dialog.open) dialog.showModal(); if (!open && dialog.open) dialog.close(); }, [open]);
-  return <dialog className={`ui-dialog ${className}`.trim()} ref={ref} onClose={onClose} onCancel={(event) => { event.preventDefault(); onClose(); }}><header><h2>{title}</h2>{showClose && <IconButton label="닫기" onClick={onClose}><X size={20} /></IconButton>}</header><div className="ui-dialog-body">{children}</div>{footer && <footer>{footer}</footer>}</dialog>;
+  return <dialog aria-labelledby={titleId} className={`ui-dialog ${className}`.trim()} ref={ref} onClose={onClose} onCancel={(event) => { event.preventDefault(); onClose(); }}><header><h2 id={titleId}>{title}</h2>{showClose && <IconButton label="닫기" onClick={onClose}><X size={20} /></IconButton>}</header><div className="ui-dialog-body">{children}</div>{footer && <footer>{footer}</footer>}</dialog>;
 }
 
 export function ConfirmDialog({
@@ -153,7 +154,7 @@ export function ConfirmDialog({
         </>
       )}
     >
-      {description && <p>{description}</p>}
+      {description && <div className="ui-confirm-description">{description}</div>}
     </Modal>
   );
 }
@@ -161,8 +162,9 @@ export function ConfirmDialog({
 export function Drawer(props: Parameters<typeof Modal>[0]) {
   const { open, title, onClose, children, footer } = props;
   const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
   useEffect(() => { const dialog = ref.current; if (!dialog) return; if (open && !dialog.open) dialog.showModal(); if (!open && dialog.open) dialog.close(); }, [open]);
-  return <dialog className="ui-dialog ui-drawer" ref={ref} onClose={onClose}><header><h2>{title}</h2><IconButton label="닫기" onClick={onClose}><X size={20} /></IconButton></header><div className="ui-dialog-body">{children}</div>{footer && <footer>{footer}</footer>}</dialog>;
+  return <dialog aria-labelledby={titleId} className="ui-dialog ui-drawer" ref={ref} onClose={onClose}><header><h2 id={titleId}>{title}</h2><IconButton label="닫기" onClick={onClose}><X size={20} /></IconButton></header><div className="ui-dialog-body">{children}</div>{footer && <footer>{footer}</footer>}</dialog>;
 }
 
 export function Toast({ message, tone = 'success', onClose }: { message: string; tone?: 'success' | 'danger'; onClose?: () => void }) {
@@ -177,8 +179,11 @@ export function DonutChart({ value, label, tone = 'var(--color-primary)' }: { va
 export function BarChart({ data, label }: { data: readonly { label: string; value: number }[]; label: string }) {
   const max = Math.max(...data.map((item) => item.value), 1);
   const axisSteps = [max, max * 0.75, max * 0.5, max * 0.25, 0];
+  const accessibleSummary = data.length
+    ? `${label}: ${data.map((item) => `${item.label} ${item.value}건`).join(', ')}`
+    : `${label}: 데이터 없음`;
   return (
-    <div className="ui-bar-chart-wrap" role="img" aria-label={label}>
+    <div className="ui-bar-chart-wrap" role="img" aria-label={accessibleSummary}>
       <div className="ui-bar-chart-body">
         <div className="ui-bar-chart-axis">
           {axisSteps.map((step, index) => (
@@ -202,6 +207,7 @@ export function FileDropzone({
   accept = 'image/png,image/jpeg,image/webp',
   maxSize = 5 * 1024 * 1024,
   multiple = false,
+  label = '파일을 선택하거나 여기에 놓으세요',
   description,
 }: {
   onFile?: (file: File) => void;
@@ -209,6 +215,7 @@ export function FileDropzone({
   accept?: string;
   maxSize?: number;
   multiple?: boolean;
+  label?: string;
   description?: string;
 }) {
   const [error, setError] = useState('');
@@ -237,7 +244,7 @@ export function FileDropzone({
     if (multiple) onFiles?.(files);
     else onFile?.(files[0]);
   };
-  return <div className={`ui-dropzone ${dragging ? 'is-dragging' : ''}`} onDragOver={(event) => { event.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); handleFiles(multiple ? event.dataTransfer.files : [event.dataTransfer.files[0]].filter(Boolean) as File[]); }}><label htmlFor={id}><UploadCloud size={24} /><strong>파일을 선택하거나 여기에 놓으세요</strong><small>{description ?? `JPG, PNG, WEBP · 최대 ${Math.round(maxSize / 1024 / 1024)}MB`}</small><input id={id} type="file" accept={accept} multiple={multiple} onChange={(event) => handleFiles(event.target.files ?? undefined)} /></label>{error && <p role="alert">{error}</p>}</div>;
+  return <div className={`ui-dropzone ${dragging ? 'is-dragging' : ''}`} onDragOver={(event) => { event.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); handleFiles(multiple ? event.dataTransfer.files : [event.dataTransfer.files[0]].filter(Boolean) as File[]); }}><label htmlFor={id}><UploadCloud size={24} /><strong>{label}</strong><small>{description ?? `JPG, PNG, WEBP · 최대 ${Math.round(maxSize / 1024 / 1024)}MB`}</small><input id={id} type="file" accept={accept} multiple={multiple} onChange={(event) => handleFiles(event.target.files ?? undefined)} /></label>{error && <p role="alert">{error}</p>}</div>;
 }
 
 export function Stepper({ current, steps }: { current: number; steps: readonly string[] }) {

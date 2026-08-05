@@ -14,10 +14,10 @@ import type { ReactNode } from 'react';
 import { useCallback, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { settlementService, userService } from '../api/services';
-import { clearSession } from '../auth/session';
 import { AsyncState } from '../components/common/AsyncState';
 import { Button, Input, Modal } from '../components/ui';
 import { useAsync } from '../hooks/useAsync';
+import { useLogout } from '../hooks/useLogout';
 import { won } from '../utils/format';
 import { readImageFile } from '../utils/classThumbnail';
 import { saveProfileImage, useProfileImage } from '../hooks/useProfileImage';
@@ -270,6 +270,7 @@ export function SupportPage() {
 export function SettingsPage() {
   const [dark, setDark] = useState(false);
   const [toast, notify] = useToast();
+  const logout = useLogout();
   const rows = [
     { label: '신청 알림', sub: '새 신청이 들어오면 알려드려요', on: true, toggle: () => notify('신청 알림을 변경했어요') },
     { label: '결제 알림', sub: '결제·환불 발생 시 알려드려요', on: true, toggle: () => notify('결제 알림을 변경했어요') },
@@ -283,7 +284,7 @@ export function SettingsPage() {
         <Top title="설정" />
         <MenuSection title="계정" notify={notify} rows={[['프로필 수정', ''], ['비밀번호 변경', ''], ['결제 관리', '/payment']]} />
         <section className="setting-section"><h3>화면</h3><div className="menu-box"><div className="toggle-row"><span><b>다크 모드</b><small>어두운 화면으로 보기</small></span><button className={dark ? 'on' : ''} onClick={() => setDark(!dark)}><i /></button></div></div></section>
-        <Link className="logout" to="/login" onClick={clearSession}>로그아웃</Link>
+        <button className="logout" type="button" onClick={() => void logout()}>로그아웃</button>
         {toast && <div className="done-toast">{toast}</div>}
       </div>
     </>
@@ -292,6 +293,7 @@ export function SettingsPage() {
 
 function SettingsLike({ title, sub, rows }: { title: string; sub: string; rows: { label: string; sub: string; on: boolean; toggle: () => void }[] }) {
   const profileImage = useProfileImage();
+  const logout = useLogout();
   const [profileError, setProfileError] = useState('');
   const changeProfile = async (file?: File) => {
     if (!file) return;
@@ -318,7 +320,7 @@ function SettingsLike({ title, sub, rows }: { title: string; sub: string; rows: 
         {rows.map((r) => <div className="oc-attend-row" key={r.label}><b>{r.label}<small>{r.sub}</small></b><button className={`switch ${r.on ? 'on' : ''}`} onClick={r.toggle}><i /></button></div>)}
       </div>
       <div className="oc-panel" style={{ marginTop: 20 }}>
-        <div className="oc-menu-list"><Link to="/payment">결제 관리 <span>›</span></Link><Link to="/support">고객센터 <span>›</span></Link><Link to="/login" className="danger" onClick={clearSession}>로그아웃</Link></div>
+        <div className="oc-menu-list"><Link to="/payment">결제 관리 <span>›</span></Link><Link to="/support">고객센터 <span>›</span></Link><button type="button" className="danger" onClick={() => void logout()}>로그아웃</button></div>
       </div>
     </div>
   );

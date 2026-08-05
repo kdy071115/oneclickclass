@@ -41,6 +41,39 @@
 .ui-stat-neutral { background: var(--color-background); }
 .ui-avatar { display: inline-grid; place-items: center; flex: 0 0 auto; border-radius: 50%; object-fit: cover; background: var(--color-tint-blue); color: var(--color-primary); font-weight: 800; }
 
+.class-thumbnail-image,
+.class-thumbnail-placeholder {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.class-thumbnail-image {
+  object-fit: cover;
+  object-position: center;
+}
+.class-thumbnail-placeholder {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: clamp(24px, 5vw, 44px);
+  background: #173b6c;
+  color: #fff;
+}
+.class-thumbnail-placeholder small {
+  color: #c9d9ee;
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+.class-thumbnail-placeholder b {
+  max-width: 18ch;
+  font-size: clamp(24px, 3vw, 42px);
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  word-break: keep-all;
+}
+
 .ui-field { display: grid; gap: 7px; color: var(--color-text-secondary); font-size: var(--font-size-sm); font-weight: 700; }
 .ui-field small { color: var(--color-text-tertiary); font-weight: 500; }
 .ui-field .ui-field-error { color: var(--color-danger); }
@@ -85,6 +118,8 @@
 .ui-table th { background: #fafbfc; color: var(--color-text-tertiary); font-size: var(--font-size-xs); }
 .ui-table th button { color: inherit; font-weight: inherit; }
 .ui-table tbody tr:last-child td { border-bottom: 0; }
+.ui-table tbody tr { transition: background-color 120ms ease-out; }
+.ui-table tbody tr:hover { background: #f8f9fb; }
 .ui-person-cell { display: inline-flex; align-items: center; gap: var(--space-3); }
 .oc-search-limit { max-width: 420px; }
 .oc-page-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin: 0 0 var(--space-4); }
@@ -106,7 +141,8 @@
 .ui-confirm-dialog > header { padding-bottom: var(--space-3); border-bottom: 0; }
 .ui-confirm-dialog > header h2 { font-size: var(--font-size-lg); }
 .ui-confirm-dialog .ui-dialog-body { padding-top: 0; padding-bottom: var(--space-4); color: var(--color-text-secondary); font-size: var(--font-size-md); line-height: 1.55; }
-.ui-confirm-dialog .ui-dialog-body p { margin: 0; }
+.ui-confirm-description,
+.ui-confirm-description > p { margin: 0; }
 .ui-confirm-dialog > footer { padding-top: 0; border-top: 0; }
 .ui-drawer { width: min(480px, 100%); height: 100dvh; max-height: 100dvh; margin: 0 0 0 auto; border-radius: 0; }
 .ui-toast { position: fixed; z-index: 100; right: var(--space-6); bottom: var(--space-6); min-width: 280px; display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: 12px 14px; border-radius: var(--radius-md); background: var(--color-text); color: #fff; box-shadow: var(--shadow-overlay); }

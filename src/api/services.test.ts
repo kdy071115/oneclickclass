@@ -9,6 +9,7 @@ import {
   surveyService,
 } from './services';
 import { initialClassDraft } from '../constants/classDraft';
+import { saveClassPreview } from '../utils/classDraft';
 
 describe('instructor mock services', () => {
   beforeEach(() => {
@@ -47,7 +48,9 @@ describe('instructor mock services', () => {
       rating: 0,
       reviewCount: 0,
       sessions: 1,
-      curriculum: [expect.objectContaining({ id: 'lesson-1', title: '첫 강의' })],
+      curriculum: [
+        expect.objectContaining({ id: 'lesson-1', title: '첫 강의', contentType: 'video' }),
+      ],
     });
   });
 
@@ -78,6 +81,17 @@ describe('instructor mock services', () => {
       location: '서울 마포구 새 주소 1',
       rating: 0,
     });
+  });
+
+  it('restores the preview thumbnail in the course list', async () => {
+    const thumbnail = 'https://cdn.example.com/list-thumbnail.webp';
+    const draft = { ...initialClassDraft, title: '목록 썸네일 테스트', thumbnail };
+    const created = await classService.create(draft);
+    saveClassPreview(created.id, draft);
+
+    await expect(classService.list()).resolves.toContainEqual(
+      expect.objectContaining({ id: created.id, thumbnail }),
+    );
   });
 
   it('persists capacity and visibility settings in the course detail', async () => {
@@ -116,6 +130,47 @@ describe('instructor mock services', () => {
       publicOn: true,
       status: '모집중',
       lifecycleStatus: 'READY',
+    });
+  });
+
+  it('removes a course without restoring it from bundled or preview data', async () => {
+    localStorage.setItem(
+      'oneclick-class-preview:custom-course',
+      JSON.stringify({ _schemaVersion: 2, title: '삭제할 강의' }),
+    );
+    localStorage.setItem('oneclick.curriculum.custom-course', JSON.stringify([]));
+    localStorage.setItem('oneclick.lesson-progress.custom-course.lesson-1', '100');
+
+    await classService.remove('custom-course');
+    await classService.remove('notion');
+
+    await expect(classService.list()).resolves.not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'custom-course' }),
+        expect.objectContaining({ id: 'notion' }),
+      ]),
+    );
+    await expect(classService.get('custom-course')).rejects.toThrow('class not found');
+    await expect(classService.get('notion')).rejects.toThrow('class not found');
+    expect(localStorage.getItem('oneclick-class-preview:custom-course')).toBeNull();
+    expect(localStorage.getItem('oneclick.curriculum.custom-course')).toBeNull();
+    expect(localStorage.getItem('oneclick.lesson-progress.custom-course.lesson-1')).toBeNull();
+  });
+
+  it('generates a class draft through the source-analysis service boundary', async () => {
+    await expect(
+      classService.analyzeSource({
+        type: 'online',
+        source: {
+          kind: 'video-url',
+          videoUrl: 'https://vimeo.com/123456789',
+          videoProvider: 'VIMEO',
+        },
+      }),
+    ).resolves.toMatchObject({
+      title: expect.any(String),
+      summary: expect.any(String),
+      description: expect.any(String),
     });
   });
 
@@ -249,7 +304,10 @@ describe('instructor mock services', () => {
       expect.objectContaining({ applicantId: '1', eligibility: 'ISSUED' }),
     );
     expect(result.skipped).toContainEqual(
-      expect.objectContaining({ applicantId: '3', reason: expect.stringContaining('진도 80% 미달') }),
+      expect.objectContaining({
+        applicantId: '3',
+        reason: expect.stringContaining('진도 80% 미달'),
+      }),
     );
     await expect(certificateService.candidates('notion')).resolves.toContainEqual(
       expect.objectContaining({ applicantId: '1', eligibility: 'ISSUED' }),

@@ -9,7 +9,6 @@ import {
   Download,
   Edit3,
   Eye,
-  Image,
   Link2,
   Minus,
   Plus,
@@ -23,7 +22,9 @@ import QRCode from 'qrcode';
 import { type CSSProperties, useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ApplicantRow } from '../components/feature/ApplicantRow';
+import { ClassThumbnail } from '../components/feature/ClassThumbnail';
 import { PageHeader } from '../components/common/PageHeader';
+import { StatusBadge } from '../components/common/StatusBadge';
 import { applicants, classes } from '../constants/mockData';
 import {
   Button,
@@ -51,7 +52,12 @@ import type {
   SurveyOverviewItem,
 } from '../types/api';
 import type { ClassDetail, ClassLifecycleStatus } from '../types/class';
-import { getClassThumbnail, readImageFile, saveClassThumbnail } from '../utils/classThumbnail';
+import {
+  getClassThumbnail,
+  optimizeClassThumbnail,
+  readImageFile,
+  saveClassThumbnail,
+} from '../utils/classThumbnail';
 
 type Config = {
   title: string;
@@ -74,7 +80,7 @@ const configs: Record<string, Config> = {
     subtitle: '정답을 표시하면 자동 채점돼요',
     kind: 'builder',
   },
-  manage: { title: '강의 관리', subtitle: '노션으로 시작하는 업무 자동화', kind: 'settings' },
+  manage: { title: '클래스 설정', subtitle: '노션으로 시작하는 업무 자동화', kind: 'settings' },
   certificates: {
     title: '수료증 관리',
     subtitle: '조건과 수료증 내용을 직접 설정할 수 있어요',
@@ -111,7 +117,7 @@ export function ClassOperationsPage() {
   const active: OperationTab = cfg.kind === 'builder' || cfg.kind === 'exams' ? 'survey' : cfg.kind;
   return (
     <>
-      <div className="oc-web-page">
+      <div className="oc-web-page class-operations-page">
         <WebClassChrome id={id} active={active} item={item} detail={detail} notify={notify} />
         {cfg.kind === 'people' && <WebPeople id={id} notify={notify} />}{' '}
         {cfg.kind === 'attendance' && (
@@ -307,7 +313,6 @@ function WebClassChrome({
   detail?: ClassDetail;
   notify: (message: string) => void;
 }) {
-  const thumbnail = getClassThumbnail(id);
   const tabs: [string, string, OperationTab][] = [
     ['개요', `/classes/${id}`, 'overview'],
     ['신청자', `/classes/${id}/applicants`, 'people'],
@@ -329,65 +334,65 @@ function WebClassChrome({
         <span>›</span>
         <b>{item.title}</b>
       </div>
-      <section className="oc-detail-hero reference operation-hero">
-        <div className="oc-detail-main">
-          <div className="oc-detail-copy">
-            <div className="oc-status-line">
-              <span className="live">{item.status}</span>
-              <span>{item.type}</span>
-            </div>
-            <h1>
-              {item.title}
-              <Link to={`/classes/new?edit=${id}`} aria-label="강의 수정">
-                <Edit3 size={20} />
-              </Link>
-            </h1>
-            <p>{item.title}의 신청·출석·학습 현황을 한곳에서 관리하세요</p>
-            <div className="oc-hero-meta">
-              <span>
-                <Star size={18} fill="currentColor" />
-                <b>{detail?.reviewCount ? detail.rating : '-'}</b> ({detail?.reviewCount || 0})
-              </span>
-              <span>
-                <Users size={18} />
-                <b>{detail?.enrolled ?? item.enrolled}명</b> 신청
-              </span>
-              <span>
-                <CalendarDays size={18} />
-                <b>{detail?.sessions || 0}회차</b> 구성
-              </span>
-            </div>
+      <section className="operation-context-bar" aria-label="현재 클래스 운영 정보">
+        <div className="operation-context-copy">
+          <div className="operation-context-status">
+            <StatusBadge>{item.status}</StatusBadge>
+            <span>{item.type}</span>
           </div>
-          {thumbnail ? (
-            <img className="oc-detail-thumbnail" src={thumbnail} alt="클래스 썸네일" />
-          ) : (
-            <div className="oc-operation-thumbnail">
-              <Image size={28} />
-              <span>대표 썸네일</span>
-            </div>
-          )}
+          <div className="operation-context-title">
+            <h1>{item.title}</h1>
+            <Link to={`/classes/new?edit=${id}`} aria-label="강의 정보 수정">
+              <Edit3 size={18} aria-hidden="true" />
+            </Link>
+          </div>
+          <div className="operation-context-metrics">
+            <span>
+              <Users aria-hidden="true" /> 신청{' '}
+              <b>{detail?.enrolled ?? item.enrolled} / {detail?.capacity ?? item.capacity}명</b>
+            </span>
+            <span>
+              <CalendarDays aria-hidden="true" /> {item.date || '일정 미정'}
+            </span>
+            <span>
+              <ClipboardList aria-hidden="true" /> {detail?.sessions || 0}회차
+            </span>
+          </div>
         </div>
-        <div className="oc-detail-actions">
-          <button
-            type="button"
-            onClick={() => {
-              void navigator.clipboard?.writeText(
-                `${location.origin}/s/${detail?.shareToken || id}`,
-              );
-              notify('신청 링크를 복사했어요');
-            }}
-          >
-            <Link2 size={17} /> 링크 복사
-          </button>
-          <Link to={`/classes/new?edit=${id}`}>강의 수정</Link>
-          <Link className="primary-link" to={`/classes/${id}/applicants`}>
-            신청자 관리 <span>→</span>
-          </Link>
+        <div className="operation-context-actions">
+          {detail?.publicOn === false ? (
+            <Link className="primary" to={`/classes/${id}/manage`}>
+              <Eye size={17} aria-hidden="true" /> 공개 설정
+            </Link>
+          ) : (
+            <button
+              className="primary"
+              type="button"
+              onClick={() => {
+                void navigator.clipboard?.writeText(
+                  `${location.origin}/s/${detail?.shareToken || id}`,
+                );
+                notify('신청 링크를 복사했어요');
+              }}
+            >
+              <Link2 size={17} aria-hidden="true" /> 링크 복사
+            </button>
+          )}
+          <Link to={`/classes/new?edit=${id}`}>강의 정보 수정</Link>
         </div>
       </section>
-      <div className="oc-detail-tabs reference operation-tabs">
+      <div
+        className="oc-detail-tabs reference operation-tabs"
+        role="navigation"
+        aria-label="클래스 관리 메뉴"
+      >
         {tabs.map(([label, to, kind]) => (
-          <Link className={active === kind ? 'active' : ''} to={to} key={label}>
+          <Link
+            className={active === kind ? 'active' : ''}
+            aria-current={active === kind ? 'page' : undefined}
+            to={to}
+            key={label}
+          >
             {label}
           </Link>
         ))}
@@ -1102,6 +1107,9 @@ function WebManage({
     if (detail?.capacity) setCapacity(detail.capacity);
   }, [detail?.capacity]);
   useEffect(() => {
+    if (!thumbnail && detail?.thumbnail) setThumbnail(detail.thumbnail);
+  }, [detail?.thumbnail, thumbnail]);
+  useEffect(() => {
     if (!detail) return;
     setPublicOn(
       detail.recruitmentStatus ? detail.recruitmentStatus !== 'PRIVATE' : (detail.publicOn ?? true),
@@ -1115,17 +1123,23 @@ function WebManage({
   }, [detail]);
   const full = !closed && (detail?.enrolled || 0) >= capacity;
   const changeThumbnail = async (file: File) => {
-    const value = await readImageFile(file);
-    setThumbnail(value);
-    saveClassThumbnail(id, value);
-    await classService.update(id, { thumbnail: value });
-    notify('클래스 썸네일을 변경했어요');
+    try {
+      const { url } = await classService.uploadImage(await optimizeClassThumbnail(file));
+      await classService.update(id, { thumbnail: url });
+      saveClassThumbnail(id, url);
+      setThumbnail(url);
+      notify('클래스 썸네일을 변경했어요');
+    } catch {
+      notify('클래스 썸네일을 변경하지 못했어요. 다시 시도해 주세요.');
+    }
   };
   const deleteClass = async () => {
     setDeleting(true);
     try {
       await classService.remove(id);
       nav('/classes');
+    } catch {
+      notify('강의를 삭제하지 못했어요. 잠시 후 다시 시도해 주세요.');
     } finally {
       setDeleting(false);
     }
@@ -1133,12 +1147,37 @@ function WebManage({
   return (
     <>
       <section className="oc-panel oc-thumbnail-editor">
-        <div>
+        <header className="oc-thumbnail-editor-head">
           <h2>클래스 썸네일</h2>
           <p>목록과 클래스 상세 상단에 표시되는 대표 이미지예요.</p>
+        </header>
+        <div className="oc-thumbnail-editor-body">
+          <figure className="oc-thumbnail-preview">
+            <div>
+              <ClassThumbnail
+                src={thumbnail}
+                position={detail?.thumbnailPosition}
+                title={detail?.title || '클래스 대표 이미지'}
+                alt="현재 클래스 썸네일"
+              />
+            </div>
+            <figcaption>
+              {thumbnail ? '현재 대표 이미지' : '아직 등록된 대표 이미지가 없어요'}
+              <span>권장 비율 16:9</span>
+            </figcaption>
+          </figure>
+          <div className="oc-thumbnail-upload">
+            <div>
+              <b>{thumbnail ? '새 이미지로 변경' : '대표 이미지 등록'}</b>
+              <p>텍스트가 적고 가로로 넓은 이미지를 사용하면 목록에서도 선명하게 보여요.</p>
+            </div>
+            <FileDropzone
+              label={thumbnail ? '새 이미지 선택' : '이미지 선택'}
+              description="JPG, PNG, WEBP · 최대 5MB"
+              onFile={(file) => void changeThumbnail(file)}
+            />
+          </div>
         </div>
-        {thumbnail && <img src={thumbnail} alt="현재 클래스 썸네일" />}
-        <FileDropzone onFile={(file) => void changeThumbnail(file)} />
       </section>
       <div className="oc-grid-2">
         <section className="oc-panel oc-settings-panel">
@@ -1393,6 +1432,7 @@ function WebCertificates({
     candidates.find((candidate) => selected.includes(candidate.applicantId)) ??
     eligible[0] ??
     issued[0];
+  const previewIsExample = !previewCandidate;
   const policySummary = [
     `진도 ${policy.minProgress}%`,
     policy.requireRequiredLessons ? '필수 차시 완료' : '',
@@ -1451,8 +1491,10 @@ function WebCertificates({
       <div className="certificate-layout">
         <div className="oc-panel oc-cert-preview refined">
           <div className="oc-panel-title">
-            <h2>수료증 미리보기</h2>
-            <button onClick={() => setEditOpen(true)}>편집</button>
+            <h2>
+              수료증 미리보기
+              {previewIsExample && <small>예시</small>}
+            </h2>
           </div>
           <CertificateDocument
             policy={policy}
@@ -2200,6 +2242,8 @@ function Manage({
     try {
       await classService.remove(id);
       nav('/classes');
+    } catch {
+      notify('강의를 삭제하지 못했어요. 잠시 후 다시 시도해 주세요.');
     } finally {
       setDeleting(false);
     }
@@ -2244,6 +2288,10 @@ function Manage({
             <small>신청 페이지 노출</small>
           </span>
           <button
+            type="button"
+            role="switch"
+            aria-checked={publicOn}
+            aria-label={publicOn ? '신청 페이지 비공개로 전환' : '신청 페이지 공개로 전환'}
             className={`switch ${publicOn ? 'on' : ''}`}
             onClick={() => {
               const next = !publicOn;
@@ -2271,6 +2319,7 @@ function Manage({
             </small>
           </span>
           <button
+            type="button"
             className="badge blue"
             disabled={!publicOn || lifecycleStatus === 'ENDED' || full}
             onClick={() => {
@@ -2291,6 +2340,8 @@ function Manage({
           </span>
           <em>
             <button
+              type="button"
+              aria-label="정원 줄이기"
               onClick={() => {
                 const next = Math.max(1, capacity - 5);
                 setCapacity(next);
@@ -2301,6 +2352,8 @@ function Manage({
             </button>
             {capacity}명
             <button
+              type="button"
+              aria-label="정원 늘리기"
               onClick={() => {
                 const next = capacity + 5;
                 setCapacity(next);

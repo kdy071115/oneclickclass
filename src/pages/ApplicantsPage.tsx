@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { applicantService } from '../api/services';
 import { AsyncState } from '../components/common/AsyncState';
 import { ApplicantRow } from '../components/feature/ApplicantRow';
@@ -13,10 +13,13 @@ import { getStatusTone } from '../utils/status';
 const filters = ['전체', '결제완료', '결제대기', '환불'] as const;
 
 export function ApplicantsPage() {
+  const [searchParams] = useSearchParams();
   const load = useCallback(() => applicantService.list(), []);
   const { data = [], loading, error, retry } = useAsync(load);
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState<(typeof filters)[number]>('전체');
+  const [filter, setFilter] = useState<(typeof filters)[number]>(
+    () => filters.find((item) => item === searchParams.get('payment')) ?? '전체',
+  );
   const [sort, setSort] = useState<'name' | 'payment'>('name');
   const [direction, setDirection] = useState<'asc' | 'desc'>('asc');
   const shown = data.filter((x) => {
@@ -74,7 +77,13 @@ export function ApplicantsPage() {
         </div>
         <div className="oc-filters">
           {filters.map((x) => (
-            <button className={filter === x ? 'active' : ''} onClick={() => setFilter(x)} key={x}>
+            <button
+              type="button"
+              className={filter === x ? 'active' : ''}
+              aria-pressed={filter === x}
+              onClick={() => setFilter(x)}
+              key={x}
+            >
               {x} {x === '전체' ? data.length : data.filter((a) => a.payment === x).length}
             </button>
           ))}

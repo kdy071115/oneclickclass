@@ -6,8 +6,8 @@ export function AuthLayout() {
       <aside>
         <div className="oc-auth-brand"><span>✓</span> 원클릭 클래스</div>
         <div>
-          <h1>클래스 운영의 모든 순간을<br />한 곳에서 관리하세요</h1>
-          <p>신청부터 출석, 정산, 수료증까지 자연스럽게 이어집니다.</p>
+          <h2>가지고 있는 콘텐츠를<br />공개할 강의로 바꾸세요</h2>
+          <p>영상·문서 등 다양한 자료로 강의 초안을 만들고, 필요한 부분만 확인해 바로 공유할 수 있어요.</p>
         </div>
         <small>OneClick Class</small>
       </aside>

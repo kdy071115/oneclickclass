@@ -41,21 +41,11 @@ import type {
 import {
   contentProviderLabel,
   detectContentProvider,
+  getYouTubeVideoId,
   validateContentUrl,
 } from '../utils/content';
+import { VimeoPlayer } from '../components/VimeoPlayer';
 import { YouTubePlayer } from '../components/YouTubePlayer';
-
-const getYouTubeVideoId = (url: string) => {
-  try {
-    const parsed = new URL(url);
-    if (parsed.hostname === 'youtu.be') return parsed.pathname.slice(1).split('/')[0];
-    if (parsed.pathname.startsWith('/embed/') || parsed.pathname.startsWith('/shorts/'))
-      return parsed.pathname.split('/')[2];
-    return parsed.searchParams.get('v') || '';
-  } catch {
-    return '';
-  }
-};
 
 const lessonTypes: Record<
   LessonContentType,
@@ -135,6 +125,7 @@ export function CurriculumPage() {
   const [titleError, setTitleError] = useState('');
   const [contentUrlError, setContentUrlError] = useState('');
   const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
+  const [advancedSettingsOpen, setAdvancedSettingsOpen] = useState(false);
   const [markerDraft, setMarkerDraft] = useState(emptyMarker);
   const [markerError, setMarkerError] = useState('');
   const [markerOpen, setMarkerOpen] = useState(false);
@@ -265,6 +256,7 @@ export function CurriculumPage() {
     setMarkerPreviewSeconds(0);
     setVideoDurationSeconds(0);
     setDiscardConfirmOpen(false);
+    setAdvancedSettingsOpen(false);
     setEditor({ sectionId });
   };
 
@@ -282,6 +274,9 @@ export function CurriculumPage() {
     setMarkerPreviewSeconds(0);
     setVideoDurationSeconds(0);
     setDiscardConfirmOpen(false);
+    setAdvancedSettingsOpen(
+      Boolean(nextValue.preview || nextValue.required === false || nextValue.sequential),
+    );
     setEditor({ sectionId, lessonId });
   };
 
@@ -338,6 +333,7 @@ export function CurriculumPage() {
     }
     setEditor(undefined);
     setDiscardConfirmOpen(false);
+    setAdvancedSettingsOpen(false);
     setTitleError('');
     setContentUrlError('');
   };
@@ -801,9 +797,20 @@ export function CurriculumPage() {
                     }}
                     onDuration={applyVideoDuration}
                   />
+                ) : detectedProvider === 'VIMEO' ? (
+                  <VimeoPlayer
+                    url={lesson.contentUrl}
+                    onPlayingChange={setMarkerPreviewPlaying}
+                    onProgress={(seconds) => setMarkerPreviewSeconds(seconds)}
+                    onTimeChange={(seconds) => {
+                      setMarkerPreviewSeconds(seconds);
+                      return false;
+                    }}
+                    onDuration={applyVideoDuration}
+                  />
                 ) : (
                   <div className="lesson-marker-preview-empty">
-                    Vimeo·외부 영상은 재생 화면에서 시간을 확인한 뒤 직접 입력해 주세요.
+                    이 영상 주소는 미리보기를 지원하지 않아요. 지원되는 주소로 다시 등록해 주세요.
                   </div>
                 )}
                 <div>
@@ -979,39 +986,52 @@ export function CurriculumPage() {
               hint={videoDurationSeconds > 0 ? `영상 길이 ${formatMarkerTime(videoDurationSeconds)}를 자동 반영했어요.` : undefined}
             />
           </div>
-          <div className="curriculum-toggle-row">
-            <span>
-              <b>무료 미리보기</b>
-              <small>신청 전에도 이 차시를 볼 수 있어요.</small>
-            </span>
-            <Toggle
-              label="무료 미리보기 설정"
-              checked={lesson.preview}
-              onChange={(preview) => setLesson({ ...lesson, preview })}
-            />
-          </div>
-          <div className="curriculum-toggle-row">
-            <span>
-              <b>필수 차시</b>
-              <small>이수 조건을 계산할 때 반드시 완료해야 하는 차시예요.</small>
-            </span>
-            <Toggle
-              label="필수 차시 설정"
-              checked={lesson.required ?? true}
-              onChange={(required) => setLesson({ ...lesson, required })}
-            />
-          </div>
-          <div className="curriculum-toggle-row">
-            <span>
-              <b>순서대로 학습</b>
-              <small>이전 차시를 완료한 뒤 이 차시를 열 수 있어요.</small>
-            </span>
-            <Toggle
-              label="순차 학습 설정"
-              checked={lesson.sequential ?? false}
-              onChange={(sequential) => setLesson({ ...lesson, sequential })}
-            />
-          </div>
+          <details
+            className="lesson-advanced-settings"
+            open={advancedSettingsOpen}
+            onToggle={(event) => setAdvancedSettingsOpen(event.currentTarget.open)}
+          >
+            <summary>
+              <span>
+                <b>고급 이수 설정</b>
+                <small>미리보기와 학습 순서를 필요할 때만 조정하세요.</small>
+              </span>
+              <ChevronDown aria-hidden="true" />
+            </summary>
+            <div className="curriculum-toggle-row">
+              <span>
+                <b>무료 미리보기</b>
+                <small>신청 전에도 이 차시를 볼 수 있어요.</small>
+              </span>
+              <Toggle
+                label="무료 미리보기 설정"
+                checked={lesson.preview}
+                onChange={(preview) => setLesson({ ...lesson, preview })}
+              />
+            </div>
+            <div className="curriculum-toggle-row">
+              <span>
+                <b>필수 차시</b>
+                <small>이수 조건을 계산할 때 반드시 완료해야 하는 차시예요.</small>
+              </span>
+              <Toggle
+                label="필수 차시 설정"
+                checked={lesson.required ?? true}
+                onChange={(required) => setLesson({ ...lesson, required })}
+              />
+            </div>
+            <div className="curriculum-toggle-row">
+              <span>
+                <b>순서대로 학습</b>
+                <small>이전 차시를 완료한 뒤 이 차시를 열 수 있어요.</small>
+              </span>
+              <Toggle
+                label="순차 학습 설정"
+                checked={lesson.sequential ?? false}
+                onChange={(sequential) => setLesson({ ...lesson, sequential })}
+              />
+            </div>
+          </details>
           <div className="curriculum-toggle-row">
             <span>
               <b>수강생에게 공개</b>

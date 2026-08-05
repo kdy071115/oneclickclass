@@ -159,6 +159,8 @@ LX2 매핑 기준:
 - `title`: `courseActiveTitle`
 - `summary`: 과정 요약 또는 메타데이터
 - `description`: 과정 소개 또는 메타데이터
+- `thumbnail`: 강의 만들기에서 저장한 16:9 대표 이미지 URL
+- `thumbnailPosition`: 대표 이미지 초점 위치, `top`, `center`, `bottom` 중 하나
 - `capacity`: 모집 정원
 - `confirmedCount`: 좌석이 확정된 인원
 - `heldCount`: 아직 만료되지 않은 결제 임시 점유 인원
@@ -177,6 +179,8 @@ LX2 매핑 기준:
   "title": "노션으로 시작하는 업무 자동화",
   "summary": "반복 업무를 자동화하는 실전 4주 과정",
   "description": "과정 소개",
+  "thumbnail": "https://cdn.example.com/courses/104/thumbnail.webp",
+  "thumbnailPosition": "center",
   "price": 45000,
   "capacity": 30,
   "enrolled": 12,
@@ -207,6 +211,8 @@ LX2 매핑 기준:
 ```
 
 공개 신청 페이지의 커리큘럼은 수강 전 안내용이므로 `contentUrl`은 내려주지 않아도 된다. 무료 미리보기 차시를 지원할 경우에만 `preview=true`와 미리보기 가능한 콘텐츠 정보를 함께 반환한다. 자료 차시는 파일명 정도는 노출 가능하지만, 유료/비공개 자료 URL은 수강실 응답에서만 내려준다.
+
+대표 이미지는 강의 만들기 미리보기와 실제 신청 페이지가 같은 파일과 초점 위치를 사용한다. 수강실의 본문 미디어는 현재 차시 콘텐츠이므로 대표 이미지로 대체하지 않는다.
 
 ### 강의자 커리큘럼 API
 
@@ -786,13 +792,13 @@ PUT    /classes/{courseActiveSeq}/curriculum/order
 
 식별자 매핑은 아래처럼 유지한다.
 
-| OneClick | LX2 | 용도 |
-|---|---|---|
-| `section.id` | organization 또는 운영용 그룹 ID | 커리큘럼 묶음·순서 |
-| `lesson.id` / `lessonId` | wrapper 안정 ID | 프론트 수정·선택 |
-| `organizationSeq` | LCMS organization | 학습 조직 |
-| `itemSeq` | LCMS item | learnerDatamodel 진도 키 |
-| `activeElementSeq` | course active element | 운영 강의 차시 |
-| `contentsSeq` | LCMS contents | 원본 콘텐츠와 재생 메타데이터 |
+| OneClick                 | LX2                              | 용도                          |
+| ------------------------ | -------------------------------- | ----------------------------- |
+| `section.id`             | organization 또는 운영용 그룹 ID | 커리큘럼 묶음·순서            |
+| `lesson.id` / `lessonId` | wrapper 안정 ID                  | 프론트 수정·선택              |
+| `organizationSeq`        | LCMS organization                | 학습 조직                     |
+| `itemSeq`                | LCMS item                        | learnerDatamodel 진도 키      |
+| `activeElementSeq`       | course active element            | 운영 강의 차시                |
+| `contentsSeq`            | LCMS contents                    | 원본 콘텐츠와 재생 메타데이터 |
 
 `preview=true`는 현재 편집 필드만 구현된 상태다. 신청 전 재생을 제공하려면 `shareToken + lessonId` 범위의 단기 서명 URL을 별도 발급하고 정식 수강 진도와 분리해야 한다. 이 계약이 구현되기 전에는 운영 기능으로 노출하지 않는다.

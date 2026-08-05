@@ -2,6 +2,56 @@ import { expect, test } from '@playwright/test';
 
 const baseUrl = process.env.E2E_BASE_URL ?? 'http://127.0.0.1:4173';
 
+async function completeOnlineClass(
+  page: import('@playwright/test').Page,
+  title: string,
+  youtube = false,
+) {
+  await page.goto(`${baseUrl}/classes/new`);
+  await page.getByRole('button', { name: /^온라인 / }).click();
+  await page.getByRole('button', { name: '다음', exact: true }).click();
+  if (youtube) {
+    await page.getByLabel('YouTube URL', { exact: true }).fill('https://youtu.be/M7lc1UVf-VE');
+    await page.getByRole('button', { name: '영상 불러오기', exact: true }).click();
+    await page.getByRole('button', { name: '이 자료로 클래스 정보 만들기', exact: true }).click();
+    await expect(page.getByText('클래스 정보 초안을 준비했어요')).toBeVisible();
+  } else {
+    await page.getByRole('button', { name: '자료 없이 직접 작성하기', exact: true }).click();
+  }
+  await page.getByLabel(/클래스 제목/).fill(title);
+  await page
+    .getByLabel(/클래스 소개/)
+    .fill('핵심 개념부터 실제 결과물 완성까지 차근차근 배우는 클래스입니다.');
+  await page
+    .getByPlaceholder('클래스에서 배우는 내용을 자유롭게 적어 주세요.')
+    .fill(
+      '처음 시작하는 학습자를 위해 꼭 필요한 개념을 실습 중심으로 설명하고 결과물을 완성합니다.',
+    );
+  await page.getByRole('button', { name: '다음', exact: true }).click();
+  await page.getByRole('button', { name: '다음', exact: true }).click();
+  await expect(page.getByRole('progressbar', { name: '클래스 만들기 진행률' })).toHaveAttribute(
+    'aria-valuenow',
+    '75',
+  );
+  await expect(page.getByRole('button', { name: '데스크톱', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '모바일', exact: true })).toHaveCount(0);
+  const finalAction = youtube ? '클래스 게시' : '기본 정보 저장';
+  await page.getByRole('button', { name: finalAction, exact: true }).click();
+  const publishDialog = page.getByRole('dialog', {
+    name: youtube ? '클래스를 게시할까요?' : '기본 정보를 저장할까요?',
+  });
+  await expect(publishDialog).toBeVisible();
+  await publishDialog
+    .getByRole('button', { name: youtube ? '클래스 게시' : '저장하고 계속', exact: true })
+    .click();
+  await expect(
+    page.getByRole('heading', {
+      name: youtube ? '클래스와 첫 차시가 완성됐어요!' : '클래스 기본 정보가 준비됐어요',
+    }),
+  ).toBeVisible();
+  return youtube ? page.getByLabel('클래스 링크').inputValue() : '';
+}
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem(
@@ -15,50 +65,25 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test('새 강의를 만들면 커리큘럼과 공개 준비로 바로 이어진다', async ({ page }, testInfo) => {
+test('자료가 없는 새 클래스는 첫 차시를 만든 뒤 공개하도록 안내한다', async ({
+  page,
+}, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop');
-  await page.goto(`${baseUrl}/classes/new`);
-  await page.getByLabel('강의 제목').fill('신규 강의 흐름 테스트');
-  await page.getByRole('button', { name: '다음 단계', exact: true }).click();
-  await expect(page.getByText('영상과 참여 링크는 다음 단계에서 등록해요')).toBeVisible();
-  await page.getByRole('button', { name: '다음 단계', exact: true }).click();
-  await page.getByRole('button', { name: '강의 일정', exact: true }).click();
-  await page.getByRole('button', { name: '31', exact: true }).click();
-  await page.getByRole('button', { name: '다음 단계', exact: true }).click();
-  await page.getByRole('button', { name: '다음 단계', exact: true }).click();
-  await page.getByRole('button', { name: '저장하고 커리큘럼 만들기', exact: true }).click();
-
-  await expect(page).toHaveURL(/\/classes\/[^/]+\/curriculum$/);
-  await expect(page.getByRole('heading', { name: '첫 차시를 만들어 주세요' })).toBeVisible();
-  await expect(page.getByRole('region', { name: '강의 공개 준비' })).toContainText('기본 정보');
+  await completeOnlineClass(page, '신규 클래스 흐름 테스트');
+  await expect(page.getByLabel('클래스 링크')).toHaveCount(0);
+  await page.getByRole('button', { name: '첫 차시 만들기', exact: true }).click();
+  await expect(page).toHaveURL(/\/classes\/[^/]+\/curriculum(?:\?setup=1)?$/);
+  await expect(page.getByRole('heading', { name: '커리큘럼 관리' })).toBeVisible();
 });
 
 test('YouTube 차시를 공개하고 수강생이 강의실까지 입장한다', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop');
-  await page.goto(`${baseUrl}/classes/new`);
-  await page.getByLabel('강의 제목').fill('YouTube 공개 흐름 테스트');
-  await page.getByRole('button', { name: '다음 단계', exact: true }).click();
-  await page.getByRole('button', { name: '다음 단계', exact: true }).click();
-  await page.getByRole('button', { name: '강의 일정', exact: true }).click();
-  await page.getByRole('button', { name: '31', exact: true }).click();
-  await page.getByRole('button', { name: '다음 단계', exact: true }).click();
-  await page.getByRole('button', { name: '다음 단계', exact: true }).click();
-  await page.getByRole('button', { name: '저장하고 커리큘럼 만들기', exact: true }).click();
-
-  await page.getByLabel('새 섹션').fill('첫 번째 과정');
-  await page.getByRole('button', { name: '섹션 추가' }).click();
-  await page.getByRole('button', { name: '차시 추가' }).click();
-  await page.getByLabel('차시 제목').fill('YouTube 첫 강의');
-  await page.getByLabel('영상 URL').fill('youtube.com/watch?v=invalid');
-  await page.getByRole('button', { name: '저장', exact: true }).click();
-  await expect(page.getByText('http:// 또는 https://로 시작하는 전체 주소를 입력해 주세요.')).toBeVisible();
-  await page.getByLabel('영상 URL').fill('https://youtu.be/M7lc1UVf-VE');
-  await expect(page.locator('.content-source-status')).toHaveText('자동 확인 · YouTube 영상');
-  await page.getByLabel('예상 학습 시간(분)').fill('15');
-  await page.getByRole('switch', { name: '순차 학습 설정' }).click();
-  await page.getByRole('switch', { name: '차시 공개 설정' }).click();
-  await page.getByRole('button', { name: '저장', exact: true }).click();
-  await expect(page.getByText('영상 · 15분 · 필수 · 순차 학습')).toBeVisible();
+  const publicUrl = await completeOnlineClass(page, 'YouTube 공개 흐름 테스트', true);
+  const classId = publicUrl.split('/').pop();
+  await page.goto(`${baseUrl}/classes/${classId}/curriculum?setup=1`);
+  await expect(
+    page.getByRole('article').filter({ hasText: 'YouTube 공개 흐름 테스트' }),
+  ).toContainText('녹화 영상 · 30분 · 필수');
 
   await page.getByRole('link', { name: '신청 페이지 미리보기' }).click();
   const publishButton = page.getByRole('button', { name: '공개하고 링크 복사' });
@@ -67,7 +92,12 @@ test('YouTube 차시를 공개하고 수강생이 강의실까지 입장한다',
   await expect(page).toHaveURL(/\/classes\/published\?shareToken=/);
   await page.getByRole('link', { name: '신청 페이지 열기' }).click();
   await expect(page.getByRole('heading', { name: 'YouTube 공개 흐름 테스트' })).toBeVisible();
-  await expect(page.getByRole('article').filter({ hasText: 'YouTube 첫 강의' })).toBeVisible();
+  await expect(
+    page
+      .getByRole('list', { name: '커리큘럼 차시' })
+      .getByRole('listitem')
+      .filter({ hasText: 'YouTube 공개 흐름 테스트' }),
+  ).toBeVisible();
 
   await page.getByPlaceholder('이름을 입력하세요').fill('연결 테스트 수강생');
   await page.getByPlaceholder('010-0000-0000').fill('010-1234-5678');
@@ -79,8 +109,10 @@ test('YouTube 차시를 공개하고 수강생이 강의실까지 입장한다',
   await expect(page.getByRole('heading', { name: '신청이 완료됐어요.' })).toBeVisible();
   await page.getByRole('button', { name: '강의실 입장하기' }).click();
   await expect(page).toHaveURL(/\/learn\/[^/]+$/);
-  await expect(page.getByRole('heading', { name: 'YouTube 첫 강의' })).toBeVisible();
-  await expect(page.getByRole('button', { name: /1 YouTube 첫 강의 예상 15분/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'YouTube 공개 흐름 테스트' })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: /1 YouTube 공개 흐름 테스트 예상 30분/ }),
+  ).toBeVisible();
   await expect(page.locator('.youtube-player')).toBeVisible();
   await expect(page.getByText('콘텐츠 준비 중')).toHaveCount(0);
 });
@@ -132,9 +164,13 @@ test('강의자 상세 화면과 핵심 운영 페이지를 빠짐없이 이동�
     .getByRole('link', { name: '강의 수정', exact: true })
     .click();
   await expect(page).toHaveURL(`${baseUrl}/classes/new?edit=notion`);
-  await expect(page.getByRole('heading', { name: '어떤 강의인지 알려주세요' })).toBeVisible();
-  await expect(page.getByLabel('강의 제목')).toHaveValue('노션으로 시작하는 업무 자동화');
-  await expect(page.getByLabel('한 줄 소개')).toHaveValue('반복 업무를 자동화하는 실전 4주 과정');
+  await expect(
+    page.getByRole('heading', { name: '어떤 방식으로 클래스를 진행하시나요?' }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: '다음', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '클래스 정보를 준비해 볼까요?' })).toBeVisible();
+  await expect(page.getByLabel('클래스 제목')).toHaveValue('노션으로 시작하는 업무 자동화');
+  await expect(page.getByLabel('클래스 소개')).toHaveValue('반복 업무를 자동화하는 실전 4주 과정');
   await page.goto(`${baseUrl}/classes/notion`);
 
   await page.getByRole('link', { name: '신청 페이지', exact: true }).click();
@@ -152,6 +188,10 @@ test('강의자 전역 메뉴에서 수강생용 수료증 화면을 노출하�
   await expect(page.getByRole('heading', { name: '404' })).toBeVisible();
 
   await page.goto(`${baseUrl}/classes/notion/certificates`);
+  await expect(page.getByRole('heading', { name: '수료증 관리' })).toBeVisible();
+
+  await page.goto(`${baseUrl}/classes/notion/certificates/setup`);
+  await expect(page).toHaveURL(`${baseUrl}/classes/notion/certificates`);
   await expect(page.getByRole('heading', { name: '수료증 관리' })).toBeVisible();
 });
 
@@ -193,7 +233,9 @@ test('강의자 운영 화면의 주요 액션이 실제 상태를 바꾼다', a
   await expect(page).toHaveURL(`${baseUrl}/applicants/1?classId=notion`);
 
   await page.goto(`${baseUrl}/classes/notion`);
-  await expect(page.locator('.oc-detail-tabs').getByRole('link', { name: '출석/QR' })).toHaveCount(0);
+  await expect(page.locator('.oc-detail-tabs').getByRole('link', { name: '출석/QR' })).toHaveCount(
+    0,
+  );
 
   await page.goto(`${baseUrl}/classes/notion/survey`);
   await expect(page.locator('.survey-card')).toHaveCount(4);
@@ -248,7 +290,9 @@ test('커리큘럼에서 섹션과 차시를 추가하고 수정한 내용이 �
   await page.getByRole('switch', { name: '차시 공개 설정' }).click();
   await page.getByRole('button', { name: '저장', exact: true }).click();
   await expect(page.getByText('공개하려면 제출 안내 URL을 입력해 주세요.')).toBeVisible();
-  await page.getByLabel('제출 안내 URL', { exact: true }).fill('https://example.com/assignments/final');
+  await page
+    .getByLabel('제출 안내 URL', { exact: true })
+    .fill('https://example.com/assignments/final');
   await page.getByRole('button', { name: '저장', exact: true }).click();
 
   const newLesson = page

@@ -6,6 +6,7 @@ export const initialClassDraft: ClassDraft = {
   summary: '',
   description: '',
   thumbnail: '',
+  thumbnailPosition: 'center',
   startDate: '',
   recruitEndDate: '',
   capacity: 30,

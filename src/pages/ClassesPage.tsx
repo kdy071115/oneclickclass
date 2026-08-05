@@ -1,10 +1,17 @@
 import { useCallback, useState } from 'react';
-import { LayoutGrid, List } from 'lucide-react';
+import { LayoutGrid, List, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { classService } from '../api/services';
 import { AsyncState } from '../components/common/AsyncState';
 import { ClassCard } from '../components/feature/ClassCard';
-import { Badge, IconButton, SearchInput, Table, type TableColumn } from '../components/ui';
+import {
+  Badge,
+  EmptyState,
+  IconButton,
+  SearchInput,
+  Table,
+  type TableColumn,
+} from '../components/ui';
 import { useAsync } from '../hooks/useAsync';
 import type { ClassItem, ClassStatus } from '../types/class';
 import { getStatusTone } from '../utils/status';
@@ -27,6 +34,34 @@ export function ClassesPage() {
   );
   const sorted = [...shown].sort(
     (a, b) => a[sort].localeCompare(b[sort]) * (direction === 'asc' ? 1 : -1),
+  );
+  const emptyState = (
+    <EmptyState
+      title={data.length ? '조건에 맞는 클래스가 없어요' : '아직 만든 클래스가 없어요'}
+      description={
+        data.length
+          ? '검색어나 상태 필터를 바꿔 보세요.'
+          : '첫 클래스를 만들고 수강생 모집을 시작하세요.'
+      }
+      action={
+        data.length ? (
+          <button
+            className="ui-button ui-button-secondary"
+            type="button"
+            onClick={() => {
+              setFilter('전체');
+              setQuery('');
+            }}
+          >
+            필터 초기화
+          </button>
+        ) : (
+          <Link className="ui-button ui-button-primary" to="/classes/new">
+            <Plus size={18} aria-hidden="true" />첫 클래스 만들기
+          </Link>
+        )
+      }
+    />
   );
   const columns: TableColumn<ClassItem>[] = [
     {
@@ -59,11 +94,15 @@ export function ClassesPage() {
     {
       key: 'enrolled',
       header: '신청 현황',
-      render: (item) => (
-        <>
-          {item.enrolled} / {item.capacity}명
-        </>
-      ),
+      render: (item) => {
+        const remainingSeats = Math.max(0, item.capacity - item.enrolled);
+        return (
+          <span className="class-table-capacity">
+            <b>{item.enrolled} / {item.capacity}명</b>
+            <small>{remainingSeats ? `잔여 ${remainingSeats}자리` : '정원 마감'}</small>
+          </span>
+        );
+      },
     },
     {
       key: 'status',
@@ -82,7 +121,7 @@ export function ClassesPage() {
   };
   return (
     <>
-      <div className="oc-web-page">
+      <div className="oc-web-page class-list-page">
         <div className="oc-web-head">
           <h1>클래스</h1>
           <p>내가 연 강의를 관리하세요</p>
@@ -90,7 +129,13 @@ export function ClassesPage() {
         <div className="class-list-toolbar">
           <div className="oc-filters">
             {classFilters.map((x) => (
-              <button className={filter === x ? 'active' : ''} onClick={() => setFilter(x)} key={x}>
+              <button
+                className={filter === x ? 'active' : ''}
+                type="button"
+                aria-pressed={filter === x}
+                onClick={() => setFilter(x)}
+                key={x}
+              >
                 {x}
               </button>
             ))}
@@ -99,6 +144,7 @@ export function ClassesPage() {
             <IconButton
               label="카드로 보기"
               className={view === 'cards' ? 'active' : ''}
+              aria-pressed={view === 'cards'}
               onClick={() => setView('cards')}
             >
               <LayoutGrid size={18} />
@@ -106,6 +152,7 @@ export function ClassesPage() {
             <IconButton
               label="표로 보기"
               className={view === 'table' ? 'active' : ''}
+              aria-pressed={view === 'table'}
               onClick={() => setView('table')}
             >
               <List size={19} />
@@ -114,6 +161,10 @@ export function ClassesPage() {
         </div>
         {error ? (
           <AsyncState loading={false} error={error} onRetry={retry} />
+        ) : loading ? (
+          <AsyncState loading />
+        ) : !sorted.length ? (
+          emptyState
         ) : view === 'table' ? (
           <Table
             columns={columns}
@@ -132,9 +183,12 @@ export function ClassesPage() {
           </div>
         )}
       </div>
-      <div className="page">
+      <div className="page class-list-mobile">
         <div className="title-row">
           <h1>클래스</h1>
+          <Link className="round-add" to="/classes/new" aria-label="클래스 만들기">
+            <Plus size={22} aria-hidden="true" />
+          </Link>
         </div>
         <div className="mobile-list-controls">
           <SearchInput
@@ -166,18 +220,16 @@ export function ClassesPage() {
             ))}
           </div>
         </div>
-        <AsyncState
-          loading={loading}
-          error={error}
-          empty={!loading && !error && !sorted.length}
-          onRetry={retry}
-        />
+        <AsyncState loading={loading} error={error} onRetry={retry} />
+        {!loading && !error && !sorted.length && emptyState}
         {!loading && !error && sorted.length > 0 && (
           <>
             <div className="mobile-result-count">{sorted.length}개 클래스</div>
-            {sorted.map((item) => (
-              <ClassCard item={item} key={item.id} />
-            ))}
+            <div className="mobile-class-list">
+              {sorted.map((item) => (
+                <ClassCard item={item} key={item.id} />
+              ))}
+            </div>
           </>
         )}
       </div>

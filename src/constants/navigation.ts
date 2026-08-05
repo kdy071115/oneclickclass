@@ -10,6 +10,6 @@ export const mobileNav = [
 export const teacherNav = [
   ['/dashboard', Home, '홈'],
   ['/classes', BookOpen, '클래스'],
-  ['/applicants', Users, '신청자', '3'],
+  ['/applicants', Users, '전체 신청자', '3'],
   ['/settlements', CreditCard, '정산 관리'],
 ] as const;

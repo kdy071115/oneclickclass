@@ -40,7 +40,7 @@ function TaskHeader({
       <div>
         <b>{title}</b>
         <div className="take-progress" aria-label={`${total}개 중 ${current}번째`}>
-          <i style={{ width: `${(current / total) * 100}%` }} />
+          <i style={{ transform: `scaleX(${current / total})` }} />
         </div>
       </div>
       {timer ? (
