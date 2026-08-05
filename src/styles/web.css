@@ -27,6 +27,10 @@
     gap: 16px;
   }
 
+  .class-overview-page .oc-detail-primary {
+    min-width: 0;
+  }
+
   .class-overview-page .oc-panel,
   .class-overview-page .oc-detail-hero.reference,
   .class-overview-page .oc-detail-tabs.reference {
@@ -36,12 +40,48 @@
     box-shadow: none;
   }
 
-  .class-overview-page .class-readiness {
-    padding: 20px;
+  .class-overview-page .oc-operation-focus {
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 16px;
+    padding: 20px 22px;
+    border-radius: var(--radius-lg);
+  }
+
+  .class-overview-page .oc-operation-focus > i {
+    width: 42px;
+    height: 42px;
+    border-radius: 11px;
+  }
+
+  .class-overview-page .oc-operation-focus h2 {
+    font-size: 18px;
+    letter-spacing: -0.02em;
+  }
+
+  .class-overview-page .oc-operation-focus p {
+    margin-top: 4px;
+    color: var(--color-text-secondary);
+    font-size: 14px;
+  }
+
+  .class-overview-page .oc-operation-focus-actions {
+    grid-column: auto;
+    display: flex;
+  }
+
+  .class-overview-page .oc-operation-focus-actions a {
+    min-height: 42px;
+    padding-inline: 16px;
+    border-radius: 9px;
+    font-size: 13px;
+    white-space: nowrap;
   }
 
   .class-overview-page .class-overview-hero {
     margin-bottom: 0;
+    border-color: color-mix(in srgb, var(--color-primary) 14%, var(--color-border));
     overflow: hidden;
   }
 
@@ -81,31 +121,20 @@
     color: var(--color-success);
   }
 
-  .class-overview-page .oc-detail-copy h1 {
-    gap: 6px;
-    margin: 14px 0 8px;
-    font-size: 30px;
-    font-weight: 750;
-    letter-spacing: -0.03em;
-  }
-
-  .class-overview-page .oc-detail-copy h1 a {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    color: var(--color-text-tertiary);
-  }
-
-  .class-overview-page .oc-detail-copy h1 a:hover {
-    background: var(--color-tint-gray);
+  .class-overview-page .oc-detail-course-title {
+    margin: 16px 0 9px;
     color: var(--color-text);
+    font-size: 34px;
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: -0.03em;
   }
 
   .class-overview-page .oc-detail-copy p {
     max-width: 68ch;
     color: var(--color-text-secondary);
-    font-size: 14px;
-    font-weight: 550;
+    font-size: 15px;
+    font-weight: 600;
     line-height: 1.6;
   }
 
@@ -118,17 +147,22 @@
   .class-overview-page .oc-hero-meta span:first-child {
     gap: 6px;
     color: var(--color-text-secondary);
-    font-size: 13px;
-    font-weight: 650;
+    font-size: 14px;
+    font-weight: 700;
   }
 
   .class-overview-page .oc-hero-meta svg {
     width: 16px;
     height: 16px;
-    color: var(--color-text-tertiary);
+    color: var(--color-text-secondary);
+  }
+
+  .class-overview-page .oc-hero-meta span:last-child svg {
+    color: var(--color-primary);
   }
 
   .class-overview-page .oc-detail-actions {
+    justify-content: flex-end;
     gap: 8px;
     padding: 14px 20px;
     border-top-color: var(--color-border);
@@ -150,16 +184,6 @@
     background: var(--color-tint-gray);
   }
 
-  .class-overview-page .oc-detail-actions .primary-link {
-    min-width: 0;
-    border-color: var(--color-primary);
-    background: var(--color-primary);
-  }
-
-  .class-overview-page .oc-detail-actions .primary-link:hover {
-    background: var(--color-primary-hover);
-  }
-
   .class-overview-page .oc-detail-stats.reference {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     margin: 0;
@@ -167,7 +191,7 @@
     border: 0;
     border-top: 1px solid var(--color-border);
     border-radius: 0;
-    background: color-mix(in srgb, var(--color-background) 45%, var(--color-surface));
+    background: color-mix(in srgb, var(--color-background) 72%, var(--color-surface));
   }
 
   .class-overview-page .oc-detail-stats.reference > div {
@@ -177,25 +201,42 @@
   }
 
   .class-overview-page .oc-detail-stats.reference i {
-    width: 24px;
-    height: 24px;
-    border-radius: 0;
-    background: transparent;
-    color: var(--color-text-tertiary);
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    background: var(--color-tint-blue);
+    color: var(--color-primary);
+  }
+
+  .class-overview-page .oc-detail-stats.reference > div:nth-child(2) i {
+    background: #fff8e6;
+    color: #d97706;
+  }
+
+  .class-overview-page .oc-detail-stats.reference > div:nth-child(3) i {
+    background: var(--color-tint-green);
+    color: var(--color-success);
+  }
+
+  .class-overview-page .oc-detail-stats.reference small {
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    font-weight: 700;
   }
 
   .class-overview-page .oc-detail-stats.reference b {
-    margin-top: 2px;
-    font-size: 20px;
-    font-weight: 750;
+    margin-top: 3px;
+    color: var(--color-text);
+    font-size: 22px;
+    font-weight: 800;
     letter-spacing: -0.02em;
   }
 
   .class-overview-page .oc-detail-stats.reference strong {
-    margin-top: 3px;
-    color: var(--color-text-tertiary);
-    font-size: 12px;
-    font-weight: 600;
+    margin-top: 4px;
+    color: var(--color-text-secondary);
+    font-size: 13px;
+    font-weight: 650;
   }
 
   .class-overview-page .oc-detail-tabs.reference {
@@ -217,6 +258,7 @@
   .class-overview-page .oc-detail-tabs.reference a.active {
     background: transparent;
     color: var(--color-primary);
+    font-weight: 800;
   }
 
   .class-overview-page .oc-detail-tabs.reference a.active::after {
@@ -252,6 +294,16 @@
     color: var(--color-primary);
   }
 
+  .class-overview-page .oc-curriculum-row .oc-publish-status {
+    display: grid;
+    place-items: center;
+    color: var(--color-text-tertiary);
+  }
+
+  .class-overview-page .oc-curriculum-row .oc-publish-status.done {
+    color: var(--color-success);
+  }
+
   .class-overview-page .oc-detail-aside .oc-panel {
     padding: 22px;
   }
@@ -262,8 +314,8 @@
 
   .class-overview-page .oc-panel-title h2 {
     color: var(--color-text);
-    font-size: 17px;
-    font-weight: 700;
+    font-size: 18px;
+    font-weight: 750;
   }
 
   .class-overview-page .oc-recruit-content {
@@ -340,6 +392,7 @@
     border-top: 1px solid var(--color-border);
     border-radius: 0;
     background: transparent;
+    color: var(--color-text-secondary);
     font-weight: 600;
   }
 
@@ -351,6 +404,7 @@
 
   .class-overview-page .oc-share-link-row span {
     white-space: nowrap;
+    user-select: all;
   }
 
   .class-overview-page .oc-share-buttons {
@@ -385,7 +439,63 @@
     min-height: 56px;
     padding: 16px 0 0;
     border-top: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
     font-weight: 600;
+  }
+
+  .class-overview-page .oc-panel-title a {
+    color: var(--color-text-secondary);
+  }
+
+  .class-overview-page .oc-share-locked {
+    display: grid;
+    justify-items: start;
+    gap: 10px;
+    padding: 16px;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--color-background) 65%, var(--color-surface));
+    color: var(--color-text-secondary);
+  }
+
+  .class-overview-page .oc-share-locked svg {
+    width: 20px;
+    color: var(--color-text-tertiary);
+  }
+
+  .class-overview-page .oc-share-locked p {
+    margin: 0;
+    line-height: 1.55;
+  }
+
+  .class-overview-page .oc-share-locked a {
+    color: var(--color-primary);
+    font-size: 13px;
+    font-weight: 750;
+  }
+
+  .class-overview-page .oc-share-qr {
+    position: relative;
+  }
+
+  .class-overview-page .oc-share-qr > button {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    color: var(--color-text-secondary);
+  }
+
+  .class-overview-page .oc-share-qr > button:hover {
+    background: var(--color-surface);
+  }
+
+  .class-overview-page .oc-share-qr > button svg {
+    width: 17px;
   }
 }
 
@@ -410,13 +520,14 @@
     padding-inline: 24px;
   }
 
-  .class-overview-page .class-overview-hero .oc-detail-main {
-    grid-template-columns: 1fr;
+  .class-overview-page .oc-detail-hero.reference .oc-detail-main {
+    grid-template-columns: minmax(0, 1fr) 180px;
+    gap: 24px;
   }
 
   .class-overview-page .oc-detail-thumbnail,
   .class-overview-page .class-overview-hero .oc-operation-thumbnail {
-    max-width: 360px;
+    max-width: 180px;
   }
 
   .class-overview-page .oc-detail-aside {

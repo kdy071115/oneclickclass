@@ -39,7 +39,7 @@
 }
 .original-detail {
   padding-top: 58px;
-  padding-bottom: 108px;
+  padding-bottom: max(156px, calc(132px + env(safe-area-inset-bottom)));
 }
 .original-detail .page-header {
   margin-bottom: 12px;
@@ -61,6 +61,8 @@
   height: 68px;
   align-items: center;
   padding: 0 16px;
+  border: 1px solid var(--color-border);
+  background: var(--color-tint-gray);
 }
 .class-cover > span {
   display: flex;
@@ -72,7 +74,8 @@
   color: #fff;
 }
 .class-cover.is-placeholder > span {
-  background: rgba(25, 31, 40, 0.48);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
 }
 .class-cover > span b,
 .class-cover > span small {
@@ -87,13 +90,31 @@
   font-size: 11px;
   font-weight: 700;
 }
-.original-detail h1 {
-  font-size: 22px;
-  line-height: 1.35;
+.class-cover.is-placeholder > span small {
+  border-left-color: var(--color-border);
+}
+.mobile-class-title {
+  color: var(--color-text);
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.3;
   margin: 0;
 }
 .original-detail > .muted {
-  margin: 8px 0 20px;
+  margin: 8px 0 16px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+.original-detail > .oc-operation-focus {
+  margin-bottom: 14px;
+}
+.original-detail > .oc-operation-focus.compact h2 {
+  font-size: 16px;
+}
+.original-detail > .oc-operation-focus.compact .oc-operation-focus-actions a {
+  min-width: 0;
+  padding-inline: 8px;
 }
 .mobile-curriculum-overview {
   min-height: 96px;
@@ -157,12 +178,15 @@
 }
 .mobile-share-action {
   width: 100%;
-  min-height: 44px;
+  min-height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 7px;
-  margin-top: 10px;
+  margin: 10px 0 24px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
   color: var(--color-text-secondary);
   font-size: 13px;
   font-weight: 800;
@@ -179,7 +203,9 @@
   padding: 14px;
 }
 .original-detail .dashboard-grid small {
+  color: var(--color-text-secondary);
   font-size: 12px;
+  font-weight: 600;
 }
 .original-detail .wide-menu {
   margin-top: 12px;
@@ -190,6 +216,15 @@
 .original-detail .manage-menu i {
   background: #f2f4f6;
   color: #4e5968;
+}
+.original-detail .wide-menu b,
+.original-detail .dashboard-grid b {
+  color: var(--color-text);
+  font-weight: 750;
+}
+.original-detail .wide-menu small {
+  color: var(--color-text-secondary);
+  font-weight: 600;
 }
 .operation-stats {
   display: grid;

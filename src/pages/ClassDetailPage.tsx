@@ -1,4 +1,5 @@
 import {
+  ArrowRight,
   Award,
   BarChart3,
   CalendarDays,
@@ -7,11 +8,12 @@ import {
   CirclePlay,
   ClipboardList,
   Copy,
-  Edit3,
   Eye,
   FileText,
   Image,
   Link2,
+  LockKeyhole,
+  MapPin,
   NotebookPen,
   Radio,
   type LucideIcon,
@@ -20,13 +22,15 @@ import {
   Share2,
   Star,
   Users,
+  X,
 } from 'lucide-react';
 import QRCode from 'qrcode';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { AsyncState } from '../components/common/AsyncState';
 import { PageHeader } from '../components/common/PageHeader';
 import { getClassThumbnail } from '../utils/classThumbnail';
+import { getClassOperationFocus, type ClassOperationFocus } from '../utils/classOperationFocus';
 import { detailService } from '../api/services';
 import type { ClassDetail, LessonContentType } from '../types/class';
 
@@ -36,6 +40,43 @@ const lessonContentPresentation: Record<LessonContentType, { Icon: LucideIcon; l
   document: { Icon: FileText, label: '학습 자료' },
   assignment: { Icon: NotebookPen, label: '과제' },
 };
+
+const operationFocusIcons: Record<ClassOperationFocus['kind'], LucideIcon> = {
+  prepare: ClipboardList,
+  publish: Eye,
+  recruit: Users,
+  operate: CheckSquare,
+  complete: Award,
+};
+
+function OperationFocusCard({
+  focus,
+  compact = false,
+}: {
+  focus: ClassOperationFocus;
+  compact?: boolean;
+}) {
+  const Icon = operationFocusIcons[focus.kind];
+
+  return (
+    <section className={`oc-operation-focus${compact ? ' compact' : ''}`}>
+      <i aria-hidden="true">
+        <Icon />
+      </i>
+      <div>
+        <h2>{focus.title}</h2>
+        <p>{focus.description}</p>
+      </div>
+      <div className="oc-operation-focus-actions" role="navigation" aria-label="권장 운영 작업">
+        <Link className="primary" to={focus.primary.to}>
+          {focus.primary.label}
+          <ArrowRight aria-hidden="true" />
+        </Link>
+        <Link to={focus.secondary.to}>{focus.secondary.label}</Link>
+      </div>
+    </section>
+  );
+}
 
 const parseDurationMinutes = (durationText: string) => {
   const hours = durationText.match(/(\d+)\s*시간/)?.[1];
@@ -84,58 +125,13 @@ export function ClassDetailPage() {
   const { id = 'notion' } = useParams();
   const [detail, setDetail] = useState<ClassDetail>();
   const [error, setError] = useState('');
-  const thumbnail = detail?.thumbnail || getClassThumbnail(id);
   const [toast, setToast] = useState('');
   const [shareQrUrl, setShareQrUrl] = useState('');
-  const sharePath = `/s/${detail?.shareToken || (id === 'notion' ? 'notion-auto' : id)}`;
-  const shareUrl = `${location.origin}${sharePath}`;
-  const capacity = detail?.capacity || 30;
-  const enrolled = detail?.enrolled || 0;
-  const recruitRate = Math.min(100, Math.round((enrolled / capacity) * 100));
-  const reviewCount = detail?.reviewCount || 0;
-  const completionRate = detail?.completionRate || 0;
-  const curriculum = detail?.curriculum || [];
-  const publishedLessons = curriculum.filter((item) => item.published).length;
-  const readySteps = 1 + Number(publishedLessons > 0) + Number(detail?.publicOn);
-  const supportsAttendance = detail?.type !== '온라인';
-  const curriculumGroups = groupCurriculumItems(curriculum);
-  const mobileMenus: [string, LucideIcon, string, string][] = [
-    ['applicants', Users, '신청자', `${enrolled}명 관리`],
-  ];
-  if (supportsAttendance) {
-    mobileMenus.push([
-      'attendance',
-      CheckSquare,
-      '출석',
-      `${Math.max(1, detail?.sessions || 1)}회차 관리`,
-    ]);
-  }
-  mobileMenus.push([
-    'survey',
-    BarChart3,
-    '설문·시험',
-    reviewCount
-      ? `후기 ${reviewCount}개 · 평점 ${(detail?.rating || 0).toFixed(1)}/5`
-      : '항목 만들기 · 결과 확인',
-  ]);
-  const applicantTrend = detail?.applicantTrend || [];
-  const stats = [
-    ['누적 신청자', `${enrolled}명`, enrolled ? '신청자 관리에서 확인' : '아직 신청 전', BarChart3],
-    [
-      '평균 만족도',
-      reviewCount ? `${detail?.rating || 0} / 5.0` : '-',
-      reviewCount ? `후기 ${reviewCount}개` : '후기 없음',
-      Star,
-    ],
-    [
-      '수강 완료율',
-      `${completionRate}%`,
-      completionRate ? '진도에서 확인' : '수강 시작 전',
-      CheckCircle2,
-    ],
-  ] as const;
+  const toastTimeout = useRef<number>();
+
   useEffect(() => {
     let alive = true;
+    setDetail(undefined);
     setError('');
     detailService
       .getClass(id)
@@ -149,38 +145,141 @@ export function ClassDetailPage() {
       alive = false;
     };
   }, [id]);
+
+  useEffect(
+    () => () => {
+      if (toastTimeout.current) window.clearTimeout(toastTimeout.current);
+    },
+    [],
+  );
+
   if (error) {
     return (
-      <main className="class-detail-error">
+      <div className="class-detail-error">
         <AsyncState loading={false} error={error} onRetry={() => location.reload()} />
         <div className="class-detail-recovery">
           <Link className="primary" to="/classes">
             클래스 목록으로
           </Link>
         </div>
-      </main>
+      </div>
     );
   }
+
+  if (!detail) {
+    return (
+      <div className="class-detail-loading" role="status" aria-label="강의 정보 불러오는 중">
+        <AsyncState loading />
+      </div>
+    );
+  }
+
+  const thumbnail = detail.thumbnail || getClassThumbnail(id);
+  const sharePath = `/s/${detail.shareToken || (id === 'notion' ? 'notion-auto' : id)}`;
+  const shareUrl = `${location.origin}${sharePath}`;
+  const shareReady = detail.publicOn === true;
+  const capacity = detail.capacity || 30;
+  const enrolled = detail.enrolled || 0;
+  const recruitRate = Math.min(100, Math.round((enrolled / capacity) * 100));
+  const reviewCount = detail.reviewCount || 0;
+  const completionRate = detail.completionRate || 0;
+  const curriculum = detail.curriculum || [];
+  const publishedLessons = curriculum.filter((item) => item.published).length;
+  const supportsAttendance = detail.type !== '온라인';
+  const curriculumGroups = groupCurriculumItems(curriculum);
+  const operationFocus = getClassOperationFocus({
+    id,
+    lifecycleStatus: detail.lifecycleStatus,
+    status: detail.status,
+    publicOn: detail.publicOn,
+    publishedLessons,
+    enrolled,
+    supportsAttendance,
+    sharePath,
+  });
+  const mobileMenus: [string, LucideIcon, string, string][] = [
+    ['applicants', Users, '신청자', `${enrolled}명 관리`],
+  ];
+  if (supportsAttendance) {
+    mobileMenus.push([
+      'attendance',
+      CheckSquare,
+      '출석',
+      `${Math.max(1, detail.sessions || 1)}회차 관리`,
+    ]);
+  }
+  mobileMenus.push([
+    'survey',
+    BarChart3,
+    '설문·시험',
+    reviewCount
+      ? `후기 ${reviewCount}개 · 평점 ${(detail.rating || 0).toFixed(1)}/5`
+      : '항목 만들기 · 결과 확인',
+  ]);
+  const applicantTrend = detail.applicantTrend || [];
+  const stats = [
+    [
+      '공개 차시',
+      `${publishedLessons} / ${curriculum.length}`,
+      curriculum.length ? '전체 차시 중 공개' : '첫 차시를 등록하세요',
+      ClipboardList,
+    ],
+    [
+      '평균 만족도',
+      reviewCount ? `${detail.rating || 0} / 5.0` : '후기 없음',
+      reviewCount ? `후기 ${reviewCount}개` : '후기가 등록되면 표시돼요',
+      Star,
+    ],
+    [
+      '수강 완료율',
+      completionRate ? `${completionRate}%` : '수강 전',
+      completionRate ? '진도에서 확인' : '수강 시작 후 표시돼요',
+      CheckCircle2,
+    ],
+  ] as const;
+
   const notify = (message: string) => {
+    if (toastTimeout.current) window.clearTimeout(toastTimeout.current);
     setToast(message);
-    window.setTimeout(() => setToast(''), 2000);
+    toastTimeout.current = window.setTimeout(() => setToast(''), 2400);
   };
-  const copyShare = () => {
-    void navigator.clipboard?.writeText(shareUrl).catch(() => undefined);
-    notify('신청 링크를 복사했어요');
-  };
-  const openShare = async () => {
+
+  const copyShare = async () => {
+    if (!navigator.clipboard?.writeText) {
+      notify('링크를 복사하지 못했어요. 링크를 직접 선택해 복사해 주세요.');
+      return false;
+    }
     try {
-      if (navigator.share)
-        await navigator.share({ title: '원클릭 클래스 신청 페이지', url: shareUrl });
-      else copyShare();
+      await navigator.clipboard.writeText(shareUrl);
+      notify('신청 링크를 복사했어요.');
+      return true;
     } catch {
-      // Native share sheet dismissal is not an app error.
+      notify('링크를 복사하지 못했어요. 링크를 직접 선택해 복사해 주세요.');
+      return false;
     }
   };
+
+  const openShare = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: '원클릭 클래스 신청 페이지', url: shareUrl });
+      } else {
+        await copyShare();
+      }
+    } catch (shareError) {
+      if ((shareError as Error).name !== 'AbortError') {
+        notify('공유 화면을 열지 못했어요. 링크 복사를 이용해 주세요.');
+      }
+    }
+  };
+
   const showShareQr = async () => {
-    setShareQrUrl(await QRCode.toDataURL(shareUrl, { width: 220, margin: 1 }));
-    notify('신청 페이지 QR 코드를 만들었어요');
+    try {
+      setShareQrUrl(await QRCode.toDataURL(shareUrl, { width: 220, margin: 1 }));
+      notify('신청 페이지 QR 코드를 만들었어요.');
+    } catch {
+      notify('QR 코드를 만들지 못했어요. 잠시 후 다시 시도해 주세요.');
+    }
   };
 
   return (
@@ -192,80 +291,48 @@ export function ClassDetailPage() {
           <b>내 클래스</b>
         </div>
         <div className="oc-detail-layout">
-          <main>
-            {detail && !detail.publicOn && (
-              <section className="oc-panel class-readiness">
-                <div className="oc-panel-title">
-                  <h2>
-                    강의 준비 <small>{readySteps} / 3 완료</small>
-                  </h2>
-                  <Link to={`/classes/${id}/curriculum?setup=1`}>계속 준비하기</Link>
-                </div>
-                <div className="class-readiness-steps">
-                  <span className="complete">
-                    <CheckCircle2 />
-                    <b>기본 정보</b>
-                    <small>저장 완료</small>
-                  </span>
-                  <span className={publishedLessons ? 'complete' : 'active'}>
-                    <ClipboardList />
-                    <b>커리큘럼</b>
-                    <small>
-                      {publishedLessons ? `공개 차시 ${publishedLessons}개` : '첫 차시 필요'}
-                    </small>
-                  </span>
-                  <span className={publishedLessons ? 'active' : ''}>
-                    <Share2 />
-                    <b>신청 페이지</b>
-                    <small>미리보기·공개 필요</small>
-                  </span>
-                </div>
-              </section>
-            )}
+          <div className="oc-detail-primary">
+            <OperationFocusCard focus={operationFocus} />
             <section className="oc-detail-hero reference class-overview-hero">
               <div className="oc-detail-main">
                 <div className="oc-detail-copy">
                   <div className="oc-status-line">
-                    <span className="live">{detail?.status || '모집중'}</span>
-                    <span>{detail?.type || '온라인'}</span>
+                    <span className="live">{detail.status}</span>
+                    <span>{detail.type}</span>
                   </div>
-                  <h1>
-                    {detail?.title || '강의 정보를 불러오는 중이에요'}
-                    <Link to={`/classes/new?edit=${id}`} aria-label="강의 수정">
-                      <Edit3 size={20} />
-                    </Link>
-                  </h1>
-                  <p>{detail?.summary || '강의 정보를 확인하고 있어요.'}</p>
+                  <h2 className="oc-detail-course-title">{detail.title}</h2>
+                  <p>{detail.summary}</p>
                   <div className="oc-hero-meta">
                     <span>
-                      <Star size={18} fill="currentColor" /> <b>{detail?.rating || '-'}</b> (
-                      {reviewCount})
+                      <CalendarDays aria-hidden="true" /> <b>{detail.date || '일정 미정'}</b>
                     </span>
+                    {detail.location && (
+                      <span>
+                        <MapPin aria-hidden="true" /> <b>{detail.location}</b>
+                      </span>
+                    )}
                     <span>
-                      <Users size={18} /> <b>{enrolled}명</b> 신청
-                    </span>
-                    <span>
-                      <CalendarDays size={18} /> <b>{detail?.sessions || 0}회차</b> 구성
+                      <Eye aria-hidden="true" />
+                      <b>{shareReady ? '신청 페이지 공개' : '신청 페이지 비공개'}</b>
                     </span>
                   </div>
                 </div>
                 {thumbnail ? (
-                  <img className="oc-detail-thumbnail" src={thumbnail} alt="클래스 썸네일" />
+                  <img
+                    className="oc-detail-thumbnail"
+                    src={thumbnail}
+                    alt={`${detail.title} 대표 이미지`}
+                  />
                 ) : (
-                  <div className="oc-operation-thumbnail">
+                  <Link className="oc-operation-thumbnail" to={`/classes/new?edit=${id}`}>
                     <Image size={30} />
-                    <span>대표 썸네일</span>
-                  </div>
+                    <span>대표 이미지 추가</span>
+                  </Link>
                 )}
               </div>
               <div className="oc-detail-actions">
-                <button type="button" onClick={copyShare}>
-                  <Link2 size={17} /> 링크 복사
-                </button>
-                <Link to={`/classes/new?edit=${id}`}>강의 수정</Link>
-                <Link className="primary-link" to={`/classes/${id}/applicants`}>
-                  신청자 관리 <span>→</span>
-                </Link>
+                <Link to={`/classes/new?edit=${id}`}>강의 정보 수정</Link>
+                <Link to={`/classes/${id}/preview`}>수강생 화면 미리보기</Link>
               </div>
               <div className="oc-detail-stats reference" aria-label="클래스 운영 지표">
                 {stats.map(([label, value, sub, Icon]) => (
@@ -296,7 +363,12 @@ export function ClassDetailPage() {
                 ['수료증', `/classes/${id}/certificates`],
                 ['설정', `/classes/${id}/manage`],
               ].map(([label, to], index) => (
-                <Link className={index === 0 ? 'active' : ''} to={to} key={label}>
+                <Link
+                  className={index === 0 ? 'active' : ''}
+                  aria-current={index === 0 ? 'page' : undefined}
+                  to={to}
+                  key={label}
+                >
                   {label}
                 </Link>
               ))}
@@ -338,11 +410,13 @@ export function ClassDetailPage() {
                           <em>
                             <CalendarDays size={16} /> {item.durationText}
                           </em>
-                          {item.published ? (
-                            <CheckCircle2 className="done" size={20} />
-                          ) : (
-                            <CheckCircle2 size={20} />
-                          )}
+                          <span
+                            className={`oc-publish-status${item.published ? ' done' : ''}`}
+                            role="img"
+                            aria-label={item.published ? '공개됨' : '미공개'}
+                          >
+                            <CheckCircle2 size={20} aria-hidden="true" />
+                          </span>
                         </div>
                       );
                     })}
@@ -357,9 +431,9 @@ export function ClassDetailPage() {
                 )}
               </div>
             </section>
-          </main>
+          </div>
 
-          <aside className="oc-detail-aside">
+          <aside className="oc-detail-aside" aria-label="클래스 운영 보조 정보">
             <section className="oc-panel oc-recruit-panel">
               <div className="oc-panel-title">
                 <h2>모집 현황</h2>
@@ -392,7 +466,7 @@ export function ClassDetailPage() {
                   </div>
                   <div>
                     <dt>마감 예정일</dt>
-                    <dd>{detail?.recruitEndDate || '마감일 미정'}</dd>
+                    <dd>{detail.recruitEndDate || '마감일 미정'}</dd>
                   </div>
                 </dl>
               </div>
@@ -410,29 +484,46 @@ export function ClassDetailPage() {
               <div className="oc-panel-title">
                 <h2>빠른 공유</h2>
               </div>
-              <p>링크를 복사해 수강생에게 공유해보세요.</p>
-              <div className="oc-share-link-row">
-                <span>{shareUrl.replace(/^https?:\/\//, '')}</span>
-                <button onClick={copyShare}>
-                  <Copy size={18} />
-                  복사
-                </button>
-              </div>
-              <div className="oc-share-buttons">
-                <Link to={sharePath}>
-                  <Link2 size={16} /> 신청 페이지
-                </Link>
-                <button type="button" onClick={() => void showShareQr()}>
-                  <QrCode size={16} /> QR 코드
-                </button>
-                <button type="button" onClick={() => void openShare()}>
-                  <Share2 size={16} /> SNS 공유
-                </button>
-              </div>
-              {shareQrUrl && (
-                <div className="oc-share-qr">
-                  <img src={shareQrUrl} alt="신청 페이지 QR 코드" />
-                  <small>수강생이 스캔하면 신청 페이지로 이동해요.</small>
+              {shareReady ? (
+                <>
+                  <p>신청 페이지 링크를 수강생에게 공유하세요.</p>
+                  <div className="oc-share-link-row">
+                    <span>{shareUrl.replace(/^https?:\/\//, '')}</span>
+                    <button type="button" onClick={() => void copyShare()}>
+                      <Copy size={18} aria-hidden="true" />
+                      복사
+                    </button>
+                  </div>
+                  <div className="oc-share-buttons">
+                    <Link to={sharePath}>
+                      <Link2 size={16} aria-hidden="true" /> 신청 페이지
+                    </Link>
+                    <button type="button" onClick={() => void showShareQr()}>
+                      <QrCode size={16} aria-hidden="true" /> QR 코드
+                    </button>
+                    <button type="button" onClick={() => void openShare()}>
+                      <Share2 size={16} aria-hidden="true" /> 공유
+                    </button>
+                  </div>
+                  {shareQrUrl && (
+                    <div className="oc-share-qr">
+                      <button
+                        type="button"
+                        aria-label="QR 코드 닫기"
+                        onClick={() => setShareQrUrl('')}
+                      >
+                        <X aria-hidden="true" />
+                      </button>
+                      <img src={shareQrUrl} alt="신청 페이지 QR 코드" />
+                      <small>스캔하면 신청 페이지로 이동해요.</small>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="oc-share-locked">
+                  <LockKeyhole aria-hidden="true" />
+                  <p>신청 페이지를 공개하면 링크와 QR 코드를 공유할 수 있어요.</p>
+                  <Link to={`/classes/${id}/manage`}>공개 설정 확인</Link>
                 </div>
               )}
             </section>
@@ -441,7 +532,7 @@ export function ClassDetailPage() {
                 <h2>최근 활동</h2>
               </div>
               <div className="oc-activity-list">
-                {(detail?.recentActivities || []).map((activity) => (
+                {(detail.recentActivities || []).map((activity) => (
                   <Link
                     to={
                       activity.type === 'applicant'
@@ -463,7 +554,7 @@ export function ClassDetailPage() {
                     <small>{activity.occurredAt} ›</small>
                   </Link>
                 ))}
-                {!detail?.recentActivities.length && (
+                {!detail.recentActivities.length && (
                   <div className="oc-activity-empty">최근 활동이 아직 없어요.</div>
                 )}
               </div>
@@ -484,22 +575,17 @@ export function ClassDetailPage() {
           style={thumbnail ? { backgroundImage: `url(${thumbnail})` } : undefined}
         >
           <span>
-            <b>{detail?.status || '상태 확인 중'}</b>
-            <small>
-              {detail
-                ? detail.publicOn
-                  ? '신청 페이지 공개'
-                  : '신청 페이지 비공개'
-                : '강의 정보를 불러오고 있어요'}
-            </small>
+            <b>{detail.status}</b>
+            <small>{shareReady ? '신청 페이지 공개' : '신청 페이지 비공개'}</small>
           </span>
         </div>
-        <h1>{detail?.title || '강의 정보를 불러오는 중이에요'}</h1>
+        <h2 className="mobile-class-title">{detail.title}</h2>
         <p className="muted">
-          신청 {enrolled} / {capacity}명 · {detail?.recruitEndDate || '마감일 미정'}
+          신청 {enrolled} / {capacity}명 · 모집 마감 {detail.recruitEndDate || '미정'}
         </p>
+        <OperationFocusCard focus={operationFocus} compact />
         <Link
-          className={`mobile-curriculum-overview ${detail && !curriculum.length ? 'empty' : ''}`}
+          className={`mobile-curriculum-overview ${!curriculum.length ? 'empty' : ''}`}
           to={`/classes/${id}/curriculum`}
         >
           <i>
@@ -508,18 +594,14 @@ export function ClassDetailPage() {
           <span>
             <b>커리큘럼·차시 관리</b>
             <strong>
-              {!detail
-                ? '커리큘럼을 불러오는 중이에요'
-                : curriculum.length
-                  ? `${curriculumGroups.length}개 섹션 · ${curriculum.length}개 차시`
-                  : '아직 등록된 차시가 없어요'}
+              {curriculum.length
+                ? `${curriculumGroups.length}개 섹션 · ${curriculum.length}개 차시`
+                : '아직 등록된 차시가 없어요'}
             </strong>
             <small>
-              {!detail
-                ? '잠시만 기다려 주세요'
-                : curriculum.length
-                  ? `공개 ${publishedLessons}개 · 미공개 ${curriculum.length - publishedLessons}개`
-                  : '첫 차시를 만들어 강의를 준비하세요'}
+              {curriculum.length
+                ? `공개 ${publishedLessons}개 · 미공개 ${curriculum.length - publishedLessons}개`
+                : '첫 차시를 만들어 강의를 준비하세요'}
             </small>
           </span>
           <em aria-hidden="true">›</em>
@@ -547,18 +629,25 @@ export function ClassDetailPage() {
             <Settings />
           </i>
           <span>
-            <b>기본 정보·공개 설정</b>
-            <small>정보 수정 · 공개 상태 · 모집 마감</small>
+            <b>설정</b>
+            <small>기본 정보 · 공개 상태 · 모집 마감</small>
           </span>
         </Link>
         <Link className="preview-link" to={`/classes/${id}/preview`}>
           <Eye />
           수강생 화면 미리보기
         </Link>
-        <button className="mobile-share-action" type="button" onClick={copyShare}>
-          <Link2 />
-          신청 링크 복사
-        </button>
+        {shareReady ? (
+          <button className="mobile-share-action" type="button" onClick={() => void copyShare()}>
+            <Link2 aria-hidden="true" />
+            신청 링크 복사
+          </button>
+        ) : (
+          <Link className="mobile-share-action" to={`/classes/${id}/manage`}>
+            <LockKeyhole aria-hidden="true" />
+            신청 페이지 공개
+          </Link>
+        )}
       </div>
     </>
   );
