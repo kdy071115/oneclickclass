@@ -659,7 +659,7 @@ describe('CreateClassPage accessibility and ordering', () => {
   });
   it('붙여넣은 여러 링크를 즉시 추가하고 프로필 링크로 강사 소개를 만든다', async () => {
     const user = userEvent.setup();
-    renderCreator('/classes/new?source=video&step=2');
+    const { container } = renderCreator('/classes/new?source=video&step=2');
 
     expect(screen.getByRole('button', { name: '클립보드 링크 붙여넣기' })).toBeInTheDocument();
     fireEvent.paste(screen.getByRole('textbox', { name: '자료 링크' }), {
@@ -676,6 +676,8 @@ describe('CreateClassPage accessibility and ordering', () => {
     expect(await screen.findByText('blog.example.com')).toBeInTheDocument();
     expect(screen.getByText('학습 자료')).toBeInTheDocument();
     expect(screen.getByText('강사 프로필')).toBeInTheDocument();
+    expect(screen.getByText('링크 3개가 추가됐어요.')).toBeInTheDocument();
+    expect(container.querySelectorAll('.source-order-item.is-recently-added')).toHaveLength(3);
     expect(screen.getByText('3개 자료를 함께 분석해 정보와 썸네일을 만들어요')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /AI가 클래스 만들기/ }));

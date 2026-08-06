@@ -556,6 +556,7 @@ export function CreateClassPage() {
   const [draggedSourceId, setDraggedSourceId] = useState('');
   const [sourceDragPreview, setSourceDragPreview] = useState<SourceDragPreview | null>(null);
   const [recentlyMovedSourceId, setRecentlyMovedSourceId] = useState('');
+  const [recentlyAddedSourceIds, setRecentlyAddedSourceIds] = useState<string[]>([]);
   const [sourceOrderAnnouncement, setSourceOrderAnnouncement] = useState('');
   const [sourcePreviewId, setSourcePreviewId] = useState('');
   const [materialPreviewUrl, setMaterialPreviewUrl] = useState('');
@@ -597,6 +598,7 @@ export function CreateClassPage() {
   const sourceDragPoint = useRef({ x: 0, y: 0 });
   const sourceDragFrame = useRef<number>();
   const sourceMoveTimer = useRef<number>();
+  const sourceAddTimer = useRef<number>();
   const sourceFileInputRef = useRef<HTMLInputElement>(null);
   const previewHelpButtonRef = useRef<HTMLButtonElement>(null);
   const addressReturnFocusRef = useRef<HTMLElement>();
@@ -890,6 +892,7 @@ export function CreateClassPage() {
       sourcePointerCleanup.current?.();
       if (sourceDragFrame.current) window.cancelAnimationFrame(sourceDragFrame.current);
       if (sourceMoveTimer.current) window.clearTimeout(sourceMoveTimer.current);
+      if (sourceAddTimer.current) window.clearTimeout(sourceAddTimer.current);
     },
     [],
   );
@@ -1017,7 +1020,18 @@ export function CreateClassPage() {
       informationMode: 'source',
     }));
     setVideoUrlError('');
+    setRecentlyAddedSourceIds([]);
+    if (sourceAddTimer.current) window.clearTimeout(sourceAddTimer.current);
     setError('');
+  }
+
+  function markSourcesAdded(sourceIds: string[]) {
+    if (sourceAddTimer.current) window.clearTimeout(sourceAddTimer.current);
+    setRecentlyAddedSourceIds(sourceIds);
+    sourceAddTimer.current = window.setTimeout(() => {
+      setRecentlyAddedSourceIds([]);
+      sourceAddTimer.current = undefined;
+    }, 1800);
   }
 
   async function addSourceLinks(rawValue: string) {
@@ -1056,6 +1070,7 @@ export function CreateClassPage() {
       source: sourceKindFor([...current.links, ...additions], current.materials),
       informationMode: 'source',
     }));
+    markSourcesAdded(additions.map((link) => link.id));
     await Promise.all(
       additions.map(async ({ id, url, provider }) => {
         if (!isSupportedVideoProvider(provider)) return;
@@ -1967,6 +1982,16 @@ export function CreateClassPage() {
                   {videoUrlError}
                 </p>
               )}
+              {recentlyAddedSourceIds.length > 0 && !videoUrlError && (
+                <p
+                  className="field-message success source-link-feedback"
+                  key={recentlyAddedSourceIds.join('-')}
+                  role="status"
+                  aria-live="polite"
+                >
+                  <Check /> 링크 {recentlyAddedSourceIds.length}개가 추가됐어요.
+                </p>
+              )}
               <details
                 className="source-file-option"
                 open={fileOptionsOpen}
@@ -2048,8 +2073,8 @@ export function CreateClassPage() {
                           className={`source-order-item ${
                             draggedSourceId === source.id ? 'is-dragging' : ''
                           } ${recentlyMovedSourceId === source.id ? 'is-recently-moved' : ''} ${
-                            sourcePreviewId === source.id ? 'is-preview-selected' : ''
-                          }`}
+                            recentlyAddedSourceIds.includes(source.id) ? 'is-recently-added' : ''
+                          } ${sourcePreviewId === source.id ? 'is-preview-selected' : ''}`}
                           key={source.id}
                           ref={(item) => {
                             if (item) sourceOrderItemRefs.current.set(source.id, item);
