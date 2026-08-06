@@ -572,9 +572,6 @@ export function CreateClassPage() {
   const [sourcePreviewId, setSourcePreviewId] = useState('');
   const [materialPreviewUrl, setMaterialPreviewUrl] = useState('');
   const [fileOptionsOpen, setFileOptionsOpen] = useState(true);
-  const [sourceAddOpen, setSourceAddOpen] = useState(
-    () => orderedCreationSources(meta).length === 0,
-  );
   const [removedSource, setRemovedSource] = useState<RemovedSource | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
@@ -700,10 +697,6 @@ export function CreateClassPage() {
     sourcePreviewSource?.kind === 'material' ? sourcePreviewSource.value : undefined;
   const sourcePreviewMaterialId = sourcePreviewMaterial?.id ?? '';
   const sourcePreviewMaterialUploadedUrl = sourcePreviewMaterial?.url ?? '';
-
-  useEffect(() => {
-    if (sourceCount === 0) setSourceAddOpen(true);
-  }, [sourceCount]);
 
   useEffect(() => {
     setMaterialPreviewUrl('');
@@ -2075,19 +2068,8 @@ export function CreateClassPage() {
                       : '차시로 만들 링크나 파일을 1개 이상 추가해 주세요'}
                   </p>
                 </span>
-                <button
-                  className="source-add-toggle"
-                  type="button"
-                  aria-expanded={sourceAddOpen}
-                  aria-controls="source-add-fields"
-                  onClick={() => setSourceAddOpen((current) => !current)}
-                >
-                  <Plus />
-                  <span>자료 추가</span>
-                  <ChevronDown />
-                </button>
               </div>
-              <div className="source-add-fields" id="source-add-fields" hidden={!sourceAddOpen}>
+              <div className="source-add-fields">
                 <div className={`source-link-input ${videoUrlError ? 'invalid' : ''}`}>
                   <Globe2 />
                   <label>

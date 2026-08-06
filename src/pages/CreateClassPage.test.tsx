@@ -714,17 +714,12 @@ describe('CreateClassPage accessibility and ordering', () => {
     await user.click(screen.getByRole('button', { name: '링크 추가' }));
     await waitFor(() => expect(screen.getByText('vimeo.com')).toBeInTheDocument());
 
-    const sourceAddToggle = screen.getByRole('button', { name: '자료 추가' });
-    expect(sourceAddToggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.queryByRole('button', { name: '자료 추가' })).not.toBeInTheDocument();
     await user.type(input, 'https://blog.example.com/react-course');
     await user.click(screen.getByRole('button', { name: '링크 추가' }));
     await waitFor(() => expect(screen.getByText('blog.example.com')).toBeInTheDocument());
 
-    expect(sourceAddToggle).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('textbox', { name: '자료 링크' })).toBeInTheDocument();
-    await user.click(sourceAddToggle);
-    expect(sourceAddToggle).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByRole('textbox', { name: '자료 링크' })).not.toBeInTheDocument();
 
     expect(document.querySelector('.source-link-item > .success')).toBeNull();
     expect(
