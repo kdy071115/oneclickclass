@@ -1967,10 +1967,6 @@ export function CreateClassPage() {
                   {videoUrlError}
                 </p>
               )}
-              <p className="source-card-outcome">
-                여러 링크를 한 번에 붙여넣을 수 있어요. 자료가 많을수록 AI 결과가 더 정확해집니다.
-              </p>
-
               <details
                 className="source-file-option"
                 open={fileOptionsOpen}
@@ -2027,8 +2023,7 @@ export function CreateClassPage() {
                     <span>
                       <h3 id="source-order-title">자료 순서</h3>
                       <p id="source-order-help">
-                        위에서부터 차시가 만들어져요. 드래그하거나 방향키로 순서를 바꿔보세요. 강사
-                        프로필은 소개에만 사용돼요.
+                        위에서부터 차시가 만들어져요. 드래그하거나 방향키로 순서를 바꿔보세요.
                       </p>
                     </span>
                     <small>{orderedSources.length}개</small>

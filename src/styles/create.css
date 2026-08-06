@@ -567,13 +567,6 @@
   color: var(--creator-success);
 }
 
-.source-card-outcome {
-  margin: 10px 3px 0;
-  color: var(--creator-muted);
-  font-size: 12px;
-  line-height: 1.55;
-}
-
 .connected-video {
   display: grid;
   grid-template-columns: 74px minmax(0, 1fr) 30px;
