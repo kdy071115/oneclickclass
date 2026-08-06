@@ -1,12 +1,14 @@
 import {
   type ChangeEvent,
   type ClipboardEvent,
+  type CSSProperties,
   type DragEvent,
   type FormEvent,
   type RefObject,
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -23,6 +25,7 @@ import {
   ExternalLink,
   FileText,
   Globe2,
+  GripVertical,
   Image as ImageIcon,
   Link2,
   LoaderCircle,
@@ -37,7 +40,6 @@ import {
   Sparkles,
   Upload,
   Users,
-  Video,
   WalletCards,
   X,
 } from 'lucide-react';
@@ -148,6 +150,7 @@ interface CreationMeta {
   videoConnected: boolean;
   videoMetadata?: ClassSourceMetadata;
   materials: UploadedMaterial[];
+  sourceOrder: string[];
   informationMode: InformationMode;
   createdId: string;
   shareToken: string;
@@ -166,6 +169,25 @@ type StoredCreationMeta = Partial<Omit<CreationMeta, 'source'>> & {
 interface ScheduleEditValue {
   date: string;
   time: string;
+}
+
+interface SourceDragPreview {
+  id: string;
+  pointerType: string;
+  x: number;
+  y: number;
+}
+
+function sourceDragPreviewPosition(x: number, y: number, pointerType: string) {
+  const gutter = 12;
+  const previewWidth = Math.min(280, window.innerWidth - gutter * 2);
+  const previewHeight = 64;
+  const requestedX = pointerType === 'touch' ? x - previewWidth / 2 : x + 14;
+  const requestedY = pointerType === 'touch' ? y - 76 : y + 14;
+  return {
+    x: Math.min(Math.max(gutter, requestedX), window.innerWidth - previewWidth - gutter),
+    y: Math.min(Math.max(gutter, requestedY), window.innerHeight - previewHeight - gutter),
+  };
 }
 
 function getScheduleInputError(date: string, time: string, hasValue = Boolean(date || time)) {
@@ -201,6 +223,37 @@ function restoredLinks(parsed: StoredCreationMeta): SourceLink[] {
   ];
 }
 
+type OrderedSource =
+  | { id: string; kind: 'link'; value: SourceLink }
+  | { id: string; kind: 'material'; value: UploadedMaterial };
+
+function normalizeSourceOrder(
+  order: string[] | undefined,
+  links: SourceLink[],
+  materials: UploadedMaterial[],
+) {
+  const availableIds = [...links.map((link) => link.id), ...materials.map((file) => file.id)];
+  const available = new Set(availableIds);
+  const normalized = (order ?? []).filter(
+    (id, index, values) => available.has(id) && values.indexOf(id) === index,
+  );
+  const included = new Set(normalized);
+  return [...normalized, ...availableIds.filter((id) => !included.has(id))];
+}
+
+function orderedCreationSources(meta: Pick<CreationMeta, 'links' | 'materials' | 'sourceOrder'>) {
+  const byId = new Map<string, OrderedSource>([
+    ...meta.links.map((link) => [link.id, { id: link.id, kind: 'link', value: link }] as const),
+    ...meta.materials.map(
+      (file) => [file.id, { id: file.id, kind: 'material', value: file }] as const,
+    ),
+  ]);
+  return normalizeSourceOrder(meta.sourceOrder, meta.links, meta.materials).flatMap((id) => {
+    const source = byId.get(id);
+    return source ? [source] : [];
+  });
+}
+
 const initialCreationMeta: CreationMeta = {
   deliverySelected: false,
   source: 'none',
@@ -211,6 +264,7 @@ const initialCreationMeta: CreationMeta = {
   videoConnected: false,
   videoMetadata: undefined,
   materials: [],
+  sourceOrder: [],
   informationMode: 'source',
   createdId: '',
   shareToken: '',
@@ -224,6 +278,8 @@ function clearCompletedCreationSession(storageKey: string) {
     const saved = sessionStorage.getItem(storageKey);
     if (!saved) return false;
     const parsed = JSON.parse(saved) as StoredCreationMeta;
+    const links = restoredLinks(parsed);
+    const materials = Array.isArray(parsed.materials) ? parsed.materials : [];
     const normalized: CreationMeta = {
       ...initialCreationMeta,
       ...parsed,
@@ -231,11 +287,12 @@ function clearCompletedCreationSession(storageKey: string) {
         parsed.source === 'youtube' || parsed.source === 'video-url'
           ? 'links'
           : (parsed.source ?? 'none'),
-      links: restoredLinks(parsed),
+      links,
       videoUrl: parsed.videoUrl || parsed.youtubeUrl || '',
       videoConnected: parsed.videoConnected ?? parsed.youtubeConnected ?? false,
       videoMetadata: parsed.videoMetadata ?? parsed.youtubeMetadata,
-      materials: Array.isArray(parsed.materials) ? parsed.materials : [],
+      materials,
+      sourceOrder: normalizeSourceOrder(parsed.sourceOrder, links, materials),
     };
     if (!normalized.createdId || (!normalized.shareToken && sourceIsReady(normalized)))
       return false;
@@ -320,6 +377,16 @@ function loadCreationMeta(
           : 1;
     const videoUrl = parsed.videoUrl || parsed.youtubeUrl || '';
     const detectedProvider = detectContentProvider(videoUrl, 'video');
+    const links = restoredLinks(parsed);
+    const materials = (parsed.materials ?? []).map((file) => ({
+      ...file,
+      contentType: file.contentType ?? materialContentType(file.name, file.type),
+      status:
+        file.status === 'uploading' || (file.status === 'uploaded' && !file.url)
+          ? ('error' as const)
+          : file.status,
+      progress: file.status === 'uploaded' && file.url ? 100 : undefined,
+    }));
     return {
       ...initialCreationMeta,
       ...parsed,
@@ -327,7 +394,7 @@ function loadCreationMeta(
         parsed.source === 'youtube' || parsed.source === 'video-url'
           ? 'links'
           : (parsed.source ?? 'none'),
-      links: restoredLinks(parsed),
+      links,
       videoUrl,
       videoProvider:
         parsed.videoProvider ||
@@ -337,15 +404,8 @@ function loadCreationMeta(
       deliverySelected,
       step: restoredStep,
       maxStep: 3,
-      materials: (parsed.materials ?? []).map((file) => ({
-        ...file,
-        contentType: file.contentType ?? materialContentType(file.name, file.type),
-        status:
-          file.status === 'uploading' || (file.status === 'uploaded' && !file.url)
-            ? 'error'
-            : file.status,
-        progress: file.status === 'uploaded' && file.url ? 100 : undefined,
-      })),
+      materials,
+      sourceOrder: normalizeSourceOrder(parsed.sourceOrder, links, materials),
     };
   } catch {
     return {
@@ -488,6 +548,10 @@ export function CreateClassPage() {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [videoUrlError, setVideoUrlError] = useState('');
   const [sourceDragActive, setSourceDragActive] = useState(false);
+  const [draggedSourceId, setDraggedSourceId] = useState('');
+  const [sourceDragPreview, setSourceDragPreview] = useState<SourceDragPreview | null>(null);
+  const [recentlyMovedSourceId, setRecentlyMovedSourceId] = useState('');
+  const [sourceOrderAnnouncement, setSourceOrderAnnouncement] = useState('');
   const [fileOptionsOpen, setFileOptionsOpen] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
@@ -514,6 +578,17 @@ export function CreateClassPage() {
   const pendingThumbnailFile = useRef<File>();
   const thumbnailUploadToken = useRef(0);
   const sourceFiles = useRef(new Map<string, File>());
+  const pointerSourceId = useRef('');
+  const pointerStartIndex = useRef(-1);
+  const pointerInsertionIndex = useRef(-1);
+  const sourceDragPreviewRef = useRef<HTMLDivElement>(null);
+  const sourceOrderListRef = useRef<HTMLOListElement>(null);
+  const sourceOrderItemRefs = useRef(new Map<string, HTMLLIElement>());
+  const previousSourcePositions = useRef<Map<string, number>>();
+  const sourcePointerCleanup = useRef<() => void>();
+  const sourceDragPoint = useRef({ x: 0, y: 0 });
+  const sourceDragFrame = useRef<number>();
+  const sourceMoveTimer = useRef<number>();
   const sourceFileInputRef = useRef<HTMLInputElement>(null);
   const previewHelpButtonRef = useRef<HTMLButtonElement>(null);
   const addressReturnFocusRef = useRef<HTMLElement>();
@@ -566,24 +641,54 @@ export function CreateClassPage() {
   const stepInfo = classCreationFlowSteps[Math.min(step - 1, classCreationFlowSteps.length - 1)];
   const workspaceLabel = stepInfo.label;
   const progressPercent = step <= 1 ? 0 : step === 2 ? 50 : 100;
-  const sourceCount = meta.links.length + meta.materials.length;
+  const orderedSources = orderedCreationSources(meta);
+  const previewSource = sourceDragPreview
+    ? orderedSources.find((source) => source.id === sourceDragPreview.id)
+    : undefined;
+  const previewSourceTitle = previewSource
+    ? previewSource.kind === 'link'
+      ? previewSource.value.title || sourceLinkHost(previewSource.value.url)
+      : previewSource.value.name
+    : '';
+  const sourceCount = orderedSources.length;
+
+  useLayoutEffect(() => {
+    const previous = previousSourcePositions.current;
+    previousSourcePositions.current = undefined;
+    if (!previous || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+
+    sourceOrderItemRefs.current.forEach((item, sourceId) => {
+      const previousTop = previous.get(sourceId);
+      if (previousTop === undefined) return;
+      const offset = previousTop - item.getBoundingClientRect().top;
+      if (Math.abs(offset) < 1) return;
+      item.animate?.(
+        [{ transform: `translate3d(0, ${offset}px, 0)` }, { transform: 'translate3d(0, 0, 0)' }],
+        { duration: 180, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' },
+      );
+    });
+  }, [draggedSourceId, meta.sourceOrder]);
+
   const informationSourceLabel = sourceCount > 0 ? `자료 ${sourceCount}개` : '자료 선택 전';
   const sourceCurriculumDraft = buildSourceCurriculum({
     kind: meta.source,
     classTitle: draft.title,
     classSummary: draft.summary,
-    links: meta.links.map(({ url, title, provider, durationSeconds }) => ({
+    links: meta.links.map(({ id, url, title, provider, durationSeconds }) => ({
+      id,
       url,
       title,
       provider,
       durationSeconds,
     })),
-    materials: meta.materials.map(({ name, url, durationSeconds, contentType }) => ({
+    materials: meta.materials.map(({ id, name, url, durationSeconds, contentType }) => ({
+      id,
       name,
       url,
       durationSeconds,
       contentType,
     })),
+    sourceOrder: meta.sourceOrder,
   });
   const willPublish = Boolean(editId || sourceCurriculumDraft.lessons.length);
   const shareUrl = useMemo(
@@ -689,6 +794,9 @@ export function CreateClassPage() {
     () => () => {
       analysisAbort.current?.abort();
       videoMetadataAbort.current?.abort();
+      sourcePointerCleanup.current?.();
+      if (sourceDragFrame.current) window.cancelAnimationFrame(sourceDragFrame.current);
+      if (sourceMoveTimer.current) window.clearTimeout(sourceMoveTimer.current);
     },
     [],
   );
@@ -728,18 +836,24 @@ export function CreateClassPage() {
     setVideoUrlError('');
     setMeta((current) => ({ ...current, informationMode: 'analyzing' }));
     try {
+      const orderedLinks = orderedSources.flatMap((source) =>
+        source.kind === 'link' ? [source.value] : [],
+      );
+      const orderedMaterials = orderedSources.flatMap((source) =>
+        source.kind === 'material' ? [source.value] : [],
+      );
       const result = await classService.analyzeSource(
         {
           type,
           source: {
             kind: analysisSourceKind,
-            links: meta.links.map(({ url, provider, title }) => ({
+            links: orderedLinks.map(({ url, provider, title }) => ({
               url,
               provider,
               title,
               name: title || new URL(url).hostname.replace(/^www\./, ''),
             })),
-            materials: meta.materials.map((file) => ({
+            materials: orderedMaterials.map((file) => ({
               url: file.url!,
               name: file.name,
               type: file.type,
@@ -806,6 +920,7 @@ export function CreateClassPage() {
       videoConnected: false,
       videoMetadata: undefined,
       materials: [],
+      sourceOrder: [],
       informationMode: 'source',
     }));
     setVideoUrlError('');
@@ -841,6 +956,10 @@ export function CreateClassPage() {
       ...current,
       linkInput: '',
       links: [...current.links, ...additions],
+      sourceOrder: [
+        ...normalizeSourceOrder(current.sourceOrder, current.links, current.materials),
+        ...additions.map((link) => link.id),
+      ],
       source: sourceKindFor([...current.links, ...additions], current.materials),
       informationMode: 'source',
     }));
@@ -945,6 +1064,10 @@ export function CreateClassPage() {
       return {
         ...current,
         materials: nextMaterials,
+        sourceOrder: [
+          ...normalizeSourceOrder(current.sourceOrder, current.links, current.materials),
+          ...materials.map((file) => file.id),
+        ],
         source: sourceKindFor(current.links, nextMaterials),
         informationMode: 'source',
       };
@@ -990,6 +1113,7 @@ export function CreateClassPage() {
       return {
         ...current,
         links,
+        sourceOrder: current.sourceOrder.filter((sourceId) => sourceId !== id),
         source: sourceKindFor(links, current.materials),
         informationMode: 'source',
       };
@@ -1003,10 +1127,145 @@ export function CreateClassPage() {
       return {
         ...current,
         materials,
+        sourceOrder: current.sourceOrder.filter((sourceId) => sourceId !== id),
         source: sourceKindFor(current.links, materials),
         informationMode: 'source',
       };
     });
+  }
+
+  function queueSourceDragPreviewPosition(x: number, y: number, pointerType: string) {
+    sourceDragPoint.current = sourceDragPreviewPosition(x, y, pointerType);
+    if (sourceDragFrame.current) return;
+    sourceDragFrame.current = window.requestAnimationFrame(() => {
+      sourceDragFrame.current = undefined;
+      const preview = sourceDragPreviewRef.current;
+      if (!preview) return;
+      preview.style.setProperty('--source-drag-x', `${sourceDragPoint.current.x}px`);
+      preview.style.setProperty('--source-drag-y', `${sourceDragPoint.current.y}px`);
+    });
+  }
+
+  function markSourceMoved(sourceId: string) {
+    setRecentlyMovedSourceId(sourceId);
+    if (sourceMoveTimer.current) window.clearTimeout(sourceMoveTimer.current);
+    sourceMoveTimer.current = window.setTimeout(() => {
+      setRecentlyMovedSourceId('');
+      sourceMoveTimer.current = undefined;
+    }, 280);
+  }
+
+  function rememberSourcePositions() {
+    previousSourcePositions.current = new Map(
+      Array.from(sourceOrderItemRefs.current, ([sourceId, item]) => [
+        sourceId,
+        item.getBoundingClientRect().top,
+      ]),
+    );
+  }
+
+  function moveSourceToIndex(sourceId: string, insertionIndex: number) {
+    if (!sourceId || insertionIndex < 0) return;
+    rememberSourcePositions();
+    setMeta((current) => {
+      const order = normalizeSourceOrder(current.sourceOrder, current.links, current.materials);
+      const sourceIndex = order.indexOf(sourceId);
+      if (sourceIndex < 0) return current;
+      const nextOrder = order.filter((id) => id !== sourceId);
+      const nextIndex = Math.min(Math.max(0, insertionIndex), nextOrder.length);
+      if (sourceIndex === nextIndex) return current;
+      nextOrder.splice(nextIndex, 0, sourceId);
+      return { ...current, sourceOrder: nextOrder, informationMode: 'source' };
+    });
+  }
+
+  function announceSourceMove(sourceId: string, insertionIndex: number) {
+    const source = orderedSources.find((item) => item.id === sourceId);
+    if (!source || insertionIndex < 0) return;
+    const label =
+      source.kind === 'link'
+        ? source.value.title || sourceLinkHost(source.value.url)
+        : source.value.name;
+    setSourceOrderAnnouncement(`${label} 자료를 ${insertionIndex + 1}번째로 이동했어요.`);
+  }
+
+  function moveSourceBy(sourceId: string, offset: -1 | 1) {
+    const sourceIndex = orderedSources.findIndex((source) => source.id === sourceId);
+    const insertionIndex = sourceIndex + offset;
+    if (sourceIndex < 0 || insertionIndex < 0 || insertionIndex >= orderedSources.length) return;
+    moveSourceToIndex(sourceId, insertionIndex);
+    announceSourceMove(sourceId, insertionIndex);
+    markSourceMoved(sourceId);
+  }
+
+  function updateSourceInsertion(sourceId: string, pointerY: number) {
+    const list = sourceOrderListRef.current;
+    if (!list) return;
+    const items = Array.from(list.querySelectorAll<HTMLLIElement>('[data-source-id]')).filter(
+      (item) => item.dataset.sourceId !== sourceId,
+    );
+    const nextIndex = items.findIndex((item) => {
+      const bounds = item.getBoundingClientRect();
+      return pointerY < bounds.top + bounds.height / 2;
+    });
+    const insertionIndex = nextIndex < 0 ? items.length : nextIndex;
+    if (pointerInsertionIndex.current === insertionIndex) return;
+    pointerInsertionIndex.current = insertionIndex;
+    moveSourceToIndex(sourceId, insertionIndex);
+  }
+
+  function finishSourceDrag(sourceId: string) {
+    const insertionIndex = pointerInsertionIndex.current;
+    if (sourceId && insertionIndex >= 0 && pointerStartIndex.current !== insertionIndex) {
+      announceSourceMove(sourceId, insertionIndex);
+      markSourceMoved(sourceId);
+    }
+    if (sourceDragFrame.current) {
+      window.cancelAnimationFrame(sourceDragFrame.current);
+      sourceDragFrame.current = undefined;
+    }
+    sourcePointerCleanup.current?.();
+    rememberSourcePositions();
+    pointerSourceId.current = '';
+    pointerStartIndex.current = -1;
+    pointerInsertionIndex.current = -1;
+    setDraggedSourceId('');
+    setSourceDragPreview(null);
+  }
+
+  function cancelSourceDrag(sourceId: string) {
+    if (sourceId && pointerStartIndex.current >= 0) {
+      moveSourceToIndex(sourceId, pointerStartIndex.current);
+    }
+    finishSourceDrag('');
+  }
+
+  function listenForSourcePointer(pointerId: number, pointerType: string) {
+    sourcePointerCleanup.current?.();
+    const handlePointerMove = (event: PointerEvent) => {
+      if (event.pointerId !== pointerId || !pointerSourceId.current) return;
+      event.preventDefault();
+      queueSourceDragPreviewPosition(event.clientX, event.clientY, pointerType);
+      updateSourceInsertion(pointerSourceId.current, event.clientY);
+    };
+    const handlePointerUp = (event: PointerEvent) => {
+      if (event.pointerId !== pointerId) return;
+      finishSourceDrag(pointerSourceId.current);
+    };
+    const handlePointerCancel = (event: PointerEvent) => {
+      if (event.pointerId !== pointerId) return;
+      cancelSourceDrag(pointerSourceId.current);
+    };
+    const cleanup = () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerCancel);
+      if (sourcePointerCleanup.current === cleanup) sourcePointerCleanup.current = undefined;
+    };
+    sourcePointerCleanup.current = cleanup;
+    window.addEventListener('pointermove', handlePointerMove, { passive: false });
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerCancel);
   }
 
   function getInformationErrors(): FieldErrors {
@@ -1593,42 +1852,6 @@ export function CreateClassPage() {
                 여러 링크를 한 번에 붙여넣을 수 있어요. 자료가 많을수록 AI 결과가 더 정확해집니다.
               </p>
 
-              {meta.links.length > 0 && (
-                <div className="source-link-list" aria-label="추가한 링크 자료">
-                  {meta.links.map((link) => {
-                    const videoLink = isSupportedVideoProvider(link.provider);
-                    return (
-                      <article className="source-link-item" key={link.id}>
-                        <i>
-                          {videoLink ? (
-                            <Play />
-                          ) : link.provider === 'DOCUMENT' ? (
-                            <FileText />
-                          ) : link.provider === 'SOCIAL' ? (
-                            <Users />
-                          ) : (
-                            <Globe2 />
-                          )}
-                        </i>
-                        <span>
-                          <small>{contentProviderLabel[link.provider]}</small>
-                          <b>{link.title || sourceLinkHost(link.url)}</b>
-                          <em>{link.url}</em>
-                        </span>
-                        <button
-                          type="button"
-                          aria-label={`${link.title || sourceLinkHost(link.url)} 링크 삭제`}
-                          disabled={sourceLocked}
-                          onClick={() => removeSourceLink(link.id)}
-                        >
-                          <X />
-                        </button>
-                      </article>
-                    );
-                  })}
-                </div>
-              )}
-
               <details
                 className="source-file-option"
                 open={fileOptionsOpen}
@@ -1677,76 +1900,203 @@ export function CreateClassPage() {
                     선택 가능
                   </span>
                 </label>
+              </details>
 
-                {meta.materials.length > 0 && (
-                  <div className="material-list" aria-label="업로드한 파일 자료">
-                    {meta.materials.map((file) => (
-                      <article key={file.id}>
-                        <i>{file.contentType === 'video' ? <Video /> : <FileText />}</i>
-                        <span>
-                          <b>{file.name}</b>
-                          <small>
-                            {formatBytes(file.size)} ·{' '}
-                            {file.status === 'uploading'
-                              ? file.progress === undefined
-                                ? '업로드 중'
-                                : `업로드 중 ${file.progress}%`
-                              : file.status === 'uploaded'
-                                ? '업로드 완료'
-                                : '업로드 실패'}
-                            {file.durationSeconds
-                              ? ` · 재생 시간 ${formatMediaDuration(file.durationSeconds)}`
-                              : ''}
-                          </small>
-                          {file.status === 'uploading' && (
-                            <em
-                              className={`upload-progress ${
-                                file.progress === undefined ? 'indeterminate' : ''
-                              }`}
-                              aria-label={
-                                file.progress === undefined
-                                  ? `${file.name} 업로드 중`
-                                  : `${file.name} 업로드 ${file.progress}%`
-                              }
-                            >
-                              <span
-                                style={
-                                  file.progress === undefined
-                                    ? undefined
-                                    : { transform: `scaleX(${file.progress / 100})` }
-                                }
-                              />
-                            </em>
-                          )}
-                        </span>
-                        {file.status === 'uploaded' ? (
-                          <Check className="success" />
-                        ) : file.status === 'error' ? (
+              {orderedSources.length > 0 && (
+                <section className="source-order-section" aria-labelledby="source-order-title">
+                  <div className="source-order-heading">
+                    <span>
+                      <h3 id="source-order-title">자료 순서</h3>
+                      <p id="source-order-help">
+                        위에서부터 차시가 만들어져요. 드래그하거나 방향키로 순서를 바꿔보세요. 강사
+                        프로필은 소개에만 사용돼요.
+                      </p>
+                    </span>
+                    <small>{orderedSources.length}개</small>
+                  </div>
+                  <ol ref={sourceOrderListRef} className="source-order-list">
+                    {orderedSources.map((source, index) => {
+                      const link = source.kind === 'link' ? source.value : undefined;
+                      const file = source.kind === 'material' ? source.value : undefined;
+                      const title = link
+                        ? link.title || sourceLinkHost(link.url)
+                        : (file?.name ?? '자료');
+                      const videoSource = link
+                        ? isSupportedVideoProvider(link.provider)
+                        : file?.contentType === 'video';
+                      const sourceLabel = link
+                        ? contentProviderLabel[link.provider]
+                        : file?.contentType === 'video'
+                          ? '영상 파일'
+                          : '문서 파일';
+                      return (
+                        <li
+                          className={`source-order-item ${
+                            draggedSourceId === source.id ? 'is-dragging' : ''
+                          } ${recentlyMovedSourceId === source.id ? 'is-recently-moved' : ''}`}
+                          key={source.id}
+                          ref={(item) => {
+                            if (item) sourceOrderItemRefs.current.set(source.id, item);
+                            else sourceOrderItemRefs.current.delete(source.id);
+                          }}
+                          data-source-id={source.id}
+                          aria-posinset={index + 1}
+                          aria-setsize={orderedSources.length}
+                        >
                           <button
-                            className="material-retry"
+                            className="source-order-handle"
                             type="button"
                             disabled={sourceLocked}
-                            onClick={() => void retryMaterial(file)}
+                            aria-label={`${title} 순서 이동. 위아래 방향키를 사용할 수 있어요.`}
+                            aria-describedby="source-order-help"
+                            onKeyDown={(event) => {
+                              if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+                              event.preventDefault();
+                              moveSourceBy(source.id, event.key === 'ArrowUp' ? -1 : 1);
+                            }}
+                            onPointerDown={(event) => {
+                              if (sourceLocked) return;
+                              event.preventDefault();
+                              rememberSourcePositions();
+                              pointerSourceId.current = source.id;
+                              pointerStartIndex.current = index;
+                              pointerInsertionIndex.current = index;
+                              listenForSourcePointer(event.pointerId, event.pointerType);
+                              setDraggedSourceId(source.id);
+                              const previewPosition = sourceDragPreviewPosition(
+                                event.clientX,
+                                event.clientY,
+                                event.pointerType,
+                              );
+                              setSourceDragPreview({
+                                id: source.id,
+                                pointerType: event.pointerType,
+                                ...previewPosition,
+                              });
+                            }}
                           >
-                            <RefreshCw />
-                            <span>다시 업로드</span>
+                            <GripVertical />
                           </button>
-                        ) : (
-                          <LoaderCircle className="spin" />
-                        )}
-                        <button
-                          type="button"
-                          aria-label={`${file.name} 삭제`}
-                          disabled={sourceLocked}
-                          onClick={() => removeMaterial(file.id)}
-                        >
-                          <X />
-                        </button>
-                      </article>
-                    ))}
-                  </div>
-                )}
-              </details>
+                          <i className="source-order-icon">
+                            {videoSource ? (
+                              <Play />
+                            ) : link?.provider === 'SOCIAL' ? (
+                              <Users />
+                            ) : link && link.provider !== 'DOCUMENT' ? (
+                              <Globe2 />
+                            ) : (
+                              <FileText />
+                            )}
+                          </i>
+                          <span className="source-order-copy">
+                            <small>
+                              <span>{index + 1}</span>
+                              <span>{sourceLabel}</span>
+                            </small>
+                            <b>{title}</b>
+                            <em>
+                              {link
+                                ? link.url
+                                : `${formatBytes(file?.size ?? 0)} · ${
+                                    file?.status === 'uploading'
+                                      ? file.progress === undefined
+                                        ? '업로드 중'
+                                        : `업로드 중 ${file.progress}%`
+                                      : file?.status === 'uploaded'
+                                        ? '업로드 완료'
+                                        : '업로드 실패'
+                                  }${
+                                    file?.durationSeconds
+                                      ? ` · 재생 시간 ${formatMediaDuration(file.durationSeconds)}`
+                                      : ''
+                                  }`}
+                            </em>
+                            {file?.status === 'uploading' && (
+                              <span
+                                className={`upload-progress ${
+                                  file.progress === undefined ? 'indeterminate' : ''
+                                }`}
+                                aria-label={
+                                  file.progress === undefined
+                                    ? `${file.name} 업로드 중`
+                                    : `${file.name} 업로드 ${file.progress}%`
+                                }
+                              >
+                                <span
+                                  style={
+                                    file.progress === undefined
+                                      ? undefined
+                                      : { transform: `scaleX(${file.progress / 100})` }
+                                  }
+                                />
+                              </span>
+                            )}
+                          </span>
+                          <span className="source-order-state">
+                            {link?.provider === 'SOCIAL' ? (
+                              <small>강사 소개용</small>
+                            ) : file?.status === 'uploaded' ? (
+                              <Check aria-label={`${file.name} 업로드 완료`} className="success" />
+                            ) : file?.status === 'error' ? (
+                              <button
+                                className="material-retry"
+                                type="button"
+                                disabled={sourceLocked}
+                                onClick={() => void retryMaterial(file)}
+                              >
+                                <RefreshCw />
+                                <span>다시 업로드</span>
+                              </button>
+                            ) : file ? (
+                              <LoaderCircle
+                                aria-label={`${file.name} 업로드 중`}
+                                className="spin"
+                              />
+                            ) : null}
+                          </span>
+                          <button
+                            className="source-order-remove"
+                            type="button"
+                            aria-label={`${title} 삭제`}
+                            disabled={sourceLocked}
+                            onClick={() =>
+                              source.kind === 'link'
+                                ? removeSourceLink(source.id)
+                                : removeMaterial(source.id)
+                            }
+                          >
+                            <X />
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                  <p className="sr-only" role="status" aria-live="polite">
+                    {sourceOrderAnnouncement}
+                  </p>
+                </section>
+              )}
+              {sourceDragPreview && previewSource && (
+                <div
+                  ref={sourceDragPreviewRef}
+                  className={`source-drag-preview ${
+                    sourceDragPreview.pointerType === 'touch' ? 'is-touch' : ''
+                  }`}
+                  style={
+                    {
+                      '--source-drag-x': `${sourceDragPreview.x}px`,
+                      '--source-drag-y': `${sourceDragPreview.y}px`,
+                    } as CSSProperties
+                  }
+                  aria-hidden="true"
+                >
+                  <GripVertical />
+                  <span>
+                    <small>자료 이동 중</small>
+                    <b>{previewSourceTitle}</b>
+                  </span>
+                </div>
+              )}
               <div className="source-primary-actions">
                 <button
                   className="source-back-button"

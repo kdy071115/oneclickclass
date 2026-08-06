@@ -133,6 +133,111 @@ describe('CreateClassPage accessibility and ordering', () => {
     expect(screen.getByRole('button', { name: /AI가 클래스 만들기/ })).toBeEnabled();
     expect(screen.getByText('2개 자료를 함께 분석해 정보와 썸네일을 만들어요')).toBeInTheDocument();
   });
+  it('추가한 자료를 드래그하거나 방향키로 정렬한다', async () => {
+    const { container } = renderCreator('/classes/new?step=2');
+    fireEvent.paste(screen.getByRole('textbox', { name: '자료 링크' }), {
+      clipboardData: {
+        getData: () =>
+          [
+            'https://first.example.com/guide',
+            'https://second.example.com/guide',
+            'https://third.example.com/guide',
+          ].join('\n'),
+      },
+    });
+
+    expect(await screen.findByRole('heading', { name: '자료 순서' })).toBeInTheDocument();
+    const itemLabels = () =>
+      Array.from(container.querySelectorAll('.source-order-item')).map((item) => item.textContent);
+    expect(itemLabels()).toEqual([
+      expect.stringContaining('first.example.com'),
+      expect.stringContaining('second.example.com'),
+      expect.stringContaining('third.example.com'),
+    ]);
+
+    const thirdItem = Array.from(container.querySelectorAll('.source-order-item')).find((item) =>
+      item.textContent?.includes('third.example.com'),
+    );
+    expect(thirdItem).toBeDefined();
+    Array.from(container.querySelectorAll<HTMLElement>('.source-order-item')).forEach((item) => {
+      vi.spyOn(item, 'getBoundingClientRect').mockImplementation(() => {
+        const currentItems = Array.from(
+          container.querySelectorAll<HTMLElement>('.source-order-item'),
+        );
+        const top = currentItems.indexOf(item) * 80;
+        const height = 66;
+        return {
+          x: 0,
+          y: top,
+          top,
+          right: 600,
+          bottom: top + height,
+          left: 0,
+          width: 600,
+          height,
+          toJSON: () => ({}),
+        };
+      });
+    });
+    const firstHandle = screen.getByRole('button', {
+      name: /first\.example\.com 순서 이동/,
+    });
+    fireEvent.pointerDown(firstHandle, { pointerId: 1, pointerType: 'mouse' });
+    fireEvent.pointerMove(window, {
+      pointerId: 1,
+      pointerType: 'mouse',
+      clientX: 100,
+      clientY: 230,
+    });
+    expect(screen.getByText('자료 이동 중')).toBeInTheDocument();
+    expect(container.querySelector('.source-drag-preview')).not.toBeNull();
+    expect(itemLabels()).toEqual([
+      expect.stringContaining('second.example.com'),
+      expect.stringContaining('third.example.com'),
+      expect.stringContaining('first.example.com'),
+    ]);
+    expect(
+      Array.from(container.querySelectorAll('.source-order-item')).find((item) =>
+        item.textContent?.includes('first.example.com'),
+      ),
+    ).toHaveClass('is-dragging');
+    fireEvent.pointerUp(window, { pointerId: 1, pointerType: 'mouse' });
+    expect(screen.queryByText('자료 이동 중')).not.toBeInTheDocument();
+
+    expect(itemLabels()).toEqual([
+      expect.stringContaining('second.example.com'),
+      expect.stringContaining('third.example.com'),
+      expect.stringContaining('first.example.com'),
+    ]);
+    expect(
+      Array.from(container.querySelectorAll('.source-order-item')).find((item) =>
+        item.textContent?.includes('first.example.com'),
+      ),
+    ).toHaveClass('is-recently-moved');
+
+    fireEvent.keyDown(screen.getByRole('button', { name: /second\.example\.com 순서 이동/ }), {
+      key: 'ArrowDown',
+    });
+    expect(itemLabels()).toEqual([
+      expect.stringContaining('third.example.com'),
+      expect.stringContaining('second.example.com'),
+      expect.stringContaining('first.example.com'),
+    ]);
+
+    const touchHandle = screen.getByRole('button', {
+      name: /third\.example\.com 순서 이동/,
+    });
+    fireEvent.pointerDown(touchHandle, {
+      pointerId: 2,
+      pointerType: 'touch',
+      clientX: 60,
+      clientY: 400,
+    });
+    expect(container.querySelector('.source-drag-preview')).toHaveStyle({
+      '--source-drag-x': '12px',
+    });
+    fireEvent.pointerCancel(window, { pointerId: 2, pointerType: 'touch' });
+  });
   it.each(['manual', 'generated'] as const)(
     '저장된 %s 상태로 자료 단계에 복귀해도 입력 화면을 표시한다',
     (informationMode) => {
