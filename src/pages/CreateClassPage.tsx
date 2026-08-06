@@ -571,7 +571,7 @@ export function CreateClassPage() {
   const [sourceOrderAnnouncement, setSourceOrderAnnouncement] = useState('');
   const [sourcePreviewId, setSourcePreviewId] = useState('');
   const [materialPreviewUrl, setMaterialPreviewUrl] = useState('');
-  const [fileOptionsOpen, setFileOptionsOpen] = useState(false);
+  const [fileOptionsOpen, setFileOptionsOpen] = useState(true);
   const [sourceAddOpen, setSourceAddOpen] = useState(
     () => orderedCreationSources(meta).length === 0,
   );
@@ -1049,7 +1049,7 @@ export function CreateClassPage() {
     analysisAbort.current?.abort();
     videoMetadataAbort.current?.abort();
     sourceFiles.current.clear();
-    setFileOptionsOpen(false);
+    setFileOptionsOpen(true);
     setMeta((current) => ({
       ...current,
       source: 'none',
@@ -1886,7 +1886,7 @@ export function CreateClassPage() {
   function restart() {
     clearClassDraft();
     sourceFiles.current.clear();
-    setFileOptionsOpen(false);
+    setFileOptionsOpen(true);
     sessionStorage.removeItem(CLASS_CREATION_META_KEY);
     sessionStorage.removeItem(metaStorageKey);
     setDraft(initialClassDraft);

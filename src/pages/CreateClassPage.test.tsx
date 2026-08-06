@@ -193,6 +193,8 @@ describe('CreateClassPage accessibility and ordering', () => {
     const { container } = renderCreator('/classes/new?step=2');
 
     expect(screen.getByRole('textbox', { name: '자료 링크' })).toBeInTheDocument();
+    expect(container.querySelector('.source-file-option')).toHaveAttribute('open');
+    await user.click(screen.getByText('컴퓨터 파일 추가'));
     expect(container.querySelector('.source-file-option')).not.toHaveAttribute('open');
     await user.click(screen.getByText('컴퓨터 파일 추가'));
     expect(container.querySelector('.source-file-option')).toHaveAttribute('open');
