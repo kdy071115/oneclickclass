@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
@@ -111,6 +111,7 @@ describe('CreateClassPage accessibility and ordering', () => {
     expect(screen.getByText('링크나 파일을 하나 이상 추가해 주세요')).toBeInTheDocument();
   });
   it('링크 입력을 기본으로 두고 컴퓨터 파일을 보조 자료로 여러 개 추가한다', async () => {
+    const user = userEvent.setup();
     const { container } = renderCreator('/classes/new?step=2');
 
     expect(screen.getByRole('textbox', { name: '자료 링크' })).toBeInTheDocument();
@@ -132,6 +133,110 @@ describe('CreateClassPage accessibility and ordering', () => {
     await waitFor(() => expect(screen.getAllByText(/업로드 완료/)).toHaveLength(2));
     expect(screen.getByRole('button', { name: /AI가 클래스 만들기/ })).toBeEnabled();
     expect(screen.getByText('2개 자료를 함께 분석해 정보와 썸네일을 만들어요')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'guide.pdf 미리보기' }));
+    expect(screen.getByTitle('guide.pdf 문서 미리보기')).toHaveAttribute(
+      'src',
+      'blob:class-source',
+    );
+  });
+  it('자료 미리보기에서 영상과 링크를 넘겨 보고 ESC로 닫는다', async () => {
+    const user = userEvent.setup();
+    sessionStorage.setItem(
+      creationMetaKey,
+      JSON.stringify({
+        deliverySelected: true,
+        source: 'links',
+        informationMode: 'source',
+        step: 2,
+        maxStep: 2,
+        links: [
+          {
+            id: 'video-source',
+            title: '첫 영상',
+            url: 'https://www.youtube.com/watch?v=abcdefghijk',
+            provider: 'YOUTUBE',
+          },
+          {
+            id: 'blog-source',
+            title: '참고 블로그',
+            url: 'https://blog.example.com/guide',
+            provider: 'EXTERNAL',
+          },
+        ],
+        sourceOrder: ['video-source', 'blog-source'],
+      }),
+    );
+    renderCreator('/classes/new?step=2');
+
+    const videoTrigger = screen.getByRole('button', { name: '첫 영상 미리보기' });
+    await user.click(videoTrigger);
+    expect(screen.getByRole('heading', { name: '자료 미리보기' })).toBeInTheDocument();
+    expect(screen.getByTitle('첫 영상 미리보기')).toHaveAttribute(
+      'src',
+      expect.stringContaining('youtube-nocookie.com/embed/abcdefghijk'),
+    );
+    expect(videoTrigger).toHaveAttribute('aria-pressed', 'true');
+
+    await user.click(screen.getByRole('button', { name: '다음 자료' }));
+    const panel = screen.getByRole('complementary');
+    expect(within(panel).getByRole('heading', { name: '참고 블로그' })).toBeInTheDocument();
+    expect(within(panel).getByRole('link', { name: /원본 열기/ })).toHaveAttribute(
+      'href',
+      'https://blog.example.com/guide',
+    );
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('heading', { name: '자료 미리보기' })).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: '참고 블로그 미리보기' })).toHaveFocus(),
+    );
+  });
+  it('좁은 화면의 자료 미리보기는 모달로 열리고 포커스를 내부에 유지한다', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((query: string) => ({
+        matches: query === '(max-width: 1200px)',
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    );
+    sessionStorage.setItem(
+      creationMetaKey,
+      JSON.stringify({
+        deliverySelected: true,
+        source: 'links',
+        informationMode: 'source',
+        step: 2,
+        maxStep: 2,
+        links: [
+          {
+            id: 'mobile-source',
+            title: '모바일 참고 자료',
+            url: 'https://example.com/mobile-guide',
+            provider: 'EXTERNAL',
+          },
+        ],
+        sourceOrder: ['mobile-source'],
+      }),
+    );
+    renderCreator('/classes/new?step=2');
+
+    await user.click(screen.getByRole('button', { name: '모바일 참고 자료 미리보기' }));
+    const dialog = screen.getByRole('dialog', { name: '자료 미리보기' });
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    const closeButton = within(dialog).getByRole('button', { name: '자료 미리보기 닫기' });
+    await waitFor(() => expect(closeButton).toHaveFocus());
+
+    await user.tab({ shift: true });
+    expect(within(dialog).getByRole('link', { name: /원본 열기/ })).toHaveFocus();
+    await user.tab();
+    expect(closeButton).toHaveFocus();
   });
   it('추가한 자료를 드래그하거나 방향키로 정렬한다', async () => {
     const { container } = renderCreator('/classes/new?step=2');

@@ -23,6 +23,7 @@ import {
   Clock3,
   Copy,
   ExternalLink,
+  Eye,
   FileText,
   Globe2,
   GripVertical,
@@ -59,6 +60,10 @@ import {
 import { addressSuggestions, initialClassDraft } from '../constants/classDraft';
 import { Button, ConfirmDialog, EmptyState, Skeleton } from '../components/ui';
 import { ClassThumbnail } from '../components/feature/ClassThumbnail';
+import {
+  SourcePreviewPanel,
+  type SourcePreviewItem,
+} from '../components/feature/SourcePreviewPanel';
 import {
   clearClassDraft,
   hasClassPreview,
@@ -552,6 +557,8 @@ export function CreateClassPage() {
   const [sourceDragPreview, setSourceDragPreview] = useState<SourceDragPreview | null>(null);
   const [recentlyMovedSourceId, setRecentlyMovedSourceId] = useState('');
   const [sourceOrderAnnouncement, setSourceOrderAnnouncement] = useState('');
+  const [sourcePreviewId, setSourcePreviewId] = useState('');
+  const [materialPreviewUrl, setMaterialPreviewUrl] = useState('');
   const [fileOptionsOpen, setFileOptionsOpen] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
@@ -584,6 +591,7 @@ export function CreateClassPage() {
   const sourceDragPreviewRef = useRef<HTMLDivElement>(null);
   const sourceOrderListRef = useRef<HTMLOListElement>(null);
   const sourceOrderItemRefs = useRef(new Map<string, HTMLLIElement>());
+  const sourcePreviewTriggerRefs = useRef(new Map<string, HTMLButtonElement>());
   const previousSourcePositions = useRef<Map<string, number>>();
   const sourcePointerCleanup = useRef<() => void>();
   const sourceDragPoint = useRef({ x: 0, y: 0 });
@@ -651,6 +659,91 @@ export function CreateClassPage() {
       : previewSource.value.name
     : '';
   const sourceCount = orderedSources.length;
+  const sourcePreviewSource = orderedSources.find((source) => source.id === sourcePreviewId);
+  const sourcePreviewIndex = orderedSources.findIndex((source) => source.id === sourcePreviewId);
+  const sourcePreviewMaterial =
+    sourcePreviewSource?.kind === 'material' ? sourcePreviewSource.value : undefined;
+  const sourcePreviewMaterialId = sourcePreviewMaterial?.id ?? '';
+  const sourcePreviewMaterialUploadedUrl = sourcePreviewMaterial?.url ?? '';
+
+  useEffect(() => {
+    setMaterialPreviewUrl('');
+    if (!sourcePreviewMaterialId) return;
+    const localFile = sourceFiles.current.get(sourcePreviewMaterialId);
+    if (!localFile || typeof URL.createObjectURL !== 'function') {
+      setMaterialPreviewUrl(sourcePreviewMaterialUploadedUrl);
+      return;
+    }
+    const objectUrl = URL.createObjectURL(localFile);
+    setMaterialPreviewUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [sourcePreviewMaterialId, sourcePreviewMaterialUploadedUrl]);
+
+  useEffect(() => {
+    if (!sourcePreviewId) return;
+    if (step !== 2 || sourceLocked || sourcePreviewIndex < 0) {
+      setSourcePreviewId('');
+      return;
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      const activeId = sourcePreviewId;
+      setSourcePreviewId('');
+      requestAnimationFrame(() => sourcePreviewTriggerRefs.current.get(activeId)?.focus());
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [sourceLocked, sourcePreviewId, sourcePreviewIndex, step]);
+
+  const sourcePreviewItem: SourcePreviewItem | undefined = sourcePreviewSource
+    ? sourcePreviewSource.kind === 'link'
+      ? {
+          id: sourcePreviewSource.id,
+          title: sourcePreviewSource.value.title || sourceLinkHost(sourcePreviewSource.value.url),
+          label: contentProviderLabel[sourcePreviewSource.value.provider],
+          url: sourcePreviewSource.value.url,
+          previewUrl: sourcePreviewSource.value.url,
+          provider: sourcePreviewSource.value.provider,
+          contentType: isSupportedVideoProvider(sourcePreviewSource.value.provider)
+            ? 'video'
+            : sourcePreviewSource.value.provider === 'DOCUMENT'
+              ? 'document'
+              : 'link',
+          thumbnailUrl: sourcePreviewSource.value.thumbnailUrl,
+          detail:
+            [
+              sourcePreviewSource.value.channel,
+              sourcePreviewSource.value.durationSeconds
+                ? `재생 시간 ${formatMediaDuration(sourcePreviewSource.value.durationSeconds)}`
+                : '',
+            ]
+              .filter(Boolean)
+              .join(' · ') || sourceLinkHost(sourcePreviewSource.value.url),
+          status: sourcePreviewSource.value.provider === 'SOCIAL' ? '강사 소개용' : '분석 준비됨',
+        }
+      : {
+          id: sourcePreviewSource.id,
+          title: sourcePreviewSource.value.name,
+          label: sourcePreviewSource.value.contentType === 'video' ? '영상 파일' : '문서 파일',
+          url: sourcePreviewSource.value.url || materialPreviewUrl,
+          previewUrl: materialPreviewUrl || sourcePreviewSource.value.url || '',
+          provider: sourcePreviewSource.value.contentType === 'video' ? 'FILE' : 'DOCUMENT',
+          contentType: sourcePreviewSource.value.contentType,
+          mimeType: sourcePreviewSource.value.type,
+          detail: `${formatBytes(sourcePreviewSource.value.size)}${
+            sourcePreviewSource.value.durationSeconds
+              ? ` · 재생 시간 ${formatMediaDuration(sourcePreviewSource.value.durationSeconds)}`
+              : ''
+          }`,
+          status:
+            sourcePreviewSource.value.status === 'uploading'
+              ? '업로드 중'
+              : sourcePreviewSource.value.status === 'uploaded'
+                ? '업로드 완료'
+                : '업로드 실패',
+        }
+    : undefined;
 
   useLayoutEffect(() => {
     const previous = previousSourcePositions.current;
@@ -1107,7 +1200,26 @@ export function CreateClassPage() {
     if (!uploaded) setError('파일을 다시 업로드하지 못했어요. 네트워크 상태를 확인해 주세요.');
   }
 
+  function openSourcePreview(sourceId: string) {
+    setSourcePreviewId(sourceId);
+  }
+
+  function closeSourcePreview(restoreFocus = true) {
+    const activeId = sourcePreviewId;
+    setSourcePreviewId('');
+    if (restoreFocus) {
+      requestAnimationFrame(() => sourcePreviewTriggerRefs.current.get(activeId)?.focus());
+    }
+  }
+
+  function showAdjacentSourcePreview(offset: -1 | 1) {
+    if (sourcePreviewIndex < 0 || orderedSources.length < 2) return;
+    const nextIndex = (sourcePreviewIndex + offset + orderedSources.length) % orderedSources.length;
+    setSourcePreviewId(orderedSources[nextIndex].id);
+  }
+
   function removeSourceLink(id: string) {
+    if (sourcePreviewId === id) closeSourcePreview(false);
     setMeta((current) => {
       const links = current.links.filter((link) => link.id !== id);
       return {
@@ -1121,6 +1233,7 @@ export function CreateClassPage() {
   }
 
   function removeMaterial(id: string) {
+    if (sourcePreviewId === id) closeSourcePreview(false);
     sourceFiles.current.delete(id);
     setMeta((current) => {
       const materials = current.materials.filter((file) => file.id !== id);
@@ -1692,7 +1805,11 @@ export function CreateClassPage() {
   }
 
   return (
-    <main className={`class-creator ${step === 3 ? 'is-preview-step' : ''}`}>
+    <main
+      className={`class-creator ${step === 3 ? 'is-preview-step' : ''} ${
+        step === 2 && sourcePreviewItem ? 'has-source-preview' : ''
+      }`}
+    >
       <header className="creator-progress">
         <button className="creator-brand" type="button" onClick={() => leaveCreator('/dashboard')}>
           <span aria-hidden="true">
@@ -1785,7 +1902,9 @@ export function CreateClassPage() {
         )}
 
         {step === 2 && (
-          <section className="creator-information">
+          <section
+            className={`creator-information ${sourcePreviewItem ? 'has-source-preview' : ''}`}
+          >
             <div className={`source-card ${sourceLocked ? 'is-busy' : ''}`}>
               <div className="source-card-title">
                 <i>
@@ -1933,7 +2052,9 @@ export function CreateClassPage() {
                         <li
                           className={`source-order-item ${
                             draggedSourceId === source.id ? 'is-dragging' : ''
-                          } ${recentlyMovedSourceId === source.id ? 'is-recently-moved' : ''}`}
+                          } ${recentlyMovedSourceId === source.id ? 'is-recently-moved' : ''} ${
+                            sourcePreviewId === source.id ? 'is-preview-selected' : ''
+                          }`}
                           key={source.id}
                           ref={(item) => {
                             if (item) sourceOrderItemRefs.current.set(source.id, item);
@@ -1977,61 +2098,78 @@ export function CreateClassPage() {
                           >
                             <GripVertical />
                           </button>
-                          <i className="source-order-icon">
-                            {videoSource ? (
-                              <Play />
-                            ) : link?.provider === 'SOCIAL' ? (
-                              <Users />
-                            ) : link && link.provider !== 'DOCUMENT' ? (
-                              <Globe2 />
-                            ) : (
-                              <FileText />
-                            )}
-                          </i>
-                          <span className="source-order-copy">
-                            <small>
-                              <span>{index + 1}</span>
-                              <span>{sourceLabel}</span>
-                            </small>
-                            <b>{title}</b>
-                            <em>
-                              {link
-                                ? link.url
-                                : `${formatBytes(file?.size ?? 0)} · ${
-                                    file?.status === 'uploading'
-                                      ? file.progress === undefined
-                                        ? '업로드 중'
-                                        : `업로드 중 ${file.progress}%`
-                                      : file?.status === 'uploaded'
-                                        ? '업로드 완료'
-                                        : '업로드 실패'
-                                  }${
-                                    file?.durationSeconds
-                                      ? ` · 재생 시간 ${formatMediaDuration(file.durationSeconds)}`
-                                      : ''
-                                  }`}
-                            </em>
-                            {file?.status === 'uploading' && (
-                              <span
-                                className={`upload-progress ${
-                                  file.progress === undefined ? 'indeterminate' : ''
-                                }`}
-                                aria-label={
-                                  file.progress === undefined
-                                    ? `${file.name} 업로드 중`
-                                    : `${file.name} 업로드 ${file.progress}%`
-                                }
-                              >
+                          <button
+                            ref={(button) => {
+                              if (button) sourcePreviewTriggerRefs.current.set(source.id, button);
+                              else sourcePreviewTriggerRefs.current.delete(source.id);
+                            }}
+                            className="source-order-preview-trigger"
+                            type="button"
+                            aria-label={`${title} 미리보기`}
+                            aria-pressed={sourcePreviewId === source.id}
+                            disabled={sourceLocked}
+                            onClick={() => openSourcePreview(source.id)}
+                          >
+                            <i className="source-order-icon">
+                              {videoSource ? (
+                                <Play />
+                              ) : link?.provider === 'SOCIAL' ? (
+                                <Users />
+                              ) : link && link.provider !== 'DOCUMENT' ? (
+                                <Globe2 />
+                              ) : (
+                                <FileText />
+                              )}
+                            </i>
+                            <span className="source-order-copy">
+                              <small>
+                                <span>{index + 1}</span>
+                                <span>{sourceLabel}</span>
+                              </small>
+                              <b>{title}</b>
+                              <em>
+                                {link
+                                  ? link.url
+                                  : `${formatBytes(file?.size ?? 0)} · ${
+                                      file?.status === 'uploading'
+                                        ? file.progress === undefined
+                                          ? '업로드 중'
+                                          : `업로드 중 ${file.progress}%`
+                                        : file?.status === 'uploaded'
+                                          ? '업로드 완료'
+                                          : '업로드 실패'
+                                    }${
+                                      file?.durationSeconds
+                                        ? ` · 재생 시간 ${formatMediaDuration(file.durationSeconds)}`
+                                        : ''
+                                    }`}
+                              </em>
+                              {file?.status === 'uploading' && (
                                 <span
-                                  style={
+                                  className={`upload-progress ${
+                                    file.progress === undefined ? 'indeterminate' : ''
+                                  }`}
+                                  aria-label={
                                     file.progress === undefined
-                                      ? undefined
-                                      : { transform: `scaleX(${file.progress / 100})` }
+                                      ? `${file.name} 업로드 중`
+                                      : `${file.name} 업로드 ${file.progress}%`
                                   }
-                                />
-                              </span>
-                            )}
-                          </span>
+                                >
+                                  <span
+                                    style={
+                                      file.progress === undefined
+                                        ? undefined
+                                        : { transform: `scaleX(${file.progress / 100})` }
+                                    }
+                                  />
+                                </span>
+                              )}
+                            </span>
+                            <span className="source-order-preview-action" aria-hidden="true">
+                              <Eye />
+                              미리보기
+                            </span>
+                          </button>
                           <span className="source-order-state">
                             {link?.provider === 'SOCIAL' ? (
                               <small>강사 소개용</small>
@@ -2126,6 +2264,16 @@ export function CreateClassPage() {
                 </button>
               </div>
             </div>
+            {sourcePreviewItem && sourcePreviewIndex >= 0 && (
+              <SourcePreviewPanel
+                item={sourcePreviewItem}
+                index={sourcePreviewIndex}
+                count={orderedSources.length}
+                onClose={closeSourcePreview}
+                onPrevious={() => showAdjacentSourcePreview(-1)}
+                onNext={() => showAdjacentSourcePreview(1)}
+              />
+            )}
             {meta.informationMode === 'analyzing' && (
               <AnalysisProgress sourceLabel={`${sourceCount}개 자료`} />
             )}
