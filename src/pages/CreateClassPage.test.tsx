@@ -71,8 +71,10 @@ describe('CreateClassPage accessibility and ordering', () => {
     expect(progressShell?.querySelector('.creator-progress-copy')).toHaveTextContent('진행 방식');
     expect(progressShell?.querySelector('[role="progressbar"]')).not.toBeNull();
     expect(progressShell?.querySelector('.creator-exit')).not.toBeNull();
-    expect(progressShell?.querySelector('.creator-save-status')).toBeNull();
-    expect(container.querySelector('.creator-save-status')).toHaveAttribute('role', 'status');
+    expect(progressShell?.querySelector('.creator-save-status')).toHaveAttribute('role', 'status');
+    expect(progressShell?.querySelector('.creator-save-status')).toHaveTextContent(
+      /저장 중|저장됨/,
+    );
   });
 
   it('진행 방식을 별도 첫 페이지에서 선택한 뒤 자료 추가로 이동한다', async () => {
@@ -89,12 +91,12 @@ describe('CreateClassPage accessibility and ordering', () => {
       'false',
     );
     expect(screen.getByRole('button', { name: '다음' })).toBeDisabled();
-    expect(screen.queryByRole('heading', { name: '링크 추가' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: '수업 자료 추가' })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /온라인/ }));
     await user.click(screen.getByRole('button', { name: '다음' }));
 
-    expect(screen.getByRole('heading', { name: '링크 추가' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '수업 자료 추가' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '이전' })).toBeInTheDocument();
   });
 
@@ -107,8 +109,10 @@ describe('CreateClassPage accessibility and ordering', () => {
 
     expect(screen.queryByText('자료 없이 시작하기')).not.toBeInTheDocument();
     expect(screen.queryByText('직접 작성')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /AI가 클래스 만들기/ })).toBeDisabled();
-    expect(screen.getByText('링크나 파일을 하나 이상 추가해 주세요')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /AI로 미리보기 만들기/ })).toBeDisabled();
+    expect(
+      screen.getByText('차시로 만들 링크나 파일을 1개 이상 추가해 주세요'),
+    ).toBeInTheDocument();
   });
   it('링크 입력을 기본으로 두고 컴퓨터 파일을 보조 자료로 여러 개 추가한다', async () => {
     const user = userEvent.setup();
@@ -131,8 +135,8 @@ describe('CreateClassPage accessibility and ordering', () => {
     expect(await screen.findByText('guide.pdf')).toBeInTheDocument();
     expect(screen.getByText('slides.pptx')).toBeInTheDocument();
     await waitFor(() => expect(screen.getAllByText(/업로드 완료/)).toHaveLength(2));
-    expect(screen.getByRole('button', { name: /AI가 클래스 만들기/ })).toBeEnabled();
-    expect(screen.getByText('2개 자료를 함께 분석해 정보와 썸네일을 만들어요')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /AI로 미리보기 만들기/ })).toBeEnabled();
+    expect(screen.getByText('2개 수업 자료로 차시와 클래스 정보를 준비해요')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'guide.pdf 미리보기' }));
     expect(screen.getByTitle('guide.pdf 문서 미리보기')).toHaveAttribute(
       'src',
@@ -251,7 +255,7 @@ describe('CreateClassPage accessibility and ordering', () => {
       },
     });
 
-    expect(await screen.findByRole('heading', { name: '자료 순서' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '예상 차시' })).toBeInTheDocument();
     const itemLabels = () =>
       Array.from(container.querySelectorAll('.source-order-item')).map((item) => item.textContent);
     expect(itemLabels()).toEqual([
@@ -294,7 +298,7 @@ describe('CreateClassPage accessibility and ordering', () => {
       clientX: 100,
       clientY: 230,
     });
-    expect(screen.getByText('자료 이동 중')).toBeInTheDocument();
+    expect(screen.getByText('차시 이동 중')).toBeInTheDocument();
     expect(container.querySelector('.source-drag-preview')).not.toBeNull();
     expect(itemLabels()).toEqual([
       expect.stringContaining('second.example.com'),
@@ -307,7 +311,7 @@ describe('CreateClassPage accessibility and ordering', () => {
       ),
     ).toHaveClass('is-dragging');
     fireEvent.pointerUp(window, { pointerId: 1, pointerType: 'mouse' });
-    expect(screen.queryByText('자료 이동 중')).not.toBeInTheDocument();
+    expect(screen.queryByText('차시 이동 중')).not.toBeInTheDocument();
 
     expect(itemLabels()).toEqual([
       expect.stringContaining('second.example.com'),
@@ -326,6 +330,14 @@ describe('CreateClassPage accessibility and ordering', () => {
     expect(itemLabels()).toEqual([
       expect.stringContaining('third.example.com'),
       expect.stringContaining('second.example.com'),
+      expect.stringContaining('first.example.com'),
+    ]);
+
+    expect(container.querySelectorAll('.source-order-move button')).toHaveLength(6);
+    fireEvent.click(screen.getByRole('button', { name: 'second.example.com 차시 위로 이동' }));
+    expect(itemLabels()).toEqual([
+      expect.stringContaining('second.example.com'),
+      expect.stringContaining('third.example.com'),
       expect.stringContaining('first.example.com'),
     ]);
 
@@ -353,7 +365,7 @@ describe('CreateClassPage accessibility and ordering', () => {
 
       renderCreator('/classes/new?step=2');
 
-      expect(screen.getByRole('heading', { name: '링크 추가' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: '수업 자료 추가' })).toBeInTheDocument();
       expect(screen.getByRole('textbox', { name: '자료 링크' })).toBeInTheDocument();
       expect(
         screen.getByRole('heading', { name: '어떤 자료로 클래스를 만들까요?' }),
@@ -381,7 +393,7 @@ describe('CreateClassPage accessibility and ordering', () => {
     );
     renderCreator('/classes/new?step=2');
 
-    expect(screen.getByRole('heading', { name: '링크 추가' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '예상 차시를 확인해 주세요' })).toBeInTheDocument();
     expect(screen.getAllByText('blog.example.com')).not.toHaveLength(0);
     await user.click(screen.getByRole('button', { name: '이전' }));
     expect(
@@ -412,7 +424,7 @@ describe('CreateClassPage accessibility and ordering', () => {
 
     await user.click(screen.getByRole('button', { name: '자료 추가하기' }));
 
-    expect(screen.getByRole('heading', { name: '링크 추가' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '수업 자료 추가' })).toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent('링크나 파일이 하나 이상 필요해요');
     expect(screen.queryByRole('dialog')).toBeNull();
   });
@@ -609,7 +621,7 @@ describe('CreateClassPage accessibility and ordering', () => {
     const sourceActions = sourceOnly.container.querySelector('.source-primary-actions');
     expect(sourceActions?.firstElementChild).toBe(screen.getByRole('button', { name: '이전' }));
     expect(sourceActions?.lastElementChild).toBe(
-      screen.getByRole('button', { name: /AI가 클래스 만들기/ }),
+      screen.getByRole('button', { name: /AI로 미리보기 만들기/ }),
     );
     cleanup();
 
@@ -628,7 +640,7 @@ describe('CreateClassPage accessibility and ordering', () => {
     const user = userEvent.setup();
     renderCreator('/classes/new?source=video&step=2');
 
-    expect(screen.getByRole('heading', { name: '링크 추가' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '수업 자료 추가' })).toBeInTheDocument();
     expect(
       screen.getByRole('heading', { name: '어떤 자료로 클래스를 만들까요?' }),
     ).toBeInTheDocument();
@@ -639,19 +651,32 @@ describe('CreateClassPage accessibility and ordering', () => {
     await user.click(screen.getByRole('button', { name: '링크 추가' }));
     await waitFor(() => expect(screen.getByText('vimeo.com')).toBeInTheDocument());
 
+    expect(screen.getByRole('button', { name: /자료 입력 접기/ })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
     await user.type(input, 'https://blog.example.com/react-course');
     await user.click(screen.getByRole('button', { name: '링크 추가' }));
     await waitFor(() => expect(screen.getByText('blog.example.com')).toBeInTheDocument());
 
+    await user.click(screen.getByRole('button', { name: '자료 추가 완료' }));
+    expect(screen.getByRole('button', { name: /자료 더 추가/ })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+    expect(screen.queryByRole('textbox', { name: '자료 링크' })).toBeNull();
+
     expect(document.querySelector('.source-link-item > .success')).toBeNull();
-    expect(screen.getByText('2개 자료를 함께 분석해 정보와 썸네일을 만들어요')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /AI가 클래스 만들기/ }));
+    expect(screen.getByText('2개 수업 자료로 차시와 클래스 정보를 준비해요')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /AI로 미리보기 만들기/ }));
 
     await waitFor(() =>
       expect(screen.getByText('AI가 만든 공개 페이지를 확인하고 있어요')).toBeInTheDocument(),
     );
     expect(screen.getByRole('heading', { name: 'AI가 클래스를 준비했어요' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: '링크 추가' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: '예상 차시를 확인해 주세요' }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '이전' })).toBeInTheDocument();
     expect(screen.getByText('AI가 만든 썸네일')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '참가비 수정' })).toBeInTheDocument();
@@ -674,13 +699,13 @@ describe('CreateClassPage accessibility and ordering', () => {
     });
 
     expect(await screen.findByText('blog.example.com')).toBeInTheDocument();
-    expect(screen.getByText('학습 자료')).toBeInTheDocument();
-    expect(screen.getByText('강사 프로필')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '예상 차시' })).toBeInTheDocument();
+    expect(screen.getByText('강사 소개 링크')).toBeInTheDocument();
     expect(screen.getByText('링크 3개가 추가됐어요.')).toBeInTheDocument();
     expect(container.querySelectorAll('.source-order-item.is-recently-added')).toHaveLength(3);
-    expect(screen.getByText('3개 자료를 함께 분석해 정보와 썸네일을 만들어요')).toBeInTheDocument();
+    expect(screen.getByText('2개 수업 자료로 차시와 클래스 정보를 준비해요')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /AI가 클래스 만들기/ }));
+    await user.click(screen.getByRole('button', { name: /AI로 미리보기 만들기/ }));
 
     expect(await screen.findByRole('heading', { name: '강사 소개' })).toBeInTheDocument();
     expect(screen.getByText('Mentor Studio')).toBeInTheDocument();
@@ -710,8 +735,81 @@ describe('CreateClassPage accessibility and ordering', () => {
     expect(screen.getByText('AI가 만든 공개 페이지를 확인하고 있어요')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '이전' }));
 
-    expect(screen.getByRole('heading', { name: '링크 추가' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '예상 차시를 확인해 주세요' })).toBeInTheDocument();
     expect(screen.getByText('blog.example.com')).toBeInTheDocument();
+  });
+  it('AI 미리보기에서 차시 자료를 미리 보고 순서를 바꾼다', async () => {
+    const user = userEvent.setup();
+    sessionStorage.setItem(
+      creationMetaKey,
+      JSON.stringify({
+        deliverySelected: true,
+        informationMode: 'generated',
+        source: 'links',
+        links: [
+          {
+            id: 'lesson-1',
+            title: '첫 번째 차시',
+            url: 'https://first.example.com/lesson',
+            provider: 'EXTERNAL',
+          },
+          {
+            id: 'lesson-2',
+            title: '두 번째 차시',
+            url: 'https://second.example.com/lesson',
+            provider: 'EXTERNAL',
+          },
+          {
+            id: 'lesson-3',
+            title: '세 번째 차시',
+            url: 'https://third.example.com/lesson',
+            provider: 'EXTERNAL',
+          },
+          {
+            id: 'profile-1',
+            title: '강사 프로필',
+            url: 'https://www.instagram.com/mentor.studio',
+            provider: 'SOCIAL',
+          },
+        ],
+        sourceOrder: ['lesson-1', 'lesson-2', 'lesson-3', 'profile-1'],
+        step: 3,
+        maxStep: 3,
+      }),
+    );
+    const { container } = renderCreator('/classes/new?step=3');
+    const lessonTitles = () =>
+      Array.from(container.querySelectorAll('.preview-curriculum-preview b')).map(
+        (item) => item.textContent,
+      );
+
+    expect(screen.getByRole('region', { name: '차시 구성' })).toBeInTheDocument();
+    expect(screen.getByText('3개 차시')).toBeInTheDocument();
+    expect(screen.getByText('강사 소개 링크 1개는 프로필 정보로 반영돼요.')).toBeInTheDocument();
+    expect(lessonTitles()).toEqual(['첫 번째 차시', '두 번째 차시', '세 번째 차시']);
+
+    await user.click(screen.getByRole('button', { name: '두 번째 차시 자료 미리보기' }));
+    expect(screen.getByRole('heading', { name: '자료 미리보기' })).toBeInTheDocument();
+    const previewPanel = container.querySelector('.source-preview-panel');
+    expect(previewPanel).not.toBeNull();
+    expect(within(previewPanel as HTMLElement).getByText('두 번째 차시')).toBeInTheDocument();
+    await user.click(
+      within(previewPanel as HTMLElement).getByRole('button', { name: '자료 미리보기 닫기' }),
+    );
+
+    fireEvent.keyDown(screen.getByRole('button', { name: /두 번째 차시 차시 순서 이동/ }), {
+      key: 'ArrowUp',
+    });
+    expect(lessonTitles()).toEqual(['두 번째 차시', '첫 번째 차시', '세 번째 차시']);
+    expect(container.querySelectorAll('.preview-curriculum-move button')).toHaveLength(6);
+
+    await user.click(screen.getByRole('button', { name: '자료 수정' }));
+    expect(screen.getByRole('heading', { name: '예상 차시를 확인해 주세요' })).toBeInTheDocument();
+    expect(
+      Array.from(container.querySelectorAll('.source-order-copy b')).map(
+        (item) => item.textContent,
+      ),
+    ).toEqual(['두 번째 차시', '첫 번째 차시', '세 번째 차시', '강사 프로필']);
   });
   it('일반 웹페이지 링크도 AI 참고자료로 추가한다', async () => {
     const user = userEvent.setup();
@@ -726,7 +824,36 @@ describe('CreateClassPage accessibility and ordering', () => {
     expect(await screen.findByText('video.example.com')).toBeInTheDocument();
     expect(screen.getByText('외부 링크')).toBeInTheDocument();
     expect(screen.getByLabelText('video.example.com 링크 추가 완료')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /AI가 클래스 만들기/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /AI로 미리보기 만들기/ })).toBeEnabled();
+  });
+  it('삭제한 자료를 실행 취소로 바로 복구한다', async () => {
+    const user = userEvent.setup();
+    sessionStorage.setItem(
+      creationMetaKey,
+      JSON.stringify({
+        deliverySelected: true,
+        informationMode: 'source',
+        source: 'links',
+        links: [
+          {
+            id: 'undo-source',
+            url: 'https://blog.example.com/undo',
+            provider: 'EXTERNAL',
+          },
+        ],
+        sourceOrder: ['undo-source'],
+        step: 2,
+        maxStep: 2,
+      }),
+    );
+    const { container } = renderCreator('/classes/new?step=2');
+
+    await user.click(screen.getByRole('button', { name: 'blog.example.com 삭제' }));
+    expect(screen.queryByRole('button', { name: 'blog.example.com 미리보기' })).toBeNull();
+    expect(container.querySelector('.source-undo-toast')).toHaveTextContent('자료를 제거했어요');
+
+    await user.click(screen.getByRole('button', { name: '실행 취소' }));
+    expect(screen.getByRole('button', { name: 'blog.example.com 미리보기' })).toBeInTheDocument();
   });
   it('라이브 미리보기 정보를 참가비, 인원, 일정 순서로 정렬한다', () => {
     sessionStorage.setItem(

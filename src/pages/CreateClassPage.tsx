@@ -1,4 +1,5 @@
 import {
+  Fragment,
   type ChangeEvent,
   type ClipboardEvent,
   type CSSProperties,
@@ -17,7 +18,9 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  ChevronDown,
   ChevronRight,
+  ChevronUp,
   CircleAlert,
   ClipboardPaste,
   Clock3,
@@ -207,6 +210,7 @@ function getScheduleInputError(date: string, time: string, hasValue = Boolean(da
 }
 
 const CLASS_CREATION_META_KEY = 'oneclick-class-creation-meta';
+const SOURCE_UNDO_DELAY_MS = 7000;
 const classCreationMetaStorageKey = (editId: string | null) =>
   editId ? `${CLASS_CREATION_META_KEY}:edit:${editId}` : CLASS_CREATION_META_KEY;
 
@@ -231,6 +235,12 @@ function restoredLinks(parsed: StoredCreationMeta): SourceLink[] {
 type OrderedSource =
   | { id: string; kind: 'link'; value: SourceLink }
   | { id: string; kind: 'material'; value: UploadedMaterial };
+
+type RemovedSource = {
+  source: OrderedSource;
+  orderIndex: number;
+  localFile?: File;
+};
 
 function normalizeSourceOrder(
   order: string[] | undefined,
@@ -561,6 +571,10 @@ export function CreateClassPage() {
   const [sourcePreviewId, setSourcePreviewId] = useState('');
   const [materialPreviewUrl, setMaterialPreviewUrl] = useState('');
   const [fileOptionsOpen, setFileOptionsOpen] = useState(true);
+  const [sourceAddOpen, setSourceAddOpen] = useState(
+    () => orderedCreationSources(meta).length === 0,
+  );
+  const [removedSource, setRemovedSource] = useState<RemovedSource | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -599,7 +613,10 @@ export function CreateClassPage() {
   const sourceDragFrame = useRef<number>();
   const sourceMoveTimer = useRef<number>();
   const sourceAddTimer = useRef<number>();
+  const removedSourceTimer = useRef<number>();
+  const removedSourceRef = useRef<RemovedSource>();
   const sourceFileInputRef = useRef<HTMLInputElement>(null);
+  const sourceAddToggleRef = useRef<HTMLButtonElement>(null);
   const previewHelpButtonRef = useRef<HTMLButtonElement>(null);
   const addressReturnFocusRef = useRef<HTMLElement>();
   const previewDescriptionRef = useRef<HTMLTextAreaElement>(null);
@@ -649,9 +666,15 @@ export function CreateClassPage() {
   );
   const sourceLocked = meta.informationMode === 'analyzing';
   const stepInfo = classCreationFlowSteps[Math.min(step - 1, classCreationFlowSteps.length - 1)];
-  const workspaceLabel = stepInfo.label;
   const progressPercent = step <= 1 ? 0 : step === 2 ? 50 : 100;
   const orderedSources = orderedCreationSources(meta);
+  const lessonSources = orderedSources.filter(
+    (source) => source.kind !== 'link' || source.value.provider !== 'SOCIAL',
+  );
+  const profileSources = orderedSources.filter(
+    (source) => source.kind === 'link' && source.value.provider === 'SOCIAL',
+  );
+  const displayedSources = [...lessonSources, ...profileSources];
   const previewSource = sourceDragPreview
     ? orderedSources.find((source) => source.id === sourceDragPreview.id)
     : undefined;
@@ -661,12 +684,27 @@ export function CreateClassPage() {
       : previewSource.value.name
     : '';
   const sourceCount = orderedSources.length;
-  const sourcePreviewSource = orderedSources.find((source) => source.id === sourcePreviewId);
-  const sourcePreviewIndex = orderedSources.findIndex((source) => source.id === sourcePreviewId);
+  const lessonSourceCount = lessonSources.length;
+  const hasSources = sourceCount > 0;
+  const workspaceLabel = step === 2 && hasSources ? '차시 구성' : stepInfo.label;
+  const previewableSources = step === 3 ? lessonSources : displayedSources;
+  const sourcePreviewSource = previewableSources.find((source) => source.id === sourcePreviewId);
+  const sourcePreviewIndex = previewableSources.findIndex(
+    (source) => source.id === sourcePreviewId,
+  );
   const sourcePreviewMaterial =
     sourcePreviewSource?.kind === 'material' ? sourcePreviewSource.value : undefined;
   const sourcePreviewMaterialId = sourcePreviewMaterial?.id ?? '';
   const sourcePreviewMaterialUploadedUrl = sourcePreviewMaterial?.url ?? '';
+
+  useEffect(() => {
+    if (sourceCount === 0) setSourceAddOpen(true);
+  }, [sourceCount]);
+
+  function closeSourceAddFields() {
+    setSourceAddOpen(false);
+    requestAnimationFrame(() => sourceAddToggleRef.current?.focus());
+  }
 
   useEffect(() => {
     setMaterialPreviewUrl('');
@@ -683,7 +721,7 @@ export function CreateClassPage() {
 
   useEffect(() => {
     if (!sourcePreviewId) return;
-    if (step !== 2 || sourceLocked || sourcePreviewIndex < 0) {
+    if ((step !== 2 && step !== 3) || sourceLocked || sourcePreviewIndex < 0) {
       setSourcePreviewId('');
       return;
     }
@@ -893,6 +931,7 @@ export function CreateClassPage() {
       if (sourceDragFrame.current) window.cancelAnimationFrame(sourceDragFrame.current);
       if (sourceMoveTimer.current) window.clearTimeout(sourceMoveTimer.current);
       if (sourceAddTimer.current) window.clearTimeout(sourceAddTimer.current);
+      if (removedSourceTimer.current) window.clearTimeout(removedSourceTimer.current);
     },
     [],
   );
@@ -1001,6 +1040,12 @@ export function CreateClassPage() {
     }
   }
 
+  function cancelAnalysis() {
+    analysisAbort.current?.abort();
+    analysisAbort.current = undefined;
+    setMeta((current) => ({ ...current, informationMode: 'source' }));
+  }
+
   function resetSource() {
     analysisAbort.current?.abort();
     videoMetadataAbort.current?.abort();
@@ -1022,6 +1067,9 @@ export function CreateClassPage() {
     setVideoUrlError('');
     setRecentlyAddedSourceIds([]);
     if (sourceAddTimer.current) window.clearTimeout(sourceAddTimer.current);
+    if (removedSourceTimer.current) window.clearTimeout(removedSourceTimer.current);
+    removedSourceRef.current = undefined;
+    setRemovedSource(null);
     setError('');
   }
 
@@ -1206,7 +1254,7 @@ export function CreateClassPage() {
   async function retryMaterial(file: UploadedMaterial) {
     const originalFile = sourceFiles.current.get(file.id);
     if (!originalFile) {
-      removeMaterial(file.id);
+      removeMaterial(file.id, false);
       requestAnimationFrame(() => sourceFileInputRef.current?.click());
       return;
     }
@@ -1228,35 +1276,85 @@ export function CreateClassPage() {
   }
 
   function showAdjacentSourcePreview(offset: -1 | 1) {
-    if (sourcePreviewIndex < 0 || orderedSources.length < 2) return;
-    const nextIndex = (sourcePreviewIndex + offset + orderedSources.length) % orderedSources.length;
-    setSourcePreviewId(orderedSources[nextIndex].id);
+    if (sourcePreviewIndex < 0 || previewableSources.length < 2) return;
+    const nextIndex =
+      (sourcePreviewIndex + offset + previewableSources.length) % previewableSources.length;
+    setSourcePreviewId(previewableSources[nextIndex].id);
   }
 
-  function removeSourceLink(id: string) {
-    if (sourcePreviewId === id) closeSourcePreview(false);
+  function finalizeRemovedSource() {
+    const pending = removedSourceRef.current;
+    if (pending?.source.kind === 'material') sourceFiles.current.delete(pending.source.id);
+    if (removedSourceTimer.current) window.clearTimeout(removedSourceTimer.current);
+    removedSourceTimer.current = undefined;
+    removedSourceRef.current = undefined;
+    setRemovedSource(null);
+  }
+
+  function removeSource(source: OrderedSource, undoable = true) {
+    if (sourcePreviewId === source.id) closeSourcePreview(false);
+    if (removedSourceRef.current) finalizeRemovedSource();
+    const pending: RemovedSource = {
+      source,
+      orderIndex: orderedSources.findIndex((item) => item.id === source.id),
+      localFile: source.kind === 'material' ? sourceFiles.current.get(source.id) : undefined,
+    };
+    if (undoable) {
+      removedSourceRef.current = pending;
+      setRemovedSource(pending);
+      removedSourceTimer.current = window.setTimeout(finalizeRemovedSource, SOURCE_UNDO_DELAY_MS);
+    } else if (source.kind === 'material') {
+      sourceFiles.current.delete(source.id);
+    }
     setMeta((current) => {
-      const links = current.links.filter((link) => link.id !== id);
+      const links = current.links.filter((link) => link.id !== source.id);
+      const materials = current.materials.filter((file) => file.id !== source.id);
       return {
         ...current,
         links,
-        sourceOrder: current.sourceOrder.filter((sourceId) => sourceId !== id),
-        source: sourceKindFor(links, current.materials),
+        materials,
+        sourceOrder: current.sourceOrder.filter((sourceId) => sourceId !== source.id),
+        source: sourceKindFor(links, materials),
         informationMode: 'source',
       };
     });
   }
 
-  function removeMaterial(id: string) {
-    if (sourcePreviewId === id) closeSourcePreview(false);
-    sourceFiles.current.delete(id);
+  function removeSourceLink(id: string) {
+    const source = orderedSources.find((item) => item.kind === 'link' && item.id === id);
+    if (source) removeSource(source);
+  }
+
+  function removeMaterial(id: string, undoable = true) {
+    const source = orderedSources.find((item) => item.kind === 'material' && item.id === id);
+    if (source) removeSource(source, undoable);
+  }
+
+  function undoSourceRemoval() {
+    const pending = removedSourceRef.current;
+    if (!pending) return;
+    if (removedSourceTimer.current) window.clearTimeout(removedSourceTimer.current);
+    removedSourceTimer.current = undefined;
+    removedSourceRef.current = undefined;
+    setRemovedSource(null);
+    if (pending.localFile) sourceFiles.current.set(pending.source.id, pending.localFile);
     setMeta((current) => {
-      const materials = current.materials.filter((file) => file.id !== id);
+      const links =
+        pending.source.kind === 'link' ? [...current.links, pending.source.value] : current.links;
+      const materials =
+        pending.source.kind === 'material'
+          ? [...current.materials, pending.source.value]
+          : current.materials;
+      const order = normalizeSourceOrder(current.sourceOrder, links, materials).filter(
+        (sourceId) => sourceId !== pending.source.id,
+      );
+      order.splice(Math.min(Math.max(0, pending.orderIndex), order.length), 0, pending.source.id);
       return {
         ...current,
+        links,
         materials,
-        sourceOrder: current.sourceOrder.filter((sourceId) => sourceId !== id),
-        source: sourceKindFor(current.links, materials),
+        sourceOrder: order,
+        source: sourceKindFor(links, materials),
         informationMode: 'source',
       };
     });
@@ -1296,31 +1394,41 @@ export function CreateClassPage() {
     if (!sourceId || insertionIndex < 0) return;
     rememberSourcePositions();
     setMeta((current) => {
-      const order = normalizeSourceOrder(current.sourceOrder, current.links, current.materials);
-      const sourceIndex = order.indexOf(sourceId);
+      const currentSources = orderedCreationSources(current);
+      const lessonIds = currentSources
+        .filter((source) => source.kind !== 'link' || source.value.provider !== 'SOCIAL')
+        .map((source) => source.id);
+      const profileIds = currentSources
+        .filter((source) => source.kind === 'link' && source.value.provider === 'SOCIAL')
+        .map((source) => source.id);
+      const sourceIndex = lessonIds.indexOf(sourceId);
       if (sourceIndex < 0) return current;
-      const nextOrder = order.filter((id) => id !== sourceId);
-      const nextIndex = Math.min(Math.max(0, insertionIndex), nextOrder.length);
+      const nextLessonIds = lessonIds.filter((id) => id !== sourceId);
+      const nextIndex = Math.min(Math.max(0, insertionIndex), nextLessonIds.length);
       if (sourceIndex === nextIndex) return current;
-      nextOrder.splice(nextIndex, 0, sourceId);
-      return { ...current, sourceOrder: nextOrder, informationMode: 'source' };
+      nextLessonIds.splice(nextIndex, 0, sourceId);
+      return {
+        ...current,
+        sourceOrder: [...nextLessonIds, ...profileIds],
+        informationMode: stepRef.current === 3 ? current.informationMode : 'source',
+      };
     });
   }
 
   function announceSourceMove(sourceId: string, insertionIndex: number) {
-    const source = orderedSources.find((item) => item.id === sourceId);
+    const source = lessonSources.find((item) => item.id === sourceId);
     if (!source || insertionIndex < 0) return;
     const label =
       source.kind === 'link'
         ? source.value.title || sourceLinkHost(source.value.url)
         : source.value.name;
-    setSourceOrderAnnouncement(`${label} 자료를 ${insertionIndex + 1}번째로 이동했어요.`);
+    setSourceOrderAnnouncement(`${label} 차시를 ${insertionIndex + 1}번째로 이동했어요.`);
   }
 
   function moveSourceBy(sourceId: string, offset: -1 | 1) {
-    const sourceIndex = orderedSources.findIndex((source) => source.id === sourceId);
+    const sourceIndex = lessonSources.findIndex((source) => source.id === sourceId);
     const insertionIndex = sourceIndex + offset;
-    if (sourceIndex < 0 || insertionIndex < 0 || insertionIndex >= orderedSources.length) return;
+    if (sourceIndex < 0 || insertionIndex < 0 || insertionIndex >= lessonSources.length) return;
     moveSourceToIndex(sourceId, insertionIndex);
     announceSourceMove(sourceId, insertionIndex);
     markSourceMoved(sourceId);
@@ -1329,9 +1437,9 @@ export function CreateClassPage() {
   function updateSourceInsertion(sourceId: string, pointerY: number) {
     const list = sourceOrderListRef.current;
     if (!list) return;
-    const items = Array.from(list.querySelectorAll<HTMLLIElement>('[data-source-id]')).filter(
-      (item) => item.dataset.sourceId !== sourceId,
-    );
+    const items = Array.from(
+      list.querySelectorAll<HTMLLIElement>('[data-source-group="lesson"]'),
+    ).filter((item) => item.dataset.sourceId !== sourceId);
     const nextIndex = items.findIndex((item) => {
       const bounds = item.getBoundingClientRect();
       return pointerY < bounds.top + bounds.height / 2;
@@ -1823,7 +1931,7 @@ export function CreateClassPage() {
     <main
       className={`class-creator ${step === 3 ? 'is-preview-step' : ''} ${
         step === 2 && sourcePreviewItem ? 'has-source-preview' : ''
-      }`}
+      } ${step === 2 && hasSources ? 'has-sources' : ''}`}
     >
       <header className="creator-progress">
         <button className="creator-brand" type="button" onClick={() => leaveCreator('/dashboard')}>
@@ -1834,7 +1942,8 @@ export function CreateClassPage() {
         </button>
         <nav className="creator-progress-inner" aria-label="클래스 만들기 진행률">
           <div className="creator-progress-copy">
-            <span>{workspaceLabel}</span>
+            <span className="creator-progress-step">{Math.min(step, 3)}/3</span>
+            <span className="creator-progress-label">{workspaceLabel}</span>
           </div>
           <div
             className="creator-progress-track"
@@ -1843,43 +1952,52 @@ export function CreateClassPage() {
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={progressPercent}
-            aria-valuetext={`${workspaceLabel} 진행 중`}
+            aria-valuetext={`${Math.min(step, 3)}/3 ${workspaceLabel} 진행 중`}
           >
             <span style={{ transform: `scaleX(${progressPercent / 100})` }} />
           </div>
         </nav>
-        <button className="creator-exit" type="button" onClick={() => leaveCreator('/classes')}>
-          나가기
-        </button>
-      </header>
-
-      <div className={`creator-save-status ${saveStatus}`} role="status" aria-live="polite">
-        {saveStatus === 'error' ? (
-          <button
-            type="button"
-            onClick={() => {
-              setSaveStatus('saving');
-              setSaveRetryToken((current) => current + 1);
-            }}
-          >
-            <CircleAlert />
-            저장 실패 · 다시 시도
+        <div className="creator-progress-actions">
+          <div className={`creator-save-status ${saveStatus}`} role="status" aria-live="polite">
+            {saveStatus === 'error' ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSaveStatus('saving');
+                  setSaveRetryToken((current) => current + 1);
+                }}
+              >
+                <CircleAlert />
+                <span>저장 실패 · 다시 시도</span>
+              </button>
+            ) : (
+              <>
+                {saveStatus === 'saving' ? <LoaderCircle className="spin" /> : <Check />}
+                <span>{saveStatus === 'saving' ? '저장 중...' : '저장됨'}</span>
+              </>
+            )}
+          </div>
+          <button className="creator-exit" type="button" onClick={() => leaveCreator('/classes')}>
+            나가기
           </button>
-        ) : (
-          <>
-            {saveStatus === 'saving' ? <LoaderCircle className="spin" /> : <Check />}
-            {saveStatus === 'saving' ? '저장 중...' : '저장됨'}
-          </>
-        )}
-      </div>
+        </div>
+      </header>
 
       <form className="creator-form" onSubmit={submitFlow}>
         {step < 4 && (
           <header className={`creator-step-heading ${step === 1 ? 'is-wide' : ''}`}>
-            <h1>{step === 3 && editId ? '클래스 정보를 확인해 주세요' : stepInfo.title}</h1>
+            <h1>
+              {step === 2 && hasSources
+                ? '예상 차시를 확인해 주세요'
+                : step === 3 && editId
+                  ? '클래스 정보를 확인해 주세요'
+                  : stepInfo.title}
+            </h1>
             <p>
               {step === 2
-                ? '링크를 붙여넣거나 컴퓨터의 파일을 추가하면 AI가 모든 자료를 함께 분석해요.'
+                ? hasSources
+                  ? '수업 자료는 차시로, 강사 소개 링크는 프로필 정보로 반영돼요.'
+                  : '링크를 붙여넣거나 컴퓨터의 파일을 추가하면 AI가 자료를 분석해요.'
                 : step === 3 && editId
                   ? '기존 정보를 수정하고 바로 다시 게시할 수 있어요.'
                   : stepInfo.description}
@@ -1920,143 +2038,218 @@ export function CreateClassPage() {
           <section
             className={`creator-information ${sourcePreviewItem ? 'has-source-preview' : ''}`}
           >
-            <div className={`source-card ${sourceLocked ? 'is-busy' : ''}`}>
+            <div
+              className={`source-card ${hasSources ? 'has-sources' : ''} ${
+                sourceLocked ? 'is-busy' : ''
+              }`}
+            >
               <div className="source-card-title">
-                <i>
-                  <Link2 />
-                </i>
+                <i>{hasSources ? <FileText /> : <Link2 />}</i>
                 <span>
-                  <h2>링크 추가</h2>
-                  <p>복사한 링크를 붙여넣으면 바로 목록에 추가돼요.</p>
+                  <h2>{hasSources ? '차시 구성' : '수업 자료 추가'}</h2>
+                  <p>
+                    {hasSources
+                      ? '수업 자료 순서대로 차시가 만들어져요.'
+                      : '링크를 붙여넣거나 컴퓨터에서 파일을 선택하세요.'}
+                  </p>
                 </span>
               </div>
-              <div className={`source-link-input ${videoUrlError ? 'invalid' : ''}`}>
-                <Globe2 />
-                <label>
-                  <span className="sr-only">자료 링크</span>
-                  <input
-                    type="url"
-                    value={meta.linkInput}
-                    disabled={sourceLocked}
-                    onChange={(event) => {
-                      setMeta((current) => ({
-                        ...current,
-                        linkInput: event.target.value,
-                      }));
-                      setVideoUrlError('');
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key !== 'Enter') return;
-                      event.preventDefault();
-                      void addSourceLink();
-                    }}
-                    onPaste={addPastedSourceLinks}
-                    placeholder="링크를 붙여넣으면 바로 추가돼요"
-                    aria-invalid={Boolean(videoUrlError)}
-                    aria-describedby={videoUrlError ? 'source-link-error' : undefined}
-                  />
-                </label>
+              {hasSources && (
                 <button
-                  className="source-paste-button"
+                  ref={sourceAddToggleRef}
+                  className="source-add-toggle"
                   type="button"
-                  aria-label="클립보드 링크 붙여넣기"
-                  disabled={sourceLocked}
-                  onClick={() => void pasteSourceLinks()}
-                >
-                  <ClipboardPaste />
-                  <span>붙여넣기</span>
-                </button>
-                <button
-                  className="source-add-button"
-                  type="button"
-                  aria-label="링크 추가"
-                  disabled={sourceLocked}
-                  onClick={() => void addSourceLink()}
+                  aria-expanded={sourceAddOpen}
+                  aria-controls="source-add-fields"
+                  onClick={() => setSourceAddOpen((current) => !current)}
                 >
                   <Plus />
-                </button>
-              </div>
-              {videoUrlError && (
-                <p className="field-message error" id="source-link-error" role="alert">
-                  <CircleAlert />
-                  {videoUrlError}
-                </p>
-              )}
-              {recentlyAddedSourceIds.length > 0 && !videoUrlError && (
-                <p
-                  className="field-message success source-link-feedback"
-                  key={recentlyAddedSourceIds.join('-')}
-                  role="status"
-                  aria-live="polite"
-                >
-                  <Check /> 링크 {recentlyAddedSourceIds.length}개가 추가됐어요.
-                </p>
-              )}
-              <details
-                className="source-file-option"
-                open={fileOptionsOpen}
-                onToggle={(event) => setFileOptionsOpen(event.currentTarget.open)}
-              >
-                <summary>
                   <span>
-                    <Upload />
-                    <b>컴퓨터 파일 추가</b>
-                    <small>영상, PDF, PPT, 문서와 이미지</small>
+                    <b>{sourceAddOpen ? '자료 입력 접기' : '자료 더 추가'}</b>
+                    <small>
+                      {sourceAddOpen
+                        ? '입력 영역을 접고 예상 차시를 확인해요'
+                        : '링크 또는 컴퓨터 파일'}
+                    </small>
                   </span>
                   <ChevronRight />
-                </summary>
-                <label
-                  className={`material-dropzone ${sourceDragActive ? 'is-dragging' : ''} ${
-                    sourceLocked ? 'is-disabled' : ''
-                  }`}
-                  onDragOver={(event: DragEvent<HTMLLabelElement>) => {
-                    event.preventDefault();
-                    if (!sourceLocked) setSourceDragActive(true);
-                  }}
-                  onDragLeave={(event: DragEvent<HTMLLabelElement>) => {
-                    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
-                    setSourceDragActive(false);
-                  }}
-                  onDrop={(event: DragEvent<HTMLLabelElement>) => {
-                    event.preventDefault();
-                    setSourceDragActive(false);
-                    if (!sourceLocked) void handleSourceFiles(Array.from(event.dataTransfer.files));
-                  }}
-                >
-                  <input
-                    ref={sourceFileInputRef}
-                    type="file"
-                    accept={sourceFileAccept}
-                    multiple
+                </button>
+              )}
+              <div
+                className="source-add-fields"
+                id="source-add-fields"
+                hidden={hasSources && !sourceAddOpen}
+              >
+                <div className={`source-link-input ${videoUrlError ? 'invalid' : ''}`}>
+                  <Globe2 />
+                  <label>
+                    <span className="sr-only">자료 링크</span>
+                    <input
+                      type="url"
+                      value={meta.linkInput}
+                      disabled={sourceLocked}
+                      onChange={(event) => {
+                        setMeta((current) => ({
+                          ...current,
+                          linkInput: event.target.value,
+                        }));
+                        setVideoUrlError('');
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key !== 'Enter') return;
+                        event.preventDefault();
+                        void addSourceLink();
+                      }}
+                      onPaste={addPastedSourceLinks}
+                      placeholder="링크를 붙여넣으면 바로 추가돼요"
+                      aria-invalid={Boolean(videoUrlError)}
+                      aria-describedby={videoUrlError ? 'source-link-error' : undefined}
+                    />
+                  </label>
+                  <button
+                    className="source-paste-button"
+                    type="button"
+                    aria-label="클립보드 링크 붙여넣기"
                     disabled={sourceLocked}
-                    onChange={addSourceFiles}
-                  />
-                  <i>
-                    <Upload />
-                  </i>
-                  <b>파일을 끌어놓거나 클릭해 추가하세요</b>
+                    onClick={() => void pasteSourceLinks()}
+                  >
+                    <ClipboardPaste />
+                    <span>붙여넣기</span>
+                  </button>
+                  <button
+                    className="source-add-button"
+                    type="button"
+                    aria-label="링크 추가"
+                    disabled={sourceLocked || !meta.linkInput.trim()}
+                    onClick={() => void addSourceLink()}
+                  >
+                    <Plus />
+                  </button>
+                </div>
+                {videoUrlError && (
+                  <p className="field-message error" id="source-link-error" role="alert">
+                    <CircleAlert />
+                    {videoUrlError}
+                  </p>
+                )}
+                {recentlyAddedSourceIds.length > 0 && !videoUrlError && (
+                  <p
+                    className="field-message success source-link-feedback"
+                    key={recentlyAddedSourceIds.join('-')}
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <Check /> 링크 {recentlyAddedSourceIds.length}개가 추가됐어요.
+                  </p>
+                )}
+                <details
+                  className="source-file-option"
+                  open={fileOptionsOpen}
+                  onToggle={(event) => setFileOptionsOpen(event.currentTarget.open)}
+                >
+                  <summary>
+                    <span>
+                      <Upload />
+                      <b>컴퓨터 파일 추가</b>
+                      <small>영상, PDF, PPT, 문서와 이미지</small>
+                    </span>
+                    <ChevronRight />
+                  </summary>
+                  <label
+                    className={`material-dropzone ${sourceDragActive ? 'is-dragging' : ''} ${
+                      sourceLocked ? 'is-disabled' : ''
+                    }`}
+                    onDragOver={(event: DragEvent<HTMLLabelElement>) => {
+                      event.preventDefault();
+                      if (!sourceLocked) setSourceDragActive(true);
+                    }}
+                    onDragLeave={(event: DragEvent<HTMLLabelElement>) => {
+                      if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+                      setSourceDragActive(false);
+                    }}
+                    onDrop={(event: DragEvent<HTMLLabelElement>) => {
+                      event.preventDefault();
+                      setSourceDragActive(false);
+                      if (!sourceLocked)
+                        void handleSourceFiles(Array.from(event.dataTransfer.files));
+                    }}
+                  >
+                    <input
+                      ref={sourceFileInputRef}
+                      type="file"
+                      accept={sourceFileAccept}
+                      multiple
+                      disabled={sourceLocked}
+                      onChange={addSourceFiles}
+                    />
+                    <i>
+                      <Upload />
+                    </i>
+                    <b>파일을 끌어놓거나 클릭해 추가하세요</b>
+                    <span>
+                      영상 최대 {videoFileLimitLabel} · 문서 최대 {documentFileLimitLabel} · 여러
+                      파일 선택 가능
+                    </span>
+                  </label>
+                </details>
+                {hasSources && (
+                  <button className="source-add-done" type="button" onClick={closeSourceAddFields}>
+                    <Check />
+                    자료 추가 완료
+                  </button>
+                )}
+              </div>
+
+              <div className="source-primary-actions">
+                <button
+                  className="source-back-button"
+                  type="button"
+                  disabled={sourceLocked}
+                  onClick={() => goToStep(1)}
+                >
+                  <ArrowLeft />
+                  이전
+                </button>
+                <button
+                  className="analyze-source-button"
+                  type="button"
+                  onClick={() => void startAnalysis()}
+                  disabled={!sourceIsReady(meta) || sourceLocked}
+                >
+                  <Sparkles />
                   <span>
-                    영상 최대 {videoFileLimitLabel} · 문서 최대 {documentFileLimitLabel} · 여러 파일
-                    선택 가능
+                    <b>AI로 미리보기 만들기</b>
+                    <small>
+                      {lessonSourceCount
+                        ? `${lessonSourceCount}개 수업 자료로 차시와 클래스 정보를 준비해요`
+                        : '차시로 만들 링크나 파일을 1개 이상 추가해 주세요'}
+                    </small>
                   </span>
-                </label>
-              </details>
+                  <ArrowRight />
+                </button>
+              </div>
 
               {orderedSources.length > 0 && (
                 <section className="source-order-section" aria-labelledby="source-order-title">
                   <div className="source-order-heading">
                     <span>
-                      <h3 id="source-order-title">자료 순서</h3>
-                      <p id="source-order-help">
-                        위에서부터 차시가 만들어져요. 드래그하거나 방향키로 순서를 바꿔보세요.
-                      </p>
+                      <h3 id="source-order-title">예상 차시</h3>
+                      <p id="source-order-help">자료를 미리 보고 원하는 순서로 바꿀 수 있어요.</p>
                     </span>
-                    <small>{orderedSources.length}개</small>
+                    <small>{lessonSourceCount}개 차시</small>
                   </div>
+                  {lessonSourceCount === 0 && (
+                    <p className="source-order-empty">
+                      차시로 만들 링크나 파일을 추가하면 여기에 예상 순서가 표시돼요.
+                    </p>
+                  )}
                   <ol ref={sourceOrderListRef} className="source-order-list">
-                    {orderedSources.map((source, index) => {
+                    {displayedSources.map((source) => {
                       const link = source.kind === 'link' ? source.value : undefined;
                       const file = source.kind === 'material' ? source.value : undefined;
+                      const isProfile = link?.provider === 'SOCIAL';
+                      const groupSources = isProfile ? profileSources : lessonSources;
+                      const index = groupSources.findIndex((item) => item.id === source.id);
                       const title = link
                         ? link.title || sourceLinkHost(link.url)
                         : (file?.name ?? '자료');
@@ -2069,165 +2262,207 @@ export function CreateClassPage() {
                           ? '영상 파일'
                           : '문서 파일';
                       return (
-                        <li
-                          className={`source-order-item ${
-                            draggedSourceId === source.id ? 'is-dragging' : ''
-                          } ${recentlyMovedSourceId === source.id ? 'is-recently-moved' : ''} ${
-                            recentlyAddedSourceIds.includes(source.id) ? 'is-recently-added' : ''
-                          } ${sourcePreviewId === source.id ? 'is-preview-selected' : ''}`}
-                          key={source.id}
-                          ref={(item) => {
-                            if (item) sourceOrderItemRefs.current.set(source.id, item);
-                            else sourceOrderItemRefs.current.delete(source.id);
-                          }}
-                          data-source-id={source.id}
-                          aria-posinset={index + 1}
-                          aria-setsize={orderedSources.length}
-                        >
-                          <button
-                            className="source-order-handle"
-                            type="button"
-                            disabled={sourceLocked}
-                            aria-label={`${title} 순서 이동. 위아래 방향키를 사용할 수 있어요.`}
-                            aria-describedby="source-order-help"
-                            onKeyDown={(event) => {
-                              if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
-                              event.preventDefault();
-                              moveSourceBy(source.id, event.key === 'ArrowUp' ? -1 : 1);
-                            }}
-                            onPointerDown={(event) => {
-                              if (sourceLocked) return;
-                              event.preventDefault();
-                              rememberSourcePositions();
-                              pointerSourceId.current = source.id;
-                              pointerStartIndex.current = index;
-                              pointerInsertionIndex.current = index;
-                              listenForSourcePointer(event.pointerId, event.pointerType);
-                              setDraggedSourceId(source.id);
-                              const previewPosition = sourceDragPreviewPosition(
-                                event.clientX,
-                                event.clientY,
-                                event.pointerType,
-                              );
-                              setSourceDragPreview({
-                                id: source.id,
-                                pointerType: event.pointerType,
-                                ...previewPosition,
-                              });
-                            }}
-                          >
-                            <GripVertical />
-                          </button>
-                          <button
-                            ref={(button) => {
-                              if (button) sourcePreviewTriggerRefs.current.set(source.id, button);
-                              else sourcePreviewTriggerRefs.current.delete(source.id);
-                            }}
-                            className="source-order-preview-trigger"
-                            type="button"
-                            aria-label={`${title} 미리보기`}
-                            aria-pressed={sourcePreviewId === source.id}
-                            disabled={sourceLocked}
-                            onClick={() => openSourcePreview(source.id)}
-                          >
-                            <i className="source-order-icon">
-                              {videoSource ? (
-                                <Play />
-                              ) : link?.provider === 'SOCIAL' ? (
+                        <Fragment key={source.id}>
+                          {isProfile && index === 0 && (
+                            <li className="source-profile-heading" role="presentation">
+                              <span>
                                 <Users />
-                              ) : link && link.provider !== 'DOCUMENT' ? (
-                                <Globe2 />
-                              ) : (
-                                <FileText />
-                              )}
-                            </i>
-                            <span className="source-order-copy">
-                              <small>
-                                <span>{index + 1}</span>
-                                <span>{sourceLabel}</span>
-                              </small>
-                              <b>{title}</b>
-                              <em>
-                                {link
-                                  ? link.url
-                                  : `${formatBytes(file?.size ?? 0)} · ${
-                                      file?.status === 'uploading'
-                                        ? file.progress === undefined
-                                          ? '업로드 중'
-                                          : `업로드 중 ${file.progress}%`
-                                        : file?.status === 'uploaded'
-                                          ? '업로드 완료'
-                                          : '업로드 실패'
-                                    }${
-                                      file?.durationSeconds
-                                        ? ` · 재생 시간 ${formatMediaDuration(file.durationSeconds)}`
-                                        : ''
-                                    }`}
-                              </em>
-                              {file?.status === 'uploading' && (
-                                <span
-                                  className={`upload-progress ${
-                                    file.progress === undefined ? 'indeterminate' : ''
-                                  }`}
-                                  aria-label={
-                                    file.progress === undefined
-                                      ? `${file.name} 업로드 중`
-                                      : `${file.name} 업로드 ${file.progress}%`
-                                  }
-                                >
-                                  <span
-                                    style={
-                                      file.progress === undefined
-                                        ? undefined
-                                        : { transform: `scaleX(${file.progress / 100})` }
-                                    }
-                                  />
-                                </span>
-                              )}
-                            </span>
-                            <span className="source-order-preview-action" aria-hidden="true">
-                              <Eye />
-                              미리보기
-                            </span>
-                          </button>
-                          <span className="source-order-state">
-                            {link?.provider === 'SOCIAL' ? (
-                              <small>강사 소개용</small>
-                            ) : link ? (
-                              <Check aria-label={`${title} 링크 추가 완료`} className="success" />
-                            ) : file?.status === 'uploaded' ? (
-                              <Check aria-label={`${file.name} 업로드 완료`} className="success" />
-                            ) : file?.status === 'error' ? (
+                                <b>강사 소개 링크</b>
+                              </span>
+                              <small>{profileSources.length}개</small>
+                            </li>
+                          )}
+                          <li
+                            className={`source-order-item ${isProfile ? 'is-profile-source' : ''} ${
+                              draggedSourceId === source.id ? 'is-dragging' : ''
+                            } ${recentlyMovedSourceId === source.id ? 'is-recently-moved' : ''} ${
+                              recentlyAddedSourceIds.includes(source.id) ? 'is-recently-added' : ''
+                            } ${sourcePreviewId === source.id ? 'is-preview-selected' : ''}`}
+                            ref={(item) => {
+                              if (item) sourceOrderItemRefs.current.set(source.id, item);
+                              else sourceOrderItemRefs.current.delete(source.id);
+                            }}
+                            data-source-id={source.id}
+                            data-source-group={isProfile ? 'profile' : 'lesson'}
+                            aria-posinset={index + 1}
+                            aria-setsize={groupSources.length}
+                          >
+                            {isProfile ? (
+                              <span className="source-order-handle is-static" aria-hidden="true">
+                                <span>소개</span>
+                              </span>
+                            ) : (
                               <button
-                                className="material-retry"
+                                className="source-order-handle"
                                 type="button"
                                 disabled={sourceLocked}
-                                onClick={() => void retryMaterial(file)}
+                                aria-label={`${title} 순서 이동. 위아래 방향키를 사용할 수 있어요.`}
+                                aria-describedby="source-order-help"
+                                onKeyDown={(event) => {
+                                  if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+                                  event.preventDefault();
+                                  moveSourceBy(source.id, event.key === 'ArrowUp' ? -1 : 1);
+                                }}
+                                onPointerDown={(event) => {
+                                  if (sourceLocked) return;
+                                  event.preventDefault();
+                                  rememberSourcePositions();
+                                  pointerSourceId.current = source.id;
+                                  pointerStartIndex.current = index;
+                                  pointerInsertionIndex.current = index;
+                                  listenForSourcePointer(event.pointerId, event.pointerType);
+                                  setDraggedSourceId(source.id);
+                                  const previewPosition = sourceDragPreviewPosition(
+                                    event.clientX,
+                                    event.clientY,
+                                    event.pointerType,
+                                  );
+                                  setSourceDragPreview({
+                                    id: source.id,
+                                    pointerType: event.pointerType,
+                                    ...previewPosition,
+                                  });
+                                }}
                               >
-                                <RefreshCw />
-                                <span>다시 업로드</span>
+                                <GripVertical />
                               </button>
-                            ) : file ? (
-                              <LoaderCircle
-                                aria-label={`${file.name} 업로드 중`}
-                                className="spin"
-                              />
-                            ) : null}
-                          </span>
-                          <button
-                            className="source-order-remove"
-                            type="button"
-                            aria-label={`${title} 삭제`}
-                            disabled={sourceLocked}
-                            onClick={() =>
-                              source.kind === 'link'
-                                ? removeSourceLink(source.id)
-                                : removeMaterial(source.id)
-                            }
-                          >
-                            <X />
-                          </button>
-                        </li>
+                            )}
+                            <button
+                              ref={(button) => {
+                                if (button) sourcePreviewTriggerRefs.current.set(source.id, button);
+                                else sourcePreviewTriggerRefs.current.delete(source.id);
+                              }}
+                              className="source-order-preview-trigger"
+                              type="button"
+                              aria-label={`${title} 미리보기`}
+                              aria-pressed={sourcePreviewId === source.id}
+                              disabled={sourceLocked}
+                              onClick={() => openSourcePreview(source.id)}
+                            >
+                              <i className="source-order-icon">
+                                {videoSource ? (
+                                  <Play />
+                                ) : link?.provider === 'SOCIAL' ? (
+                                  <Users />
+                                ) : link && link.provider !== 'DOCUMENT' ? (
+                                  <Globe2 />
+                                ) : (
+                                  <FileText />
+                                )}
+                              </i>
+                              <span className="source-order-copy">
+                                <small>
+                                  <span>{isProfile ? '소개' : index + 1}</span>
+                                  <span>{sourceLabel}</span>
+                                </small>
+                                <b>{title}</b>
+                                <em>
+                                  {link
+                                    ? link.url
+                                    : `${formatBytes(file?.size ?? 0)} · ${
+                                        file?.status === 'uploading'
+                                          ? file.progress === undefined
+                                            ? '업로드 중'
+                                            : `업로드 중 ${file.progress}%`
+                                          : file?.status === 'uploaded'
+                                            ? '업로드 완료'
+                                            : '업로드 실패'
+                                      }${
+                                        file?.durationSeconds
+                                          ? ` · 재생 시간 ${formatMediaDuration(file.durationSeconds)}`
+                                          : ''
+                                      }`}
+                                </em>
+                                {file?.status === 'uploading' && (
+                                  <span
+                                    className={`upload-progress ${
+                                      file.progress === undefined ? 'indeterminate' : ''
+                                    }`}
+                                    aria-label={
+                                      file.progress === undefined
+                                        ? `${file.name} 업로드 중`
+                                        : `${file.name} 업로드 ${file.progress}%`
+                                    }
+                                  >
+                                    <span
+                                      style={
+                                        file.progress === undefined
+                                          ? undefined
+                                          : { transform: `scaleX(${file.progress / 100})` }
+                                      }
+                                    />
+                                  </span>
+                                )}
+                              </span>
+                              <span className="source-order-preview-action" aria-hidden="true">
+                                <Eye />
+                                미리보기
+                              </span>
+                            </button>
+                            <span className="source-order-state">
+                              {isProfile ? (
+                                <small>강사 소개용</small>
+                              ) : link ? (
+                                <Check aria-label={`${title} 링크 추가 완료`} className="success" />
+                              ) : file?.status === 'uploaded' ? (
+                                <Check
+                                  aria-label={`${file.name} 업로드 완료`}
+                                  className="success"
+                                />
+                              ) : file?.status === 'error' ? (
+                                <button
+                                  className="material-retry"
+                                  type="button"
+                                  disabled={sourceLocked}
+                                  onClick={() => void retryMaterial(file)}
+                                >
+                                  <RefreshCw />
+                                  <span>다시 업로드</span>
+                                </button>
+                              ) : file ? (
+                                <LoaderCircle
+                                  aria-label={`${file.name} 업로드 중`}
+                                  className="spin"
+                                />
+                              ) : null}
+                            </span>
+                            <button
+                              className="source-order-remove"
+                              type="button"
+                              aria-label={`${title} 삭제`}
+                              disabled={sourceLocked}
+                              onClick={() =>
+                                source.kind === 'link'
+                                  ? removeSourceLink(source.id)
+                                  : removeMaterial(source.id)
+                              }
+                            >
+                              <X />
+                            </button>
+                            {!isProfile && (
+                              <span className="source-order-move">
+                                <button
+                                  type="button"
+                                  disabled={sourceLocked || index === 0}
+                                  aria-label={`${title} 차시 위로 이동`}
+                                  onClick={() => moveSourceBy(source.id, -1)}
+                                >
+                                  <ChevronUp />
+                                  위로
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={sourceLocked || index === groupSources.length - 1}
+                                  aria-label={`${title} 차시 아래로 이동`}
+                                  onClick={() => moveSourceBy(source.id, 1)}
+                                >
+                                  <ChevronDown />
+                                  아래로
+                                </button>
+                              </span>
+                            )}
+                          </li>
+                        </Fragment>
                       );
                     })}
                   </ol>
@@ -2252,52 +2487,27 @@ export function CreateClassPage() {
                 >
                   <GripVertical />
                   <span>
-                    <small>자료 이동 중</small>
+                    <small>차시 이동 중</small>
                     <b>{previewSourceTitle}</b>
                   </span>
                 </div>
               )}
-              <div className="source-primary-actions">
-                <button
-                  className="source-back-button"
-                  type="button"
-                  disabled={sourceLocked}
-                  onClick={() => goToStep(1)}
-                >
-                  <ArrowLeft />
-                  이전
-                </button>
-                <button
-                  className="analyze-source-button"
-                  type="button"
-                  onClick={() => void startAnalysis()}
-                  disabled={!sourceIsReady(meta) || sourceLocked}
-                >
-                  <Sparkles />
-                  <span>
-                    <b>AI가 클래스 만들기</b>
-                    <small>
-                      {sourceCount
-                        ? `${sourceCount}개 자료를 함께 분석해 정보와 썸네일을 만들어요`
-                        : '링크나 파일을 하나 이상 추가해 주세요'}
-                    </small>
-                  </span>
-                  <ArrowRight />
-                </button>
-              </div>
             </div>
             {sourcePreviewItem && sourcePreviewIndex >= 0 && (
               <SourcePreviewPanel
                 item={sourcePreviewItem}
                 index={sourcePreviewIndex}
-                count={orderedSources.length}
+                count={previewableSources.length}
                 onClose={closeSourcePreview}
                 onPrevious={() => showAdjacentSourcePreview(-1)}
                 onNext={() => showAdjacentSourcePreview(1)}
               />
             )}
             {meta.informationMode === 'analyzing' && (
-              <AnalysisProgress sourceLabel={`${sourceCount}개 자료`} />
+              <AnalysisProgress
+                sourceLabel={`${lessonSourceCount}개 수업 자료`}
+                onCancel={cancelAnalysis}
+              />
             )}
 
             {meta.informationMode === 'analysis-error' && (
@@ -2649,26 +2859,161 @@ export function CreateClassPage() {
                       />
                     )}
 
-                    {meta.source !== 'none' && (
-                      <details className="preview-materials">
-                        <summary>
+                    {lessonSources.length > 0 && (
+                      <section
+                        className="preview-curriculum-editor"
+                        aria-labelledby="preview-curriculum-title"
+                      >
+                        <header className="preview-curriculum-heading">
                           <span>
-                            <FileText /> AI 참고자료 · {sourceCount}개 등록됨
+                            <h2 id="preview-curriculum-title">차시 구성</h2>
+                            <p id="preview-curriculum-help">
+                              자료를 미리 보고 원하는 순서로 바꿀 수 있어요.
+                            </p>
                           </span>
-                          <small>더보기</small>
-                        </summary>
-                        {meta.links.map((link) => (
-                          <p key={link.id}>
-                            {link.title || sourceLinkHost(link.url)}{' '}
-                            <small>{contentProviderLabel[link.provider]}</small>
+                          <span className="preview-curriculum-heading-actions">
+                            <small>{lessonSourceCount}개 차시</small>
+                            <button type="button" onClick={() => goToStep(2)}>
+                              <Pencil />
+                              자료 수정
+                            </button>
+                          </span>
+                        </header>
+                        <ol ref={sourceOrderListRef} className="preview-curriculum-list">
+                          {lessonSources.map((source, index) => {
+                            const link = source.kind === 'link' ? source.value : undefined;
+                            const file = source.kind === 'material' ? source.value : undefined;
+                            const lesson = sourceCurriculumDraft.lessons[index];
+                            const title =
+                              lesson?.title ||
+                              (link
+                                ? link.title || sourceLinkHost(link.url)
+                                : (file?.name ?? `차시 ${index + 1}`));
+                            const videoSource = link
+                              ? isSupportedVideoProvider(link.provider)
+                              : file?.contentType === 'video';
+                            const sourceLabel = link
+                              ? contentProviderLabel[link.provider]
+                              : file?.contentType === 'video'
+                                ? '영상 파일'
+                                : '문서 파일';
+                            const sourceDetail = link
+                              ? link.durationSeconds
+                                ? `재생 시간 ${formatMediaDuration(link.durationSeconds)}`
+                                : sourceLinkHost(link.url)
+                              : `${formatBytes(file?.size ?? 0)}${
+                                  file?.durationSeconds
+                                    ? ` · 재생 시간 ${formatMediaDuration(file.durationSeconds)}`
+                                    : ''
+                                }`;
+                            return (
+                              <li
+                                key={source.id}
+                                ref={(item) => {
+                                  if (item) sourceOrderItemRefs.current.set(source.id, item);
+                                  else sourceOrderItemRefs.current.delete(source.id);
+                                }}
+                                className={`preview-curriculum-item ${
+                                  draggedSourceId === source.id ? 'is-dragging' : ''
+                                } ${
+                                  recentlyMovedSourceId === source.id ? 'is-recently-moved' : ''
+                                } ${sourcePreviewId === source.id ? 'is-preview-selected' : ''}`}
+                                data-source-id={source.id}
+                                data-source-group="lesson"
+                              >
+                                <button
+                                  className="preview-curriculum-handle"
+                                  type="button"
+                                  aria-label={`${title} 차시 순서 이동. 위아래 방향키를 사용할 수 있어요.`}
+                                  aria-describedby="preview-curriculum-help"
+                                  onKeyDown={(event) => {
+                                    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')
+                                      return;
+                                    event.preventDefault();
+                                    moveSourceBy(source.id, event.key === 'ArrowUp' ? -1 : 1);
+                                  }}
+                                  onPointerDown={(event) => {
+                                    event.preventDefault();
+                                    rememberSourcePositions();
+                                    pointerSourceId.current = source.id;
+                                    pointerStartIndex.current = index;
+                                    pointerInsertionIndex.current = index;
+                                    listenForSourcePointer(event.pointerId, event.pointerType);
+                                    setDraggedSourceId(source.id);
+                                    const previewPosition = sourceDragPreviewPosition(
+                                      event.clientX,
+                                      event.clientY,
+                                      event.pointerType,
+                                    );
+                                    setSourceDragPreview({
+                                      id: source.id,
+                                      pointerType: event.pointerType,
+                                      ...previewPosition,
+                                    });
+                                  }}
+                                >
+                                  <GripVertical />
+                                </button>
+                                <button
+                                  ref={(button) => {
+                                    if (button)
+                                      sourcePreviewTriggerRefs.current.set(source.id, button);
+                                    else sourcePreviewTriggerRefs.current.delete(source.id);
+                                  }}
+                                  className="preview-curriculum-preview"
+                                  type="button"
+                                  aria-label={`${title} 자료 미리보기`}
+                                  aria-pressed={sourcePreviewId === source.id}
+                                  onClick={() => openSourcePreview(source.id)}
+                                >
+                                  <i>{index + 1}</i>
+                                  <span>
+                                    <small>
+                                      {videoSource ? <Play /> : <FileText />}
+                                      {sourceLabel}
+                                    </small>
+                                    <b>{title}</b>
+                                    <em>{sourceDetail}</em>
+                                  </span>
+                                  <span className="preview-curriculum-preview-action">
+                                    <Eye />
+                                    미리보기
+                                  </span>
+                                </button>
+                                <span className="preview-curriculum-move">
+                                  <button
+                                    type="button"
+                                    aria-label={`${title} 차시 위로 이동`}
+                                    disabled={index === 0}
+                                    onClick={() => moveSourceBy(source.id, -1)}
+                                  >
+                                    <ChevronUp />
+                                    <span>위로</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    aria-label={`${title} 차시 아래로 이동`}
+                                    disabled={index === lessonSources.length - 1}
+                                    onClick={() => moveSourceBy(source.id, 1)}
+                                  >
+                                    <ChevronDown />
+                                    <span>아래로</span>
+                                  </button>
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </ol>
+                        {profileSources.length > 0 && (
+                          <p className="preview-curriculum-profile-note">
+                            <Users /> 강사 소개 링크 {profileSources.length}개는 프로필 정보로
+                            반영돼요.
                           </p>
-                        ))}
-                        {meta.materials.map((file) => (
-                          <p key={file.id}>
-                            {file.name} <small>{formatBytes(file.size)}</small>
-                          </p>
-                        ))}
-                      </details>
+                        )}
+                        <p className="sr-only" role="status" aria-live="polite">
+                          {sourceOrderAnnouncement}
+                        </p>
+                      </section>
                     )}
                   </div>
                 </div>
@@ -2680,6 +3025,37 @@ export function CreateClassPage() {
                 ? '입력 내용과 첫 차시는 자동 저장됩니다. 게시하면 공유 링크가 활성화돼요.'
                 : '게시하려면 링크를 하나 이상 추가해 주세요.'}
             </p>
+            {sourceDragPreview && previewSource && (
+              <div
+                ref={sourceDragPreviewRef}
+                className={`source-drag-preview ${
+                  sourceDragPreview.pointerType === 'touch' ? 'is-touch' : ''
+                }`}
+                style={
+                  {
+                    '--source-drag-x': `${sourceDragPreview.x}px`,
+                    '--source-drag-y': `${sourceDragPreview.y}px`,
+                  } as CSSProperties
+                }
+                aria-hidden="true"
+              >
+                <GripVertical />
+                <span>
+                  <small>차시 이동 중</small>
+                  <b>{previewSourceTitle}</b>
+                </span>
+              </div>
+            )}
+            {sourcePreviewItem && sourcePreviewIndex >= 0 && (
+              <SourcePreviewPanel
+                item={sourcePreviewItem}
+                index={sourcePreviewIndex}
+                count={previewableSources.length}
+                onClose={closeSourcePreview}
+                onPrevious={() => showAdjacentSourcePreview(-1)}
+                onNext={() => showAdjacentSourcePreview(1)}
+              />
+            )}
           </section>
         )}
 
@@ -2795,6 +3171,22 @@ export function CreateClassPage() {
           </footer>
         )}
       </form>
+
+      {removedSource && (
+        <div className="source-undo-toast" role="status" aria-live="polite">
+          <span>
+            <Check />
+            &ldquo;
+            {removedSource.source.kind === 'link'
+              ? removedSource.source.value.title || sourceLinkHost(removedSource.source.value.url)
+              : removedSource.source.value.name}
+            &rdquo; 자료를 제거했어요.
+          </span>
+          <button type="button" onClick={undoSourceRemoval}>
+            실행 취소
+          </button>
+        </div>
+      )}
 
       {addressOpen && (
         <AddressDialog
@@ -2916,7 +3308,13 @@ function EditorToolbar({
   );
 }
 
-function AnalysisProgress({ sourceLabel }: { sourceLabel: string }) {
+function AnalysisProgress({
+  sourceLabel,
+  onCancel,
+}: {
+  sourceLabel: string;
+  onCancel: () => void;
+}) {
   const tasks = [
     '모든 링크의 내용을 함께 확인하고 있어요',
     '겹치는 내용과 핵심 흐름을 정리하고 있어요',
@@ -2930,7 +3328,7 @@ function AnalysisProgress({ sourceLabel }: { sourceLabel: string }) {
       </div>
       <span className="analysis-source">{sourceLabel} 분석 중</span>
       <h2>클래스 정보를 준비하고 있어요</h2>
-      <p>이전 단계로 돌아가도 분석은 계속됩니다.</p>
+      <p>완료되면 미리보기에서 제목과 차시를 수정할 수 있어요.</p>
       <ol>
         {tasks.map((task, index) => (
           <li key={task}>
@@ -2939,6 +3337,9 @@ function AnalysisProgress({ sourceLabel }: { sourceLabel: string }) {
           </li>
         ))}
       </ol>
+      <button className="analysis-cancel" type="button" onClick={onCancel}>
+        분석 취소하고 자료로 돌아가기
+      </button>
     </div>
   );
 }
