@@ -68,6 +68,7 @@ describe('CreateClassPage accessibility and ordering', () => {
     const progressShell = container.querySelector('.creator-progress');
     expect(container.querySelector('.creator-header')).toBeNull();
     expect(progressShell?.querySelector('.creator-brand')).not.toBeNull();
+    expect(progressShell?.querySelector('.creator-progress-step')).toBeNull();
     expect(progressShell?.querySelector('.creator-progress-copy')).toHaveTextContent('진행 방식');
     expect(progressShell?.querySelector('[role="progressbar"]')).not.toBeNull();
     expect(progressShell?.querySelector('.creator-exit')).not.toBeNull();
@@ -113,6 +114,79 @@ describe('CreateClassPage accessibility and ordering', () => {
     expect(
       screen.getByText('차시로 만들 링크나 파일을 1개 이상 추가해 주세요'),
     ).toBeInTheDocument();
+  });
+  it('개발 전용 주소에서 AI 분석 화면을 고정해 확인한다', async () => {
+    const user = userEvent.setup();
+    sessionStorage.setItem(
+      creationMetaKey,
+      JSON.stringify({
+        deliverySelected: true,
+        informationMode: 'source',
+        source: 'links',
+        links: [
+          {
+            id: 'analysis-preview-source',
+            url: 'https://example.com/analysis',
+            provider: 'EXTERNAL',
+          },
+        ],
+        sourceOrder: ['analysis-preview-source'],
+        step: 2,
+        maxStep: 3,
+      }),
+    );
+    const { container } = renderCreator('/classes/new?step=2&preview=analysis');
+
+    expect(
+      screen.getByRole('heading', { name: 'AI가 클래스 초안을 만들고 있어요' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('1개 수업 자료 분석 중')).toBeInTheDocument();
+    expect(screen.getByText('완료되면 자동으로 미리보기 화면으로 이동해요.')).toBeInTheDocument();
+    expect(screen.getByText('수업 자료를 불러왔어요').closest('li')).toHaveClass('complete');
+    expect(screen.getByText('핵심 내용과 차시 흐름을 구성하고 있어요').closest('li')).toHaveClass(
+      'active',
+    );
+    expect(screen.getByRole('list', { name: 'AI 분석 진행 단계' })).toBeInTheDocument();
+    expect(container.querySelector('.creator-progress-copy')).toHaveTextContent('미리보기 준비');
+    expect(container.querySelector('.source-card')).toBeNull();
+    expect(
+      screen.queryByRole('heading', { name: '예상 차시를 확인해 주세요' }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '분석 취소하고 자료로 돌아가기' }));
+    expect(
+      screen.queryByRole('heading', { name: 'AI가 클래스 초안을 만들고 있어요' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '예상 차시를 확인해 주세요' })).toBeInTheDocument();
+  });
+
+  it('AI 분석 실패도 자료 카드 아래가 아닌 독립 상태 화면으로 보여준다', () => {
+    sessionStorage.setItem(
+      creationMetaKey,
+      JSON.stringify({
+        deliverySelected: true,
+        informationMode: 'analysis-error',
+        source: 'links',
+        links: [
+          {
+            id: 'analysis-error-source',
+            url: 'https://example.com/error',
+            provider: 'EXTERNAL',
+          },
+        ],
+        sourceOrder: ['analysis-error-source'],
+        step: 2,
+        maxStep: 3,
+      }),
+    );
+
+    const { container } = renderCreator('/classes/new?step=2');
+
+    expect(screen.getByRole('alert')).toHaveTextContent('자료를 확인하지 못했어요');
+    expect(screen.getByRole('button', { name: '다시 시도' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: '다른 자료 등록' })).toBeInTheDocument();
+    expect(container.querySelector('.source-card')).toBeNull();
+    expect(container.querySelector('.class-creator')).toHaveClass('is-analysis-step');
   });
   it('링크 입력을 기본으로 두고 컴퓨터 파일을 보조 자료로 여러 개 추가한다', async () => {
     const user = userEvent.setup();
@@ -615,13 +689,16 @@ describe('CreateClassPage accessibility and ordering', () => {
     const sourceOnly = renderCreator('/classes/new?step=2');
     expect(sourceOnly.container.querySelector('.creator-information')).not.toBeNull();
     expect(sourceOnly.container.querySelector('.preview-workspace')).toBeNull();
-    expect(sourceOnly.container.querySelector('.creator-actions')).toBeNull();
-    expect(sourceOnly.container.querySelector('.analyze-source-button')).not.toBeNull();
+    expect(sourceOnly.container.querySelector('.creator-actions')).not.toBeNull();
+    expect(sourceOnly.container.querySelector('.source-primary-actions')).toBeNull();
     expect(screen.getByRole('button', { name: '이전' })).toBeInTheDocument();
-    const sourceActions = sourceOnly.container.querySelector('.source-primary-actions');
+    const sourceActions = sourceOnly.container.querySelector('.creator-action-group');
     expect(sourceActions?.firstElementChild).toBe(screen.getByRole('button', { name: '이전' }));
     expect(sourceActions?.lastElementChild).toBe(
-      screen.getByRole('button', { name: /AI로 미리보기 만들기/ }),
+      screen.getByRole('button', { name: 'AI로 미리보기 만들기' }),
+    );
+    expect(screen.getByRole('button', { name: 'AI로 미리보기 만들기' })).toHaveClass(
+      'creator-next',
     );
     cleanup();
 

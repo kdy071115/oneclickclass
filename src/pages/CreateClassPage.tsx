@@ -527,8 +527,9 @@ function updateTextSelection(
 
 export function CreateClassPage() {
   const nav = useNavigate();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const editId = params.get('edit');
+  const analysisPreview = import.meta.env.DEV && params.get('preview') === 'analysis';
   const requestedSource = params.get('source');
   const requestedStepValue = Number(params.get('step'));
   const requestedStep = requestedStepValue <= 1 ? 1 : requestedStepValue === 2 ? 2 : 3;
@@ -664,7 +665,11 @@ export function CreateClassPage() {
     },
     [scheduleEditValue],
   );
-  const sourceLocked = meta.informationMode === 'analyzing';
+  const analysisPending = step === 2 && (meta.informationMode === 'analyzing' || analysisPreview);
+  const analysisFailed =
+    step === 2 && meta.informationMode === 'analysis-error' && !analysisPreview;
+  const analysisPageVisible = analysisPending || analysisFailed;
+  const sourceLocked = analysisPending;
   const stepInfo = classCreationFlowSteps[Math.min(step - 1, classCreationFlowSteps.length - 1)];
   const progressPercent = step <= 1 ? 0 : step === 2 ? 50 : 100;
   const orderedSources = orderedCreationSources(meta);
@@ -686,7 +691,11 @@ export function CreateClassPage() {
   const sourceCount = orderedSources.length;
   const lessonSourceCount = lessonSources.length;
   const hasSources = sourceCount > 0;
-  const workspaceLabel = step === 2 && hasSources ? '차시 구성' : stepInfo.label;
+  const workspaceLabel = analysisPageVisible
+    ? '미리보기 준비'
+    : step === 2 && hasSources
+      ? '차시 구성'
+      : stepInfo.label;
   const previewableSources = step === 3 ? lessonSources : displayedSources;
   const sourcePreviewSource = previewableSources.find((source) => source.id === sourcePreviewId);
   const sourcePreviewIndex = previewableSources.findIndex(
@@ -1044,6 +1053,16 @@ export function CreateClassPage() {
     analysisAbort.current?.abort();
     analysisAbort.current = undefined;
     setMeta((current) => ({ ...current, informationMode: 'source' }));
+  }
+
+  function closeAnalysisPreview() {
+    if (!analysisPreview) {
+      cancelAnalysis();
+      return;
+    }
+    const nextParams = new URLSearchParams(params);
+    nextParams.delete('preview');
+    setParams(nextParams, { replace: true });
   }
 
   function resetSource() {
@@ -1931,7 +1950,7 @@ export function CreateClassPage() {
     <main
       className={`class-creator ${step === 3 ? 'is-preview-step' : ''} ${
         step === 2 && sourcePreviewItem ? 'has-source-preview' : ''
-      } ${step === 2 && hasSources ? 'has-sources' : ''}`}
+      } ${analysisPageVisible ? 'is-analysis-step' : ''}`}
     >
       <header className="creator-progress">
         <button className="creator-brand" type="button" onClick={() => leaveCreator('/dashboard')}>
@@ -1942,7 +1961,6 @@ export function CreateClassPage() {
         </button>
         <nav className="creator-progress-inner" aria-label="클래스 만들기 진행률">
           <div className="creator-progress-copy">
-            <span className="creator-progress-step">{Math.min(step, 3)}/3</span>
             <span className="creator-progress-label">{workspaceLabel}</span>
           </div>
           <div
@@ -1984,7 +2002,7 @@ export function CreateClassPage() {
       </header>
 
       <form className="creator-form" onSubmit={submitFlow}>
-        {step < 4 && (
+        {step < 4 && !analysisPageVisible && (
           <header className={`creator-step-heading ${step === 1 ? 'is-wide' : ''}`}>
             <h1>
               {step === 2 && hasSources
@@ -2034,7 +2052,41 @@ export function CreateClassPage() {
           </section>
         )}
 
-        {step === 2 && (
+        {step === 2 && analysisPending && (
+          <section className="creator-information">
+            <AnalysisProgress
+              sourceLabel={`${lessonSourceCount}개 수업 자료`}
+              onCancel={closeAnalysisPreview}
+            />
+          </section>
+        )}
+
+        {step === 2 && analysisFailed && (
+          <section className="creator-information">
+            <div className="analysis-error" role="alert">
+              <i>
+                <CircleAlert />
+              </i>
+              <h2>자료를 확인하지 못했어요</h2>
+              <p>링크 주소나 네트워크 상태를 확인한 뒤 다시 시도해 주세요.</p>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => void startAnalysis()}
+                  disabled={!sourceIsReady(meta)}
+                >
+                  <RefreshCw />
+                  다시 시도
+                </button>
+                <button type="button" onClick={resetSource}>
+                  다른 자료 등록
+                </button>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {step === 2 && !analysisPageVisible && (
           <section
             className={`creator-information ${sourcePreviewItem ? 'has-source-preview' : ''}`}
           >
@@ -2047,10 +2099,10 @@ export function CreateClassPage() {
                 <i>{hasSources ? <FileText /> : <Link2 />}</i>
                 <span>
                   <h2>{hasSources ? '차시 구성' : '수업 자료 추가'}</h2>
-                  <p>
+                  <p id="source-analysis-help">
                     {hasSources
-                      ? '수업 자료 순서대로 차시가 만들어져요.'
-                      : '링크를 붙여넣거나 컴퓨터에서 파일을 선택하세요.'}
+                      ? `${lessonSourceCount}개 수업 자료로 차시와 클래스 정보를 준비해요`
+                      : '차시로 만들 링크나 파일을 1개 이상 추가해 주세요'}
                   </p>
                 </span>
               </div>
@@ -2198,35 +2250,6 @@ export function CreateClassPage() {
                     자료 추가 완료
                   </button>
                 )}
-              </div>
-
-              <div className="source-primary-actions">
-                <button
-                  className="source-back-button"
-                  type="button"
-                  disabled={sourceLocked}
-                  onClick={() => goToStep(1)}
-                >
-                  <ArrowLeft />
-                  이전
-                </button>
-                <button
-                  className="analyze-source-button"
-                  type="button"
-                  onClick={() => void startAnalysis()}
-                  disabled={!sourceIsReady(meta) || sourceLocked}
-                >
-                  <Sparkles />
-                  <span>
-                    <b>AI로 미리보기 만들기</b>
-                    <small>
-                      {lessonSourceCount
-                        ? `${lessonSourceCount}개 수업 자료로 차시와 클래스 정보를 준비해요`
-                        : '차시로 만들 링크나 파일을 1개 이상 추가해 주세요'}
-                    </small>
-                  </span>
-                  <ArrowRight />
-                </button>
               </div>
 
               {orderedSources.length > 0 && (
@@ -2502,35 +2525,6 @@ export function CreateClassPage() {
                 onPrevious={() => showAdjacentSourcePreview(-1)}
                 onNext={() => showAdjacentSourcePreview(1)}
               />
-            )}
-            {meta.informationMode === 'analyzing' && (
-              <AnalysisProgress
-                sourceLabel={`${lessonSourceCount}개 수업 자료`}
-                onCancel={cancelAnalysis}
-              />
-            )}
-
-            {meta.informationMode === 'analysis-error' && (
-              <div className="analysis-error" role="alert">
-                <i>
-                  <CircleAlert />
-                </i>
-                <h2>자료를 확인하지 못했어요</h2>
-                <p>링크 주소나 네트워크 상태를 확인한 뒤 다시 시도해 주세요.</p>
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => void startAnalysis()}
-                    disabled={!sourceIsReady(meta)}
-                  >
-                    <RefreshCw />
-                    다시 시도
-                  </button>
-                  <button type="button" onClick={resetSource}>
-                    다른 자료 등록
-                  </button>
-                </div>
-              </div>
             )}
           </section>
         )}
@@ -3141,19 +3135,30 @@ export function CreateClassPage() {
           </p>
         )}
 
-        {(step === 1 || step === 3) && (
+        {step <= 3 && !analysisPageVisible && (
           <footer className={`creator-actions ${step === 1 ? 'single' : ''}`}>
             <div className="creator-action-group">
-              {step === 3 && (
-                <button type="button" className="creator-back" onClick={() => goToStep(2)}>
+              {step > 1 && (
+                <button
+                  type="button"
+                  className="creator-back"
+                  disabled={step === 2 && sourceLocked}
+                  onClick={() => goToStep(step - 1)}
+                >
                   <ArrowLeft />
                   이전
                 </button>
               )}
               <button
                 className="creator-next"
-                type="submit"
-                disabled={(step === 1 && !meta.deliverySelected) || submitting}
+                type={step === 2 ? 'button' : 'submit'}
+                disabled={
+                  (step === 1 && !meta.deliverySelected) ||
+                  (step === 2 && (!sourceIsReady(meta) || sourceLocked)) ||
+                  submitting
+                }
+                aria-describedby={step === 2 ? 'source-analysis-help' : undefined}
+                onClick={step === 2 ? () => void startAnalysis() : undefined}
               >
                 {submitting ? (
                   <>
@@ -3162,7 +3167,13 @@ export function CreateClassPage() {
                   </>
                 ) : (
                   <>
-                    {step === 1 ? '다음' : willPublish ? '클래스 게시' : '자료 추가하기'}
+                    {step === 1
+                      ? '다음'
+                      : step === 2
+                        ? 'AI로 미리보기 만들기'
+                        : willPublish
+                          ? '클래스 게시'
+                          : '자료 추가하기'}
                     <ArrowRight />
                   </>
                 )}
@@ -3316,28 +3327,45 @@ function AnalysisProgress({
   onCancel: () => void;
 }) {
   const tasks = [
-    '모든 링크의 내용을 함께 확인하고 있어요',
-    '겹치는 내용과 핵심 흐름을 정리하고 있어요',
-    '소개, 내용과 썸네일을 만들고 있어요',
-  ];
+    { label: '수업 자료를 불러왔어요', state: 'complete' },
+    { label: '핵심 내용과 차시 흐름을 구성하고 있어요', state: 'active' },
+    { label: '제목·소개·썸네일을 준비할 예정이에요', state: 'pending' },
+  ] as const;
   return (
-    <div className="analysis-progress" role="status" aria-live="polite">
+    <div className="analysis-progress" aria-busy="true">
+      <p className="sr-only" role="status" aria-live="polite">
+        {sourceLabel}를 분석해 AI 클래스 초안을 만들고 있어요.
+      </p>
       <div className="analysis-orbit">
         <Sparkles />
         <i />
       </div>
       <span className="analysis-source">{sourceLabel} 분석 중</span>
-      <h2>클래스 정보를 준비하고 있어요</h2>
-      <p>완료되면 미리보기에서 제목과 차시를 수정할 수 있어요.</p>
-      <ol>
+      <h2>AI가 클래스 초안을 만들고 있어요</h2>
+      <p>완료되면 자동으로 미리보기 화면으로 이동해요.</p>
+      <small className="analysis-note">자료 양에 따라 시간이 조금 더 걸릴 수 있어요.</small>
+      <ol aria-label="AI 분석 진행 단계">
         {tasks.map((task, index) => (
-          <li key={task}>
-            <span>{index + 1}</span>
-            {task}
+          <li
+            className={task.state === 'pending' ? undefined : task.state}
+            aria-current={task.state === 'active' ? 'step' : undefined}
+            key={task.label}
+          >
+            <span aria-hidden="true">
+              {task.state === 'complete' ? (
+                <Check />
+              ) : task.state === 'active' ? (
+                <LoaderCircle className="spin" />
+              ) : (
+                index + 1
+              )}
+            </span>
+            {task.label}
           </li>
         ))}
       </ol>
       <button className="analysis-cancel" type="button" onClick={onCancel}>
+        <ArrowLeft />
         분석 취소하고 자료로 돌아가기
       </button>
     </div>
