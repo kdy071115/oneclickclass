@@ -89,6 +89,43 @@ describe('source curriculum builder', () => {
     ]);
   });
 
+  it('사용자가 정한 자료 순서대로 링크와 파일 차시를 섞어 만든다', () => {
+    const curriculum = buildSourceCurriculum({
+      kind: 'mixed',
+      classTitle: '자료 순서 클래스',
+      classSummary: '정한 순서대로 학습합니다.',
+      links: [
+        {
+          id: 'link-intro',
+          url: 'https://vimeo.com/123456789',
+          title: '소개 영상',
+          provider: 'VIMEO',
+        },
+        {
+          id: 'link-practice',
+          url: 'https://blog.example.com/practice',
+          title: '실습 안내',
+          provider: 'EXTERNAL',
+        },
+      ],
+      materials: [
+        {
+          id: 'file-guide',
+          name: '준비 자료.pdf',
+          url: 'https://cdn.example.com/guide.pdf',
+          contentType: 'document',
+        },
+      ],
+      sourceOrder: ['link-intro', 'file-guide', 'link-practice'],
+    });
+
+    expect(curriculum.lessons.map((lesson) => lesson.title)).toEqual([
+      '소개 영상',
+      '준비 자료',
+      '실습 안내',
+    ]);
+  });
+
   it('강사 프로필 링크는 AI 분석에 사용하되 차시로 만들지 않는다', () => {
     const curriculum = buildSourceCurriculum({
       kind: 'links',
