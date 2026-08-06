@@ -7,9 +7,9 @@ export const classCreationFlowSteps = [
     description: '진행 방식에 따라 필요한 정보를 알맞게 준비해 드릴게요.',
   },
   {
-    label: '자료 추가',
-    title: '어떤 자료로 클래스를 만들까요?',
-    description: '링크나 파일을 추가하면 AI가 모든 자료를 함께 분석해요.',
+    label: '자료 구성',
+    title: '수업 자료를 구성해 주세요',
+    description: '링크나 파일을 추가하고 차시 순서를 정한 뒤 AI 미리보기를 만들 수 있어요.',
   },
   {
     label: '미리보기',

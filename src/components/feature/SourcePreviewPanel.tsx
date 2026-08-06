@@ -9,7 +9,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { getVimeoEmbedUrl, getYouTubeVideoId, type ContentProvider } from '../../utils/content';
 
 export type SourcePreviewItem = {
@@ -148,138 +148,99 @@ export function SourcePreviewPanel({
   onPrevious,
   onNext,
 }: SourcePreviewPanelProps) {
-  const [modal, setModal] = useState(
-    () => window.matchMedia?.('(max-width: 1200px)').matches ?? false,
-  );
-  const panelRef = useRef<HTMLElement>(null);
+  const panelRef = useRef<HTMLDialogElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    const media = window.matchMedia?.('(max-width: 1200px)');
-    if (!media) return;
-    const updateModal = () => setModal(media.matches);
-    updateModal();
-    media.addEventListener('change', updateModal);
-    return () => media.removeEventListener('change', updateModal);
+    const panel = panelRef.current;
+    if (!panel || panel.open) return;
+    panel.showModal();
+    closeButtonRef.current?.focus();
   }, []);
 
-  useEffect(() => {
-    if (!modal) return;
-    closeButtonRef.current?.focus();
-    const keepFocusInside = (event: KeyboardEvent) => {
-      if (event.key !== 'Tab') return;
-      const panel = panelRef.current;
-      if (!panel) return;
-      const focusable = Array.from(
-        panel.querySelectorAll<HTMLElement>(
-          'button:not(:disabled), a[href], iframe, video[controls], [tabindex]:not([tabindex="-1"])',
-        ),
-      );
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (!first || !last) return;
-      if (
-        event.shiftKey &&
-        (document.activeElement === first || document.activeElement === panel)
-      ) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    window.addEventListener('keydown', keepFocusInside);
-    return () => window.removeEventListener('keydown', keepFocusInside);
-  }, [modal]);
-
   return (
-    <>
-      <button
-        className="source-preview-scrim"
-        type="button"
-        aria-label="자료 미리보기 닫기"
-        tabIndex={-1}
-        onClick={onClose}
-      />
-      <aside
-        ref={panelRef}
-        className="source-preview-panel"
-        role={modal ? 'dialog' : undefined}
-        aria-modal={modal || undefined}
-        aria-labelledby="source-preview-title"
-        tabIndex={modal ? -1 : undefined}
-      >
-        <header className="source-preview-header">
+    <dialog
+      ref={panelRef}
+      className="source-preview-panel"
+      aria-modal="true"
+      aria-labelledby="source-preview-title"
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <header className="source-preview-header">
+        <span>
+          <h2 id="source-preview-title">자료 미리보기</h2>
+          <p>
+            {index + 1} / {count}
+          </p>
+        </span>
+        <button
+          ref={closeButtonRef}
+          type="button"
+          aria-label="자료 미리보기 닫기"
+          onClick={onClose}
+        >
+          <X />
+        </button>
+      </header>
+
+      <nav className="source-preview-navigation" aria-label="미리볼 자료 선택">
+        <button type="button" disabled={count < 2} onClick={onPrevious}>
+          <ChevronLeft />
+          이전 자료
+        </button>
+        <button type="button" disabled={count < 2} onClick={onNext}>
+          다음 자료
+          <ChevronRight />
+        </button>
+      </nav>
+
+      <div className="source-preview-body">
+        <section className="source-preview-summary">
+          <small>{item.label}</small>
+          <h3>{item.title}</h3>
+          <p>{item.url || item.detail}</p>
+        </section>
+
+        <SourcePreviewVisual item={item} />
+
+        <section className="source-preview-analysis" aria-labelledby="source-analysis-title">
           <span>
-            <h2 id="source-preview-title">자료 미리보기</h2>
-            <p>
-              {index + 1} / {count}
-            </p>
+            <h3 id="source-analysis-title">AI가 분석할 정보</h3>
+            <p>클래스를 만들 때 다른 자료와 함께 내용을 분석해요.</p>
           </span>
-          <button
-            ref={closeButtonRef}
-            type="button"
-            aria-label="자료 미리보기 닫기"
-            onClick={onClose}
-          >
-            <X />
-          </button>
-        </header>
-
-        <nav className="source-preview-navigation" aria-label="미리볼 자료 선택">
-          <button type="button" disabled={count < 2} onClick={onPrevious}>
-            <ChevronLeft />
-            이전 자료
-          </button>
-          <button type="button" disabled={count < 2} onClick={onNext}>
-            다음 자료
-            <ChevronRight />
-          </button>
-        </nav>
-
-        <div className="source-preview-body">
-          <section className="source-preview-summary">
-            <small>{item.label}</small>
-            <h3>{item.title}</h3>
-            <p>{item.url || item.detail}</p>
-          </section>
-
-          <SourcePreviewVisual item={item} />
-
-          <section className="source-preview-analysis" aria-labelledby="source-analysis-title">
-            <span>
-              <h3 id="source-analysis-title">AI가 분석할 정보</h3>
-              <p>클래스를 만들 때 다른 자료와 함께 내용을 분석해요.</p>
-            </span>
-            <dl>
+          <dl>
+            <div>
+              <dt>자료 유형</dt>
+              <dd>{item.label}</dd>
+            </div>
+            {item.detail && (
               <div>
-                <dt>자료 유형</dt>
-                <dd>{item.label}</dd>
+                <dt>자료 정보</dt>
+                <dd>{item.detail}</dd>
               </div>
-              {item.detail && (
-                <div>
-                  <dt>자료 정보</dt>
-                  <dd>{item.detail}</dd>
-                </div>
-              )}
-              {item.status && (
-                <div>
-                  <dt>상태</dt>
-                  <dd>{item.status}</dd>
-                </div>
-              )}
-            </dl>
-          </section>
-        </div>
+            )}
+            {item.status && (
+              <div>
+                <dt>상태</dt>
+                <dd>{item.status}</dd>
+              </div>
+            )}
+          </dl>
+        </section>
+      </div>
 
-        {item.url && (
-          <a className="source-preview-open" href={item.url} target="_blank" rel="noreferrer">
-            원본 열기
-            <ExternalLink />
-          </a>
-        )}
-      </aside>
-    </>
+      {item.url && (
+        <a className="source-preview-open" href={item.url} target="_blank" rel="noreferrer">
+          원본 열기
+          <ExternalLink />
+        </a>
+      )}
+    </dialog>
   );
 }

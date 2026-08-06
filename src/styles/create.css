@@ -264,25 +264,6 @@
   margin: 0 auto;
 }
 
-.has-source-preview .creator-form,
-.has-source-preview .creator-step-heading {
-  width: min(1180px, 100%);
-  max-width: 1180px;
-}
-
-.creator-information.has-source-preview {
-  width: min(1180px, 100%);
-  display: grid;
-  grid-template-columns: minmax(0, var(--creator-reading-width)) minmax(360px, 1fr);
-  align-items: start;
-  gap: 20px;
-}
-
-.creator-information.has-source-preview > .analysis-progress,
-.creator-information.has-source-preview > .analysis-error {
-  grid-column: 1 / -1;
-}
-
 .source-card,
 .information-editor,
 .analysis-progress,
@@ -303,6 +284,11 @@
   display: flex;
   align-items: center;
   gap: 14px;
+}
+
+.source-card-title > span {
+  min-width: 0;
+  flex: 1;
 }
 
 .source-card-title > i,
@@ -547,90 +533,53 @@
   opacity: 0.5;
 }
 
-.source-add-toggle {
-  width: 100%;
-  min-height: 58px;
-  display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) 18px;
-  align-items: center;
-  gap: 11px;
+.source-add-fields {
   margin-top: 18px;
-  padding: 8px 12px;
-  border: 1px solid var(--creator-line);
-  border-radius: var(--radius-md);
-  color: var(--creator-subtle);
-  text-align: left;
-}
-
-.source-add-toggle:hover {
-  border-color: var(--creator-input-line);
-  background: var(--color-tint-gray);
-}
-
-.source-add-toggle > svg:first-child {
-  width: 36px;
-  height: 36px;
-  padding: 9px;
-  border-radius: 10px;
-  background: var(--creator-blue-soft);
-  color: var(--creator-blue);
-}
-
-.source-add-toggle > span {
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-}
-
-.source-add-toggle b {
-  color: var(--creator-ink);
-  font-size: 13px;
-}
-
-.source-add-toggle small {
-  color: var(--creator-muted);
-  font-size: 11px;
-}
-
-.source-add-toggle > svg:last-child {
-  width: 17px;
-  transition: transform 180ms ease;
-}
-
-.source-add-toggle[aria-expanded='true'] > svg:last-child {
-  transform: rotate(90deg);
+  padding-top: 18px;
+  border-top: 1px solid var(--creator-line);
+  animation: source-add-reveal 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .source-add-fields[hidden] {
   display: none;
 }
 
-.has-sources .source-add-fields .source-link-input {
-  margin-top: 12px;
+.source-add-toggle {
+  min-height: 40px;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid var(--creator-line);
+  border-radius: 10px;
+  background: var(--creator-surface);
+  color: var(--creator-subtle);
+  font-size: 12px;
+  font-weight: 750;
 }
 
-.source-add-done {
-  width: fit-content;
-  min-height: var(--creator-touch-target);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  margin: 12px 0 0 auto;
-  padding: 0 14px;
-  border-radius: 10px;
+.source-add-toggle:hover {
+  border-color: var(--creator-input-line);
   background: var(--creator-blue-soft);
   color: var(--creator-blue);
-  font-size: 12px;
-  font-weight: 800;
 }
 
-.source-add-done:hover {
-  background: color-mix(in srgb, var(--creator-blue-soft) 76%, var(--creator-blue));
-}
-
-.source-add-done svg {
+.source-add-toggle > svg:first-child {
   width: 16px;
+}
+
+.source-add-toggle > svg:last-child {
+  width: 14px;
+  transition: transform 180ms ease;
+}
+
+.source-add-toggle[aria-expanded='true'] > svg:last-child {
+  transform: rotate(180deg);
+}
+
+.source-add-fields .source-link-input {
+  margin-top: 0;
 }
 
 .field-message {
@@ -1304,22 +1253,26 @@
   animation: upload-slide 900ms ease-in-out infinite alternate;
 }
 
-.source-preview-scrim {
-  display: none;
-}
-
 .source-preview-panel {
   position: fixed;
-  z-index: 90;
-  top: calc(var(--creator-progress-height) + 18px);
-  right: max(var(--space-6), calc((100vw - 1180px) / 2));
-  width: 380px;
-  max-height: calc(100dvh - var(--creator-progress-height) - 36px);
+  z-index: 119;
+  inset: 0;
+  width: min(var(--creator-settings-width), calc(100% - var(--space-12)));
+  max-height: calc(100dvh - var(--space-12));
   overflow: auto;
-  border: 1px solid var(--creator-line);
+  margin: auto;
+  padding: 0;
+  border: 0;
   border-radius: var(--radius-lg);
   background: var(--creator-surface);
+  color: var(--creator-ink);
+  box-shadow: var(--shadow-overlay);
   animation: source-preview-enter 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.source-preview-panel::backdrop {
+  background: rgba(21, 31, 45, 0.42);
+  animation: backdrop-in 160ms ease-out;
 }
 
 .source-preview-header {
@@ -1444,6 +1397,8 @@
 
 .source-preview-frame.is-video,
 .source-preview-frame.is-image {
+  width: min(100%, calc(var(--creator-reading-width) - var(--space-12) - var(--space-8)));
+  margin-inline: auto;
   aspect-ratio: 16 / 9;
 }
 
@@ -4278,7 +4233,14 @@
 @keyframes source-preview-enter {
   from {
     opacity: 0;
-    transform: translate3d(14px, 0, 0);
+    transform: translateY(12px) scale(0.98);
+  }
+}
+
+@keyframes source-add-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
   }
 }
 
@@ -4359,39 +4321,6 @@
   from {
     opacity: 0;
     transform: translateY(10px) scale(0.98);
-  }
-}
-
-@media (max-width: 1200px) {
-  .has-source-preview .creator-form,
-  .has-source-preview .creator-step-heading {
-    width: min(var(--creator-reading-width), 100%);
-    max-width: var(--creator-reading-width);
-  }
-
-  .creator-information.has-source-preview {
-    width: min(var(--creator-reading-width), 100%);
-    display: block;
-  }
-
-  .source-preview-scrim {
-    position: fixed;
-    z-index: 118;
-    inset: 0;
-    display: block;
-    background: rgba(21, 31, 45, 0.34);
-    animation: backdrop-in 160ms ease-out;
-  }
-
-  .source-preview-panel {
-    position: fixed;
-    z-index: 119;
-    top: calc(var(--creator-progress-height) + 12px);
-    right: 12px;
-    width: min(420px, calc(100% - 24px));
-    max-height: calc(100dvh - var(--creator-progress-height) - 24px);
-    border-color: transparent;
-    box-shadow: -12px 18px 42px rgba(24, 38, 58, 0.2);
   }
 }
 
@@ -4678,12 +4607,11 @@
   }
 
   .source-preview-panel {
-    top: auto;
-    right: 0;
-    bottom: 0;
-    left: 0;
+    inset: auto 0 0;
     width: 100%;
+    max-width: 100%;
     max-height: min(82dvh, 720px);
+    margin: 0;
     border-radius: 22px 22px 0 0;
     animation-name: sheet-in;
   }

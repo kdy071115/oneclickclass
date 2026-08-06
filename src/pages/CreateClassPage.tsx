@@ -571,7 +571,7 @@ export function CreateClassPage() {
   const [sourceOrderAnnouncement, setSourceOrderAnnouncement] = useState('');
   const [sourcePreviewId, setSourcePreviewId] = useState('');
   const [materialPreviewUrl, setMaterialPreviewUrl] = useState('');
-  const [fileOptionsOpen, setFileOptionsOpen] = useState(true);
+  const [fileOptionsOpen, setFileOptionsOpen] = useState(false);
   const [sourceAddOpen, setSourceAddOpen] = useState(
     () => orderedCreationSources(meta).length === 0,
   );
@@ -617,7 +617,6 @@ export function CreateClassPage() {
   const removedSourceTimer = useRef<number>();
   const removedSourceRef = useRef<RemovedSource>();
   const sourceFileInputRef = useRef<HTMLInputElement>(null);
-  const sourceAddToggleRef = useRef<HTMLButtonElement>(null);
   const previewHelpButtonRef = useRef<HTMLButtonElement>(null);
   const addressReturnFocusRef = useRef<HTMLElement>();
   const previewDescriptionRef = useRef<HTMLTextAreaElement>(null);
@@ -691,11 +690,7 @@ export function CreateClassPage() {
   const sourceCount = orderedSources.length;
   const lessonSourceCount = lessonSources.length;
   const hasSources = sourceCount > 0;
-  const workspaceLabel = analysisPageVisible
-    ? '미리보기 준비'
-    : step === 2 && hasSources
-      ? '차시 구성'
-      : stepInfo.label;
+  const workspaceLabel = analysisPageVisible ? '미리보기 준비' : stepInfo.label;
   const previewableSources = step === 3 ? lessonSources : displayedSources;
   const sourcePreviewSource = previewableSources.find((source) => source.id === sourcePreviewId);
   const sourcePreviewIndex = previewableSources.findIndex(
@@ -709,11 +704,6 @@ export function CreateClassPage() {
   useEffect(() => {
     if (sourceCount === 0) setSourceAddOpen(true);
   }, [sourceCount]);
-
-  function closeSourceAddFields() {
-    setSourceAddOpen(false);
-    requestAnimationFrame(() => sourceAddToggleRef.current?.focus());
-  }
 
   useEffect(() => {
     setMaterialPreviewUrl('');
@@ -732,17 +722,7 @@ export function CreateClassPage() {
     if (!sourcePreviewId) return;
     if ((step !== 2 && step !== 3) || sourceLocked || sourcePreviewIndex < 0) {
       setSourcePreviewId('');
-      return;
     }
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      event.preventDefault();
-      const activeId = sourcePreviewId;
-      setSourcePreviewId('');
-      requestAnimationFrame(() => sourcePreviewTriggerRefs.current.get(activeId)?.focus());
-    };
-    window.addEventListener('keydown', closeOnEscape);
-    return () => window.removeEventListener('keydown', closeOnEscape);
   }, [sourceLocked, sourcePreviewId, sourcePreviewIndex, step]);
 
   const sourcePreviewItem: SourcePreviewItem | undefined = sourcePreviewSource
@@ -1069,7 +1049,7 @@ export function CreateClassPage() {
     analysisAbort.current?.abort();
     videoMetadataAbort.current?.abort();
     sourceFiles.current.clear();
-    setFileOptionsOpen(true);
+    setFileOptionsOpen(false);
     setMeta((current) => ({
       ...current,
       source: 'none',
@@ -1906,7 +1886,7 @@ export function CreateClassPage() {
   function restart() {
     clearClassDraft();
     sourceFiles.current.clear();
-    setFileOptionsOpen(true);
+    setFileOptionsOpen(false);
     sessionStorage.removeItem(CLASS_CREATION_META_KEY);
     sessionStorage.removeItem(metaStorageKey);
     setDraft(initialClassDraft);
@@ -1949,8 +1929,8 @@ export function CreateClassPage() {
   return (
     <main
       className={`class-creator ${step === 3 ? 'is-preview-step' : ''} ${
-        step === 2 && sourcePreviewItem ? 'has-source-preview' : ''
-      } ${analysisPageVisible ? 'is-analysis-step' : ''}`}
+        analysisPageVisible ? 'is-analysis-step' : ''
+      }`}
     >
       <header className="creator-progress">
         <button className="creator-brand" type="button" onClick={() => leaveCreator('/dashboard')}>
@@ -2004,21 +1984,11 @@ export function CreateClassPage() {
       <form className="creator-form" onSubmit={submitFlow}>
         {step < 4 && !analysisPageVisible && (
           <header className={`creator-step-heading ${step === 1 ? 'is-wide' : ''}`}>
-            <h1>
-              {step === 2 && hasSources
-                ? '예상 차시를 확인해 주세요'
-                : step === 3 && editId
-                  ? '클래스 정보를 확인해 주세요'
-                  : stepInfo.title}
-            </h1>
+            <h1>{step === 3 && editId ? '클래스 정보를 확인해 주세요' : stepInfo.title}</h1>
             <p>
-              {step === 2
-                ? hasSources
-                  ? '수업 자료는 차시로, 강사 소개 링크는 프로필 정보로 반영돼요.'
-                  : '링크를 붙여넣거나 컴퓨터의 파일을 추가하면 AI가 자료를 분석해요.'
-                : step === 3 && editId
-                  ? '기존 정보를 수정하고 바로 다시 게시할 수 있어요.'
-                  : stepInfo.description}
+              {step === 3 && editId
+                ? '기존 정보를 수정하고 바로 다시 게시할 수 있어요.'
+                : stepInfo.description}
             </p>
           </header>
         )}
@@ -2087,28 +2057,25 @@ export function CreateClassPage() {
         )}
 
         {step === 2 && !analysisPageVisible && (
-          <section
-            className={`creator-information ${sourcePreviewItem ? 'has-source-preview' : ''}`}
-          >
+          <section className="creator-information">
             <div
               className={`source-card ${hasSources ? 'has-sources' : ''} ${
                 sourceLocked ? 'is-busy' : ''
               }`}
             >
               <div className="source-card-title">
-                <i>{hasSources ? <FileText /> : <Link2 />}</i>
+                <i>
+                  <FileText />
+                </i>
                 <span>
-                  <h2>{hasSources ? '차시 구성' : '수업 자료 추가'}</h2>
+                  <h2>수업 자료</h2>
                   <p id="source-analysis-help">
                     {hasSources
-                      ? `${lessonSourceCount}개 수업 자료로 차시와 클래스 정보를 준비해요`
+                      ? `${sourceCount}개 자료가 추가됐어요. 계속 추가하거나 차시 순서를 바꿀 수 있어요`
                       : '차시로 만들 링크나 파일을 1개 이상 추가해 주세요'}
                   </p>
                 </span>
-              </div>
-              {hasSources && (
                 <button
-                  ref={sourceAddToggleRef}
                   className="source-add-toggle"
                   type="button"
                   aria-expanded={sourceAddOpen}
@@ -2116,22 +2083,11 @@ export function CreateClassPage() {
                   onClick={() => setSourceAddOpen((current) => !current)}
                 >
                   <Plus />
-                  <span>
-                    <b>{sourceAddOpen ? '자료 입력 접기' : '자료 더 추가'}</b>
-                    <small>
-                      {sourceAddOpen
-                        ? '입력 영역을 접고 예상 차시를 확인해요'
-                        : '링크 또는 컴퓨터 파일'}
-                    </small>
-                  </span>
-                  <ChevronRight />
+                  <span>자료 추가</span>
+                  <ChevronDown />
                 </button>
-              )}
-              <div
-                className="source-add-fields"
-                id="source-add-fields"
-                hidden={hasSources && !sourceAddOpen}
-              >
+              </div>
+              <div className="source-add-fields" id="source-add-fields" hidden={!sourceAddOpen}>
                 <div className={`source-link-input ${videoUrlError ? 'invalid' : ''}`}>
                   <Globe2 />
                   <label>
@@ -2244,19 +2200,13 @@ export function CreateClassPage() {
                     </span>
                   </label>
                 </details>
-                {hasSources && (
-                  <button className="source-add-done" type="button" onClick={closeSourceAddFields}>
-                    <Check />
-                    자료 추가 완료
-                  </button>
-                )}
               </div>
 
               {orderedSources.length > 0 && (
                 <section className="source-order-section" aria-labelledby="source-order-title">
                   <div className="source-order-heading">
                     <span>
-                      <h3 id="source-order-title">예상 차시</h3>
+                      <h3 id="source-order-title">차시 순서</h3>
                       <p id="source-order-help">자료를 미리 보고 원하는 순서로 바꿀 수 있어요.</p>
                     </span>
                     <small>{lessonSourceCount}개 차시</small>
