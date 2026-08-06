@@ -2173,6 +2173,8 @@ export function CreateClassPage() {
                           <span className="source-order-state">
                             {link?.provider === 'SOCIAL' ? (
                               <small>강사 소개용</small>
+                            ) : link ? (
+                              <Check aria-label={`${title} 링크 추가 완료`} className="success" />
                             ) : file?.status === 'uploaded' ? (
                               <Check aria-label={`${file.name} 업로드 완료`} className="success" />
                             ) : file?.status === 'error' ? (

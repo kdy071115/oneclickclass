@@ -723,6 +723,7 @@ describe('CreateClassPage accessibility and ordering', () => {
 
     expect(await screen.findByText('video.example.com')).toBeInTheDocument();
     expect(screen.getByText('외부 링크')).toBeInTheDocument();
+    expect(screen.getByLabelText('video.example.com 링크 추가 완료')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /AI가 클래스 만들기/ })).toBeEnabled();
   });
   it('라이브 미리보기 정보를 참가비, 인원, 일정 순서로 정렬한다', () => {
