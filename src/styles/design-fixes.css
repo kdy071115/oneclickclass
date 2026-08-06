@@ -2482,7 +2482,7 @@
 }
 .learner-quick-stats {
   display: grid;
-  grid-template-columns: 0.9fr 0.8fr 1.3fr;
+  grid-template-columns: 0.9fr 1.3fr;
   gap: 0;
   margin-top: 28px;
   padding-top: 20px;
@@ -5178,9 +5178,6 @@
   }
   .learner-quick-stats {
     grid-template-columns: 1fr 1fr;
-  }
-  .learner-quick-stats span:last-child {
-    grid-column: 1/-1;
   }
   .learner-hero h1 {
     font-size: 24px;

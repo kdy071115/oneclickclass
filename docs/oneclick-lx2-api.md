@@ -194,7 +194,6 @@ LX2 매핑 기준:
   "instructorName": "이지훈",
   "scheduleText": "자유 수강",
   "locationText": "온라인 강의실",
-  "difficulty": "초급",
   "highlights": ["업무 흐름을 기준으로 데이터베이스를 설계해요."],
   "curriculum": [
     {

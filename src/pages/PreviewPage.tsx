@@ -482,10 +482,6 @@ export function PublicEnrollmentPage() {
                   <b>{share?.instructorName || '강사 안내'}</b>
                 </span>
                 <span>
-                  <small>난이도</small>
-                  <b>{share?.difficulty || '초급'}</b>
-                </span>
-                <span>
                   <small>수강 방식</small>
                   <b>{share?.deliveryTypeText || '수강 방식 확인 중'}</b>
                 </span>
