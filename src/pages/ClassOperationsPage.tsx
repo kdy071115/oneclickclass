@@ -1301,7 +1301,7 @@ function WebManage({
             <Link to={`/classes/new?edit=${id}`}>
               강의 정보 수정 <span>›</span>
             </Link>
-            <Link to={`/classes/new?edit=${id}&step=4`}>
+            <Link to={`/classes/new?edit=${id}&step=3`}>
               신청서 수정 <span>›</span>
             </Link>
             <button
@@ -2372,7 +2372,7 @@ function Manage({
         <Link to={`/classes/new?edit=${id}`}>
           <span>강의 정보 수정</span>›
         </Link>
-        <Link to={`/classes/new?edit=${id}&step=4`}>
+        <Link to={`/classes/new?edit=${id}&step=3`}>
           <span>신청서 수정</span>›
         </Link>
         <button

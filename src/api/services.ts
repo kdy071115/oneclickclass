@@ -55,7 +55,11 @@ import {
 } from '../utils/classDraft';
 import { formatClassSchedule } from '../utils/classCreation';
 import { getClassThumbnail, readImageFile } from '../utils/classThumbnail';
-import { getYouTubeVideoId, type SupportedVideoProvider } from '../utils/content';
+import {
+  getYouTubeVideoId,
+  type ContentProvider,
+  type SupportedVideoProvider,
+} from '../utils/content';
 const mock = import.meta.env.VITE_USE_MOCK !== 'false';
 const delay = <T>(data: T) => new Promise<T>((resolve) => setTimeout(() => resolve(data), 350));
 const MOCK_CLASSES_KEY = 'oneclick.mock.classes';
@@ -74,16 +78,25 @@ export interface ClassSourceMaterialInput {
   name: string;
   type: string;
   size: number;
+  contentType?: 'video' | 'document';
   durationSeconds?: number;
+}
+
+export interface ClassSourceLinkInput {
+  url: string;
+  name: string;
+  provider: ContentProvider;
+  title?: string;
 }
 
 export interface ClassSourceAnalysisInput {
   type: Exclude<ClassDraft['type'], 'hybrid'>;
   source: {
-    kind: 'youtube' | 'video-url' | 'video' | 'documents';
+    kind: 'youtube' | 'video-url' | 'links' | 'video' | 'documents' | 'mixed';
     videoUrl?: string;
     videoProvider?: SupportedVideoProvider;
     youtubeUrl?: string;
+    links?: ClassSourceLinkInput[];
     materials?: ClassSourceMaterialInput[];
   };
 }
@@ -100,6 +113,18 @@ export interface ClassSourceAnalysisResult extends Pick<
   'title' | 'summary' | 'description'
 > {
   sourceMetadata?: ClassSourceMetadata;
+  thumbnailUrl?: string;
+  price?: number;
+  payment?: ClassDraft['payment'];
+  capacity?: number;
+  startDate?: string;
+  recruitEndDate?: string;
+  address?: string;
+  detailedAddress?: string;
+  instructorName?: string;
+  instructorBio?: string;
+  instructorImage?: string;
+  instructorLinks?: string[];
 }
 
 const classAnalysisEndpoint = import.meta.env.VITE_CLASS_ANALYSIS_ENDPOINT?.trim();
@@ -116,6 +141,65 @@ const classTypeLabel: Record<ClassDraft['type'], string> = {
   hybrid: '혼합형',
 };
 const untitledClassLabel = '강의 정보 준비 중';
+
+function mockGeneratedThumbnail(
+  type: Exclude<ClassDraft['type'], 'hybrid'>,
+  title: string,
+  sourceContext: string,
+) {
+  const context = `${title} ${sourceContext}`.toLowerCase();
+  const theme = /react|개발|코드|program|software|frontend|backend/.test(context)
+    ? 'technology'
+    : /생물|세포|과학|biology|cell|science/.test(context)
+      ? 'science'
+      : /디자인|포트폴리오|그래픽|design|graphic|portfolio/.test(context)
+        ? 'design'
+        : type;
+  const themes = {
+    technology: ['#0B1220', '#38BDF8', '#E7F7FF'],
+    science: ['#165D4A', '#72D7B4', '#E5FAF2'],
+    design: ['#512DA8', '#FF7AB6', '#FFF0F7'],
+    online: ['#155EEF', '#7EB3FF', '#EAF2FF'],
+    live: ['#6E3FF3', '#B99CFF', '#F1ECFF'],
+    offline: ['#087F5B', '#74D9B4', '#E4F8F0'],
+  } as const;
+  const [ink, accent, paper] = themes[theme];
+  const motif =
+    theme === 'technology'
+      ? `<rect x="870" y="150" width="300" height="210" rx="24" fill="${ink}"/><circle cx="910" cy="190" r="9" fill="${accent}"/><path d="M920 250l55 45-55 45M1080 250l-55 45 55 45" fill="none" stroke="${accent}" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>`
+      : theme === 'science'
+        ? `<circle cx="1020" cy="250" r="150" fill="${accent}" opacity=".55"/><circle cx="1020" cy="250" r="72" fill="${ink}" opacity=".86"/><circle cx="900" cy="155" r="34" fill="${ink}" opacity=".24"/><circle cx="1150" cy="360" r="42" fill="${ink}" opacity=".2"/>`
+        : theme === 'design'
+          ? `<rect x="860" y="125" width="230" height="230" rx="48" fill="${accent}"/><circle cx="1115" cy="240" r="112" fill="${ink}" opacity=".9"/><path d="M830 390h390" stroke="${ink}" stroke-width="28" stroke-linecap="round" opacity=".2"/>`
+          : `<circle cx="1100" cy="105" r="290" fill="${accent}" opacity=".72"/><circle cx="1120" cy="690" r="380" fill="${ink}" opacity=".94"/>`;
+  const safeTitle = title
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .slice(0, 28);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720"><rect width="1280" height="720" fill="${paper}"/>${motif}<path d="M0 590C240 460 420 510 610 398S930 220 1280 310V720H0Z" fill="${ink}" opacity=".12"/><text x="84" y="112" fill="${ink}" font-family="Geist,sans-serif" font-size="28" font-weight="700">ONECLICK CLASS</text><foreignObject x="80" y="190" width="700" height="300"><div xmlns="http://www.w3.org/1999/xhtml" style="font:800 64px/1.22 Geist,sans-serif;color:${ink};word-break:keep-all">${safeTitle}</div></foreignObject></svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+function mockInstructorProfile(links: ClassSourceLinkInput[]) {
+  const profile = links.find((link) => link.provider === 'SOCIAL');
+  if (!profile) return {};
+  const url = new URL(profile.url);
+  const handle = url.pathname.split('/').filter(Boolean).pop() || 'instructor';
+  const name = decodeURIComponent(handle)
+    .replace(/[._-]+/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  const platform = url.hostname.includes('linkedin')
+    ? 'LinkedIn'
+    : url.hostname.includes('instagram')
+      ? 'Instagram'
+      : 'Facebook';
+  return {
+    instructorName: name,
+    instructorBio: `${platform} 프로필과 등록한 자료를 바탕으로 이 클래스를 가장 잘 설명할 수 있는 강사 소개를 준비했어요.`,
+    instructorLinks: [profile.url],
+  };
+}
 type MockClassSettings = {
   lifecycleStatus?: ClassLifecycleStatus;
   recruitmentStatus: RecruitmentStatus;
@@ -720,7 +804,19 @@ export const classService = {
     input: ClassSourceAnalysisInput,
     signal?: AbortSignal,
   ): Promise<ClassSourceAnalysisResult> => {
-    if (mock) return delay(classExampleContent[input.type]);
+    if (mock) {
+      const generated = classExampleContent[input.type];
+      const links = input.source.links ?? [];
+      return delay({
+        ...generated,
+        ...mockInstructorProfile(links),
+        thumbnailUrl: mockGeneratedThumbnail(
+          input.type,
+          generated.title,
+          links.map((link) => `${link.name} ${link.url}`).join(' '),
+        ),
+      });
+    }
     if (!classAnalysisEndpoint) {
       return Promise.reject(new Error('class analysis endpoint is not configured'));
     }
@@ -867,6 +963,7 @@ export const detailService = {
       description: draftPatch?.description?.trim()
         ? draftPatch.description
         : baseDetail.description,
+      instructor: draftPatch?.instructorName?.trim() || baseDetail.instructor,
       thumbnail: thumbnail || undefined,
       thumbnailPosition:
         draftPatch?.thumbnailPosition ||

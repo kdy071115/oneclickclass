@@ -1,18 +1,28 @@
 import {
   ArrowDown,
   ArrowRight,
+  BookOpen,
   CalendarDays,
+  CaseSensitive,
   Check,
+  CheckCircle2,
   ClipboardCheck,
   FileText,
   GraduationCap,
+  Image as ImageIcon,
   Link2,
+  List,
   Maximize2,
   Menu,
   MonitorSmartphone,
+  MousePointer2,
   Play,
+  Settings,
+  SkipForward,
   Sparkles,
   Users,
+  Volume2,
+  Youtube,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -37,6 +47,19 @@ const navItems = [
   ['learner', '공유·학습'],
   ['product', '강사 홈'],
   ['operations', '운영'],
+] as const;
+
+const quickstartUrlExamples = [
+  '유튜브 영상 링크를 여기에 붙여넣어 보세요',
+  '블로그 주소 하나면 강의가 뚝딱 완성됩니다',
+  '학습하고 싶은 뉴스 기사 링크도 좋아요',
+  'https://youtube.com/watch?v=... (이렇게 입력해 보세요!)',
+] as const;
+
+const quickstartCurriculum = [
+  { title: '1. 데이터 분석이란?', time: '08:45' },
+  { title: '2. 데이터 수집 방법', time: '12:30' },
+  { title: '3. 데이터 전처리', time: '15:20' },
 ] as const;
 
 const creatorPath = [
@@ -198,7 +221,39 @@ export function LandingPage() {
   const [activeOperation, setActiveOperation] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [imagePreview, setImagePreview] = useState<ImagePreview | null>(null);
+  const [typedUrlExample, setTypedUrlExample] = useState('');
+  const [urlTypewriterPaused, setUrlTypewriterPaused] = useState(false);
   const operationGalleryRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (urlTypewriterPaused) return;
+
+    let exampleIndex = 0;
+    let charIndex = 0;
+    let isDeleting = false;
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const tick = () => {
+      const current = quickstartUrlExamples[exampleIndex];
+      charIndex += isDeleting ? -1 : 1;
+      setTypedUrlExample(current.slice(0, charIndex));
+
+      let delay = isDeleting ? 32 : 55;
+      if (!isDeleting && charIndex === current.length) {
+        isDeleting = true;
+        delay = 1800;
+      } else if (isDeleting && charIndex === 0) {
+        isDeleting = false;
+        exampleIndex = (exampleIndex + 1) % quickstartUrlExamples.length;
+        delay = 400;
+      }
+
+      timeoutId = setTimeout(tick, delay);
+    };
+
+    timeoutId = setTimeout(tick, 500);
+    return () => clearTimeout(timeoutId);
+  }, [urlTypewriterPaused]);
 
   useEffect(() => {
     document.documentElement.classList.add('landing-scroll');
@@ -351,6 +406,213 @@ export function LandingPage() {
       </header>
 
       <div id="landing-content">
+        <section className="landing-quickstart" aria-labelledby="landing-quickstart-title">
+          <div className="landing-container landing-quickstart-inner">
+            <h2 id="landing-quickstart-title" className="landing-quickstart-title">
+              복잡한 준비 없이,
+              <br />
+              <span className="landing-quickstart-title-gradient">링크 하나</span>면 충분합니다.
+            </h2>
+            <p className="landing-quickstart-desc">
+              유튜브, 블로그, 뉴스 기사의 URL을 붙여넣으세요.
+              <br />
+              AI가 내용을 분석해 즉시 학습 가능한 커리큘럼으로 변환합니다.
+            </p>
+
+            <div className="landing-quickstart-bar">
+              <Link2 size={20} aria-hidden="true" />
+              <div className="landing-quickstart-bar-input-wrap">
+                {!urlTypewriterPaused && (
+                  <span className="landing-quickstart-bar-typewriter" aria-hidden="true">
+                    {typedUrlExample}
+                    <span className="landing-quickstart-bar-caret" />
+                  </span>
+                )}
+                <input
+                  type="url"
+                  aria-label="유튜브 영상 링크"
+                  autoComplete="off"
+                  onFocus={() => setUrlTypewriterPaused(true)}
+                  onBlur={(event) => setUrlTypewriterPaused(event.currentTarget.value.trim() !== '')}
+                />
+              </div>
+              <Link className="landing-quickstart-bar-cta" to="/signup">
+                강의 만들기 <ArrowRight size={18} />
+              </Link>
+            </div>
+
+            <div className="landing-quickstart-flow">
+              <div className="landing-quickstart-mockup landing-quickstart-mockup-video">
+                <div className="landing-quickstart-mockup-head">
+                  <span className="landing-quickstart-mockup-youtube-badge" aria-hidden="true">
+                    <Youtube size={13} />
+                  </span>
+                  <span className="landing-quickstart-mockup-dots" aria-hidden="true">
+                    <i />
+                    <i />
+                    <i />
+                  </span>
+                </div>
+                <div className="landing-quickstart-thumb">
+                  <svg
+                    className="landing-quickstart-thumb-scene"
+                    viewBox="0 0 320 180"
+                    preserveAspectRatio="xMidYMid slice"
+                    aria-hidden="true"
+                  >
+                    <rect width="320" height="180" fill="#cfe8fb" />
+                    <circle cx="248" cy="46" r="26" fill="#fbfdff" opacity="0.9" />
+                    <path d="M0 132L70 78 118 112 176 58 240 104 320 66V180H0Z" fill="#8fc7de" />
+                    <path d="M0 150L96 108 168 138 232 100 320 128V180H0Z" fill="#5fa6c4" />
+                    <path d="M0 180V158L320 158V180Z" fill="#3d7f9e" />
+                  </svg>
+                  <span className="landing-quickstart-play" aria-hidden="true">
+                    <Play size={18} fill="currentColor" />
+                  </span>
+                  <span className="landing-quickstart-thumb-progress" aria-hidden="true" />
+                </div>
+                <div className="landing-quickstart-player-controls">
+                  <Play size={11} fill="currentColor" aria-hidden="true" />
+                  <SkipForward size={11} aria-hidden="true" />
+                  <Volume2 size={11} aria-hidden="true" />
+                  <span className="landing-quickstart-player-time">03:25 / 12:08</span>
+                  <span className="grow" />
+                  <Settings size={11} aria-hidden="true" />
+                  <Maximize2 size={11} aria-hidden="true" />
+                </div>
+                <div className="landing-quickstart-link-row">
+                  <Link2 size={14} aria-hidden="true" />
+                  <span className="landing-quickstart-link-row-text">
+                    https://www.youtube.com/watch?v=...
+                  </span>
+                  <span className="landing-quickstart-cursor-wrap">
+                    <MousePointer2
+                      size={14}
+                      className="landing-quickstart-cursor"
+                      fill="currentColor"
+                      aria-hidden="true"
+                    />
+                    <span className="landing-quickstart-click-fx" aria-hidden="true" />
+                  </span>
+                </div>
+              </div>
+
+              <span className="landing-quickstart-arrow" aria-hidden="true">
+                <svg width="40" height="20" viewBox="0 0 40 20" fill="none">
+                  <path
+                    className="landing-quickstart-dash"
+                    d="M0 10H32"
+                    stroke="#3b82f6"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M25 3L33 10L25 17"
+                    stroke="#3b82f6"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </span>
+
+              <div className="landing-quickstart-mockup landing-quickstart-mockup-analyze">
+                <span className="landing-quickstart-url-pill">
+                  <span className="landing-quickstart-url-pill-text">
+                    https://www.youtube.com/watch?v=...
+                  </span>
+                  <span className="landing-quickstart-url-check" aria-hidden="true">
+                    <Check size={11} strokeWidth={3} />
+                  </span>
+                </span>
+                <div className="landing-quickstart-orbit" aria-hidden="true">
+                  <span className="landing-quickstart-orbit-pulse" />
+                  <span className="landing-quickstart-orbit-pulse landing-quickstart-orbit-pulse-delay" />
+                  <span className="landing-quickstart-orbit-ring landing-quickstart-orbit-ring-outer" />
+                  <span className="landing-quickstart-orbit-ring landing-quickstart-orbit-ring-inner" />
+                  <span className="landing-quickstart-orbit-node landing-quickstart-orbit-node-text">
+                    <CaseSensitive size={14} />
+                  </span>
+                  <span className="landing-quickstart-orbit-node landing-quickstart-orbit-node-image">
+                    <ImageIcon size={13} />
+                  </span>
+                  <span className="landing-quickstart-orbit-node landing-quickstart-orbit-node-list">
+                    <List size={13} />
+                  </span>
+                  <span className="landing-quickstart-orbit-center">
+                    <Sparkles size={20} />
+                  </span>
+                </div>
+                <div className="landing-quickstart-progress">
+                  <i />
+                </div>
+              </div>
+
+              <span className="landing-quickstart-arrow" aria-hidden="true">
+                <svg width="40" height="20" viewBox="0 0 40 20" fill="none">
+                  <path
+                    className="landing-quickstart-dash"
+                    d="M0 10H32"
+                    stroke="#3b82f6"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M25 3L33 10L25 17"
+                    stroke="#3b82f6"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </span>
+
+              <div className="landing-quickstart-mockup landing-quickstart-mockup-result">
+                <div className="landing-quickstart-result-hero">
+                  <div className="landing-quickstart-result-hero-lines">
+                    <i className="accent" />
+                    <i />
+                    <i className="short" />
+                  </div>
+                  <span className="landing-quickstart-result-hero-icon" aria-hidden="true">
+                    <BookOpen size={15} />
+                    <span className="landing-quickstart-result-hero-play">
+                      <Play size={8} fill="currentColor" />
+                    </span>
+                  </span>
+                </div>
+                <ul className="landing-quickstart-curriculum">
+                  {quickstartCurriculum.map((lesson) => (
+                    <li key={lesson.title}>
+                      <span className="landing-quickstart-curriculum-play" aria-hidden="true">
+                        <Play size={9} fill="currentColor" />
+                      </span>
+                      <span className="landing-quickstart-curriculum-title">{lesson.title}</span>
+                      <small>{lesson.time}</small>
+                    </li>
+                  ))}
+                </ul>
+                <div className="landing-quickstart-materials">
+                  <span className="landing-quickstart-material" data-tone="pdf">
+                    <b>PDF</b>
+                    <small>PDF</small>
+                  </span>
+                  <span className="landing-quickstart-material" data-tone="ppt">
+                    <b>PPT</b>
+                    <small>PPT</small>
+                  </span>
+                  <span className="landing-quickstart-material" data-tone="quiz">
+                    <b>
+                      <CheckCircle2 size={16} aria-hidden="true" />
+                    </b>
+                    <small>Quiz</small>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <HeroWithProductMockup
           titleId="landing-hero-title"
           title={

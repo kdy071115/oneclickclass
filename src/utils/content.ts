@@ -1,23 +1,26 @@
 import type { LessonContentType } from '../types/class';
 
 export type ContentProvider =
-  | 'FILE'
-  | 'YOUTUBE'
-  | 'VIMEO'
-  | 'LIVE'
-  | 'DOCUMENT'
-  | 'ASSIGNMENT'
-  | 'EXTERNAL';
+  'FILE' | 'YOUTUBE' | 'VIMEO' | 'SOCIAL' | 'LIVE' | 'DOCUMENT' | 'ASSIGNMENT' | 'EXTERNAL';
 
 export type SupportedVideoProvider = Extract<ContentProvider, 'FILE' | 'YOUTUBE' | 'VIMEO'>;
 
 const videoFilePattern = /\.(mp4|mov|webm)(?:$|[?#])/i;
+const documentFilePattern = /\.(pdf|ppt|pptx|doc|docx|txt)(?:$|[?#])/i;
+const socialProfileHosts = ['instagram.com', 'linkedin.com', 'facebook.com'] as const;
 
 const providerHint = (value: string): ContentProvider | undefined => {
   const normalized = value.toUpperCase() as ContentProvider;
-  return ['FILE', 'YOUTUBE', 'VIMEO', 'LIVE', 'DOCUMENT', 'ASSIGNMENT', 'EXTERNAL'].includes(
-    normalized,
-  )
+  return [
+    'FILE',
+    'YOUTUBE',
+    'VIMEO',
+    'SOCIAL',
+    'LIVE',
+    'DOCUMENT',
+    'ASSIGNMENT',
+    'EXTERNAL',
+  ].includes(normalized)
     ? normalized
     : undefined;
 };
@@ -52,7 +55,13 @@ export const getYouTubeVideoId = (value: string) => {
 export const getVimeoVideoId = (value: string) => {
   const url = parsedUrl(value);
   if (!hasHost(url, 'vimeo.com')) return '';
-  return url?.pathname.split('/').filter(Boolean).reverse().find((part) => /^\d+$/.test(part)) ?? '';
+  return (
+    url?.pathname
+      .split('/')
+      .filter(Boolean)
+      .reverse()
+      .find((part) => /^\d+$/.test(part)) ?? ''
+  );
 };
 
 export const getVimeoEmbedUrl = (value: string) => {
@@ -80,6 +89,13 @@ export const detectContentProvider = (
   const url = parsedUrl(contentUrl);
   if (hasHost(url, 'youtu.be') || hasHost(url, 'youtube.com')) return 'YOUTUBE';
   if (hasHost(url, 'vimeo.com')) return 'VIMEO';
+  if (socialProfileHosts.some((host) => hasHost(url, host))) return 'SOCIAL';
+  if (
+    documentFilePattern.test(contentUrl) ||
+    hasHost(url, 'docs.google.com') ||
+    hasHost(url, 'drive.google.com')
+  )
+    return 'DOCUMENT';
   if (/^(blob:|data:video\/)/i.test(contentUrl) || videoFilePattern.test(contentUrl)) return 'FILE';
   return 'EXTERNAL';
 };
@@ -93,6 +109,7 @@ export const contentProviderLabel: Record<ContentProvider, string> = {
   FILE: '일반 영상',
   YOUTUBE: 'YouTube 영상',
   VIMEO: 'Vimeo 영상',
+  SOCIAL: '강사 프로필',
   LIVE: '라이브 참여 링크',
   DOCUMENT: '학습 자료',
   ASSIGNMENT: '과제 안내',

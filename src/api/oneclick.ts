@@ -42,11 +42,13 @@ export type OneClickShare = {
   applyStatus: 'OPEN' | 'CLOSED';
   paymentType: 'FREE' | 'PAID';
   instructorName: string;
+  instructorBio?: string;
+  instructorImage?: string;
+  instructorLinks?: string[];
   deliveryTypeText: string;
   scheduleText: string;
   locationText: string;
   requiresApproval: boolean;
-  difficulty: string;
   highlights: string[];
   curriculum: OneClickCurriculumItem[];
 };
@@ -549,12 +551,14 @@ const mockShare = (shareToken: string): OneClickShare => {
     recruitmentStatus,
     applyStatus: recruitmentStatus === 'OPEN' ? 'OPEN' : 'CLOSED',
     paymentType: price > 0 ? 'PAID' : 'FREE',
-    instructorName: baseDetail?.instructor || '이지훈',
+    instructorName: draftPatch?.instructorName?.trim() || baseDetail?.instructor || '이지훈',
+    instructorBio: draftPatch?.instructorBio?.trim() || undefined,
+    instructorImage: draftPatch?.instructorImage || undefined,
+    instructorLinks: draftPatch?.instructorLinks || undefined,
     deliveryTypeText,
     scheduleText,
     locationText: location,
     requiresApproval: false,
-    difficulty: '초급',
     highlights: isPlaceholderText(baseDetail?.description)
       ? fallbackLessons(0)
           .slice(0, 3)
@@ -793,11 +797,6 @@ const normalizeShare = (raw: unknown, shareToken: string): OneClickShare => {
     ),
     locationText: pickString(merged, ['locationText', 'educationPlace', 'place', 'classroom']),
     requiresApproval: pickBoolean(merged, ['requiresApproval', 'approvalYn']),
-    difficulty: pickString(
-      merged,
-      ['difficulty', 'difficultyName', 'levelName'],
-      '난이도 안내 예정',
-    ),
     highlights: stringArray(merged, ['highlights', 'learningPoints', 'objectives']),
     curriculum: normalizeCurriculum(merged, []),
   };

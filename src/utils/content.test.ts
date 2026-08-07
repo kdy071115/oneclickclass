@@ -15,6 +15,11 @@ describe('content helpers', () => {
       'EXTERNAL',
     );
     expect(detectContentProvider('https://zoom.us/j/123', 'live')).toBe('LIVE');
+    expect(detectContentProvider('https://files.example.com/guide.pdf', 'link')).toBe('DOCUMENT');
+    expect(detectContentProvider('https://docs.google.com/document/d/abc', 'link')).toBe(
+      'DOCUMENT',
+    );
+    expect(detectContentProvider('https://www.instagram.com/teacher', 'link')).toBe('SOCIAL');
   });
 
   it('rejects malformed and incomplete media URLs', () => {
@@ -27,9 +32,8 @@ describe('content helpers', () => {
     expect(validateContentUrl('https://youtu.be/abc123', 'video')).toBe('');
     expect(validateContentUrl('https://vimeo.com/123456789', 'video')).toBe('');
     expect(validateContentUrl('https://cdn.example.com/class.webm?token=abc', 'video')).toBe('');
+    expect(validateContentUrl('https://files.example.com/guide.pdf', 'document')).toBe('');
     expect(getVimeoVideoId('https://player.vimeo.com/video/123456789')).toBe('123456789');
-    expect(getVimeoEmbedUrl('https://vimeo.com/123456789/privateHash')).toContain(
-      'h=privateHash',
-    );
+    expect(getVimeoEmbedUrl('https://vimeo.com/123456789/privateHash')).toContain('h=privateHash');
   });
 });

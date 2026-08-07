@@ -16,6 +16,10 @@ export const initialClassDraft: ClassDraft = {
   url: '',
   address: '',
   detailedAddress: '',
+  instructorName: '',
+  instructorBio: '',
+  instructorImage: '',
+  instructorLinks: [],
 };
 
 export const addressSuggestions = [

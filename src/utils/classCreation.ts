@@ -1,24 +1,31 @@
-import {
-  classCreationDefaults,
-  classCreationFileTypes,
-} from '../constants/classCreation';
+import { classCreationDefaults, classCreationFileTypes } from '../constants/classCreation';
 import type { CurriculumLesson } from '../types/class';
-import { getYouTubeVideoId } from './content';
+import { getYouTubeVideoId, isSupportedVideoProvider, type ContentProvider } from './content';
 
 export { getYouTubeVideoId } from './content';
 
 export type ClassSourceCurriculumInput = {
-  kind: 'none' | 'video-url' | 'video' | 'documents';
+  kind: 'none' | 'video-url' | 'links' | 'video' | 'documents' | 'mixed';
   classTitle: string;
   classSummary: string;
   videoUrl?: string;
   videoTitle?: string;
   videoDurationSeconds?: number;
-  materials: Array<{
-    name: string;
-    url?: string;
+  links?: Array<{
+    id?: string;
+    url: string;
+    title?: string;
+    provider: ContentProvider;
     durationSeconds?: number;
   }>;
+  materials: Array<{
+    id?: string;
+    name: string;
+    url?: string;
+    contentType?: 'video' | 'document';
+    durationSeconds?: number;
+  }>;
+  sourceOrder?: string[];
 };
 
 export type ClassSourceCurriculumDraft = {
@@ -50,7 +57,58 @@ export function buildSourceCurriculum(
     resources: [],
   } satisfies Partial<Omit<CurriculumLesson, 'id'>>;
 
+  const sourceOrder = new Map(input.sourceOrder?.map((id, index) => [id, index]));
+  const orderedSources = [
+    ...(input.links ?? [])
+      .filter((link) => link.provider !== 'SOCIAL')
+      .map((value, fallbackIndex) => ({
+        kind: 'link' as const,
+        value,
+        fallbackIndex,
+      })),
+    ...(input.kind === 'video' || input.kind === 'documents' || input.kind === 'mixed'
+      ? input.materials
+          .filter((material) => Boolean(material.url))
+          .map((value, materialIndex) => ({
+            kind: 'material' as const,
+            value,
+            fallbackIndex: (input.links?.length ?? 0) + materialIndex,
+          }))
+      : []),
+  ].sort((left, right) => {
+    const leftOrder = left.value.id ? sourceOrder.get(left.value.id) : undefined;
+    const rightOrder = right.value.id ? sourceOrder.get(right.value.id) : undefined;
+    if (leftOrder === undefined && rightOrder === undefined) {
+      return left.fallbackIndex - right.fallbackIndex;
+    }
+    if (leftOrder === undefined) return 1;
+    if (rightOrder === undefined) return -1;
+    return leftOrder - rightOrder;
+  });
+
   const lessons: Array<Omit<CurriculumLesson, 'id'>> = [];
+  orderedSources.forEach((source) => {
+    if (source.kind === 'link') {
+      const link = source.value;
+      const providerIsVideo = isSupportedVideoProvider(link.provider);
+      lessons.push({
+        ...common,
+        title: link.title?.trim() || `${input.classTitle.trim()} ${lessons.length + 1}`,
+        contentType: providerIsVideo ? 'video' : 'document',
+        contentUrl: link.url,
+        durationMinutes: sourceDurationMinutes(link.durationSeconds),
+      });
+      return;
+    }
+    const material = source.value;
+    lessons.push({
+      ...common,
+      title: sourceTitle(material.name) || input.classTitle.trim(),
+      contentType: material.contentType ?? (input.kind === 'video' ? 'video' : 'document'),
+      contentUrl: material.url!,
+      durationMinutes: sourceDurationMinutes(material.durationSeconds),
+    });
+  });
   if (input.kind === 'video-url' && input.videoUrl) {
     lessons.push({
       ...common,
@@ -59,19 +117,7 @@ export function buildSourceCurriculum(
       contentUrl: input.videoUrl,
       durationMinutes: sourceDurationMinutes(input.videoDurationSeconds),
     });
-  } else if (input.kind === 'video' || input.kind === 'documents') {
-    input.materials.forEach((material) => {
-      if (!material.url) return;
-      lessons.push({
-        ...common,
-        title: sourceTitle(material.name) || input.classTitle.trim(),
-        contentType: input.kind === 'video' ? 'video' : 'document',
-        contentUrl: material.url,
-        durationMinutes: sourceDurationMinutes(material.durationSeconds),
-      });
-    });
   }
-
   return {
     sectionTitle: input.classTitle.trim(),
     lessons,

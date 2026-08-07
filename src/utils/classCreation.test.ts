@@ -51,14 +51,106 @@ describe('source curriculum builder', () => {
     });
 
     expect(curriculum.lessons).toHaveLength(2);
-    expect(curriculum.lessons.map(({ title, contentType, published }) => ({
-      title,
-      contentType,
-      published,
-    }))).toEqual([
+    expect(
+      curriculum.lessons.map(({ title, contentType, published }) => ({
+        title,
+        contentType,
+        published,
+      })),
+    ).toEqual([
       { title: '01-준비하기', contentType: 'document', published: true },
       { title: '02-완성하기', contentType: 'document', published: true },
     ]);
+  });
+
+  it('영상과 일반 웹 링크를 각각 알맞은 차시로 만든다', () => {
+    const curriculum = buildSourceCurriculum({
+      kind: 'links',
+      classTitle: '여러 자료로 만든 클래스',
+      classSummary: '영상과 글을 함께 참고합니다.',
+      links: [
+        {
+          url: 'https://vimeo.com/123456789',
+          title: '소개 영상',
+          provider: 'VIMEO',
+        },
+        {
+          url: 'https://blog.example.com/guide',
+          title: '실습 가이드',
+          provider: 'EXTERNAL',
+        },
+      ],
+      materials: [],
+    });
+
+    expect(curriculum.lessons).toEqual([
+      expect.objectContaining({ title: '소개 영상', contentType: 'video' }),
+      expect.objectContaining({ title: '실습 가이드', contentType: 'document' }),
+    ]);
+  });
+
+  it('사용자가 정한 자료 순서대로 링크와 파일 차시를 섞어 만든다', () => {
+    const curriculum = buildSourceCurriculum({
+      kind: 'mixed',
+      classTitle: '자료 순서 클래스',
+      classSummary: '정한 순서대로 학습합니다.',
+      links: [
+        {
+          id: 'link-intro',
+          url: 'https://vimeo.com/123456789',
+          title: '소개 영상',
+          provider: 'VIMEO',
+        },
+        {
+          id: 'link-practice',
+          url: 'https://blog.example.com/practice',
+          title: '실습 안내',
+          provider: 'EXTERNAL',
+        },
+      ],
+      materials: [
+        {
+          id: 'file-guide',
+          name: '준비 자료.pdf',
+          url: 'https://cdn.example.com/guide.pdf',
+          contentType: 'document',
+        },
+      ],
+      sourceOrder: ['link-intro', 'file-guide', 'link-practice'],
+    });
+
+    expect(curriculum.lessons.map((lesson) => lesson.title)).toEqual([
+      '소개 영상',
+      '준비 자료',
+      '실습 안내',
+    ]);
+  });
+
+  it('강사 프로필 링크는 AI 분석에 사용하되 차시로 만들지 않는다', () => {
+    const curriculum = buildSourceCurriculum({
+      kind: 'links',
+      classTitle: '프로필과 자료로 만든 클래스',
+      classSummary: '강사 정보와 수업 자료를 함께 분석합니다.',
+      links: [
+        {
+          url: 'https://blog.example.com/guide',
+          title: '수업 가이드',
+          provider: 'EXTERNAL',
+        },
+        {
+          url: 'https://www.linkedin.com/in/teacher',
+          title: '강사 프로필',
+          provider: 'SOCIAL',
+        },
+      ],
+      materials: [],
+    });
+
+    expect(curriculum.lessons).toHaveLength(1);
+    expect(curriculum.lessons[0]).toMatchObject({
+      title: '수업 가이드',
+      contentUrl: 'https://blog.example.com/guide',
+    });
   });
 
   it('연결된 소스가 없으면 차시를 만들지 않는다', () => {

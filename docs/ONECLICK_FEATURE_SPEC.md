@@ -237,7 +237,7 @@ recruitmentStatus: PRIVATE | OPEN | CLOSED | FULL
 ### APPLY-01 공개 신청 페이지 조회
 
 - 경로: `/s/:shareToken`
-- 표시: 강의 소개, 강사, 난이도, 일정·장소, 가격, 잔여 좌석, 커리큘럼, 후기
+- 표시: 강의 소개, 강사, 일정·장소, 가격, 잔여 좌석, 커리큘럼, 후기
 - `shareToken`으로 실제 `courseActiveSeq`를 조회한다.
 - 기존 수강권이 있으면 신규 신청 폼 대신 상태 또는 이어보기 CTA를 우선 표시한다.
 - 상태: **구현**

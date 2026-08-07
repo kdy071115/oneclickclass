@@ -171,6 +171,35 @@ describe('instructor mock services', () => {
       title: expect.any(String),
       summary: expect.any(String),
       description: expect.any(String),
+      thumbnailUrl: expect.stringContaining('data:image/svg+xml'),
+    });
+  });
+
+  it('combines document and profile links into structured class and instructor output', async () => {
+    await expect(
+      classService.analyzeSource({
+        type: 'online',
+        source: {
+          kind: 'links',
+          links: [
+            {
+              url: 'https://files.example.com/guide.pdf',
+              name: '수업 자료',
+              provider: 'DOCUMENT',
+            },
+            {
+              url: 'https://www.linkedin.com/in/mentor-kim',
+              name: '강사 프로필',
+              provider: 'SOCIAL',
+            },
+          ],
+        },
+      }),
+    ).resolves.toMatchObject({
+      description: expect.stringContaining('## 배우는 내용'),
+      instructorName: 'Mentor Kim',
+      instructorLinks: ['https://www.linkedin.com/in/mentor-kim'],
+      thumbnailUrl: expect.stringContaining('data:image/svg+xml'),
     });
   });
 
